@@ -11,6 +11,7 @@ Flutter + Java 21 / Spring Boot 4.1.1 + MySQL 的宠物照护与家庭协作新�
 - `compose.yaml`：MySQL 8.4 + Java API 本地容器编排。
 - `scripts/smoke_test.py`：真实 HTTP / MySQL 测试，包含跨家庭访问拒绝和邀请/删除。
 - [模块划分与登录注册](docs/modules-and-auth.md)
+- [移动端设计规范与首页参考](docs/design/README.md)
 - [照护闭环使用说明](docs/care-workflow.md)
 - [API 接口说明](docs/api.md)
 - [市场依据与产品路线](docs/market.md)
