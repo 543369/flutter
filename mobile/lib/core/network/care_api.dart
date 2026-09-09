@@ -4,7 +4,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class CareApi {
-  final FlutterSecureStorage storage = const FlutterSecureStorage();
+  final FlutterSecureStorage storage = const FlutterSecureStorage(
+    // Ad-hoc signed macOS debug builds use the login keychain.
+    // Production retains the data-protection keychain and requires signing capabilities.
+    mOptions: MacOsOptions(useDataProtectionKeyChain: kReleaseMode),
+  );
   String? token;
   static const baseUrl = String.fromEnvironment('API_BASE_URL',
       defaultValue: 'http://127.0.0.1:18080');

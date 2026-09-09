@@ -53,7 +53,9 @@ class _AuthPanelState extends State<AuthPanel> {
       if (mounted) await widget.onAuthenticated();
     } catch (e) {
       if (mounted) {
-        setState(() => error = e is ApiError
+        setState(() => error = e is PlatformException
+            ? t('无法保存登录凭据，请检查系统钥匙串权限。', 'Cannot save sign-in credentials. Check system keychain permissions.')
+            : e is ApiError
             ? e.status == 401
                 ? t('邮箱或密码不正确，或当前设备登录已失效。',
                     'Incorrect email or password, or the current session has expired.')
