@@ -1,0 +1,21 @@
+name: petcare
+description: Pet care and household coordination.
+publish_to: none
+version: 0.1.0+1
+environment:
+  sdk: ^3.6.0
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  flutter_local_notifications: 18.0.1
+  flutter_timezone: 3.0.1
+  timezone: ^0.9.4
+  flutter_secure_storage: ^9.2.2
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+flutter:
+  uses-material-design: true
