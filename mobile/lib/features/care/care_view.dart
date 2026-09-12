@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../app/home_shell.dart';
 import 'care_actions.dart';
+import 'care_pages.dart';
+import 'care_kind.dart';
 
 extension CareView on CareHomeState {
   List<Map<String, dynamic>> get history => (data?['history'] as List? ?? [])
@@ -116,8 +118,8 @@ extension CareView on CareHomeState {
               ]),
               const Spacer(),
               IconButton(
-                  tooltip: t('刷新照护安排', 'Refresh care schedule'),
-                  onPressed: busy ? null : () => perform(() async {}),
+                  tooltip: t('提醒设置', 'Reminder settings'),
+                  onPressed: openReminderSettings,
                   icon: const Icon(Icons.notifications_none_rounded,
                       size: 27, color: Color(0xff34231e))),
             ]),
@@ -224,7 +226,7 @@ extension CareView on CareHomeState {
                         fontSize: 18,
                         fontWeight: FontWeight.w700))),
             TextButton(
-                onPressed: () => updateUi(() => careFilter = 'plans'),
+                onPressed: openSchedules,
                 child: Row(children: [
                   Text(t('全部安排', 'All plans'),
                       style: const TextStyle(color: Color(0xff867871))),
@@ -233,40 +235,47 @@ extension CareView on CareHomeState {
                 ])),
           ]),
           const SizedBox(height: 16),
-          Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-            Expanded(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(_time(task),
-                        style: const TextStyle(
-                            color: Color(0xff34231e),
-                            fontSize: 48,
-                            height: .95,
-                            fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 9),
-                    Text(task['title'] as String,
-                        style: const TextStyle(
-                            color: Color(0xff34231e),
-                            fontSize: 21,
-                            fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 6),
-                    Text(task['planId'] != null
-                        ? t('每天 · 还未完成', 'Daily · Not completed')
-                        : t('单次 · 还未完成', 'Once · Not completed')),
-                  ]),
-            ),
-            SizedBox(
-                width: 164,
-                height: 120,
-                child: Image.asset('assets/images/petcare_food_bowl.png',
-                    fit: BoxFit.cover)),
-          ]),
+          InkWell(
+            key: const ValueKey('next-care-details'),
+            borderRadius: BorderRadius.circular(18),
+            onTap: () => openTaskDetails(task),
+            child:
+                Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+              Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(_time(task),
+                          style: const TextStyle(
+                              color: Color(0xff34231e),
+                              fontSize: 48,
+                              height: .95,
+                              fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 9),
+                      Text(task['title'] as String,
+                          style: const TextStyle(
+                              color: Color(0xff34231e),
+                              fontSize: 21,
+                              fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 6),
+                      Text(
+                          '${frequencyLabel(planFor(task))} · ${t('还未完成', 'Not completed')}'),
+                    ]),
+              ),
+              SizedBox(
+                  width: 164,
+                  height: 120,
+                  child: Image.asset(CareKind.of(task).asset,
+                      fit: BoxFit.contain)),
+            ]),
+          ),
           const SizedBox(height: 17),
           FilledButton.icon(
               onPressed: busy ? null : () => changeCompletion(task, true),
               icon: const Icon(Icons.check_circle_rounded, size: 22),
-              label: Text(t('喂好了', 'Mark as done'))),
+              label: Text(CareKind.of(task) == CareKind.feeding
+                  ? t('喂好了', 'Mark as done')
+                  : t('完成照护', 'Mark as done'))),
         ]),
       );
 
@@ -281,7 +290,7 @@ extension CareView on CareHomeState {
                     style: const TextStyle(
                         fontSize: 18, fontWeight: FontWeight.w700))),
             TextButton(
-                onPressed: addTask, child: Text(t('+ 安排', '+ Plan care'))),
+                onPressed: openSchedules, child: Text(t('全部安排', 'All plans'))),
           ]),
           const SizedBox(height: 18),
           Container(
@@ -299,6 +308,10 @@ extension CareView on CareHomeState {
                       color: Color(0xff34231e),
                       fontSize: 18,
                       fontWeight: FontWeight.w700)),
+              TextButton.icon(
+                  onPressed: busy ? null : addTask,
+                  icon: const Icon(Icons.add_rounded),
+                  label: Text(t('新建安排', 'New plan'))),
             ]),
           ),
         ]),
@@ -308,12 +321,11 @@ extension CareView on CareHomeState {
         padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: busy ? null : () => changeCompletion(task, true),
+          onTap: () => openTaskDetails(task),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Row(children: [
-              const Icon(Icons.directions_walk_rounded,
-                  color: Color(0xff887d76), size: 30),
+              CareKind.of(task).picture(size: 38),
               const SizedBox(width: 16),
               Text(_time(task),
                   style:
@@ -333,37 +345,46 @@ extension CareView on CareHomeState {
 
   Widget _eventCard(Map<String, dynamic> event, int index) {
     final at = DateTime.parse(event['at'] as String).toLocal();
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 13, 14, 12),
-      decoration: BoxDecoration(
-          color:
-              index.isEven ? const Color(0xffffedda) : const Color(0xffe3f0fb),
-          borderRadius: BorderRadius.circular(18)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(
-            '${at.hour.toString().padLeft(2, '0')}:${at.minute.toString().padLeft(2, '0')}',
-            style: const TextStyle(color: Color(0xff746963), fontSize: 13)),
-        const SizedBox(height: 5),
-        Text(event['title'] as String,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-                color: Color(0xff34231e),
-                fontSize: 15,
-                fontWeight: FontWeight.w700)),
-        const Spacer(),
-        Row(children: [
-          const Icon(Icons.check_circle_rounded,
-              size: 18, color: Color(0xff8a837e)),
-          const SizedBox(width: 6),
-          Expanded(
-              child: Text('${event['petName']} · ${event['actor'] ?? ''}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style:
-                      const TextStyle(color: Color(0xff746963), fontSize: 13))),
-        ]),
-      ]),
+    return Material(
+      color: index.isEven ? const Color(0xffffedda) : const Color(0xffe3f0fb),
+      borderRadius: BorderRadius.circular(18),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => openRecordDetails(event),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 13, 14, 12),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(
+                '${at.hour.toString().padLeft(2, '0')}:${at.minute.toString().padLeft(2, '0')}',
+                style: const TextStyle(color: Color(0xff746963), fontSize: 13)),
+            const SizedBox(height: 5),
+            Text(event['title'] as String,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    color: Color(0xff34231e),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700)),
+            const Spacer(),
+            Row(children: [
+              Icon(
+                  event['action'] == 'REOPENED'
+                      ? Icons.undo_rounded
+                      : Icons.check_circle_rounded,
+                  size: 18,
+                  color: Color(0xff8a837e)),
+              const SizedBox(width: 6),
+              Expanded(
+                  child: Text('${event['petName']} · ${event['actor'] ?? ''}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          color: Color(0xff746963), fontSize: 13))),
+            ]),
+          ]),
+        ),
+      ),
     );
   }
 
@@ -381,7 +402,7 @@ extension CareView on CareHomeState {
                         fontWeight: FontWeight.w700))),
             TextButton.icon(
                 onPressed: () => updateUi(() => careFilter = 'history'),
-                icon: const Icon(Icons.add_rounded, size: 20),
+                icon: const Icon(Icons.history_rounded, size: 20),
                 label: Text(t('记录', 'History'))),
           ]),
           const SizedBox(height: 8),
@@ -420,28 +441,26 @@ extension CareView on CareHomeState {
       );
 
   Widget _taskTile(Map<String, dynamic> task) => Card(
-        child: CheckboxListTile(
+        child: ListTile(
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-          value: task['completed'] as bool,
-          controlAffinity: ListTileControlAffinity.leading,
-          secondary: const Icon(Icons.chevron_right_rounded),
-          onChanged: busy ? null : (value) => changeCompletion(task, value!),
+          leading: Checkbox(
+            value: task['completed'] == true,
+            onChanged: busy ? null : (value) => changeCompletion(task, value!),
+          ),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: () => openTaskDetails(task),
           title: Text(task['title'] as String,
               style: const TextStyle(fontWeight: FontWeight.w700)),
           subtitle: Text('${_time(task)} · ${task['petName']}'),
         ),
       );
 
-  Widget _alternateView(
-      List<Map<String, dynamic>> completed,
-      List<Map<String, dynamic>> petHistory,
-      List<Map<String, dynamic>> petPlans) {
+  Widget _alternateView(List<Map<String, dynamic>> completed,
+      List<Map<String, dynamic>> petHistory) {
     final title = careFilter == 'completed'
         ? t('已完成', 'Completed')
-        : careFilter == 'history'
-            ? t('照护记录', 'Care history')
-            : t('重复计划', 'Recurring plans');
+        : t('照护记录', 'Care history');
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 22, 24, 20),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -474,39 +493,7 @@ extension CareView on CareHomeState {
                 child: SizedBox(
                     height: 112, child: _eventCard(entry.$2, entry.$1)),
               )),
-        ] else ...[
-          if (petPlans.isEmpty)
-            empty(
-                t('还没有重复计划', 'No recurring plans'),
-                t('安排照护时选择每天或每周。',
-                    'Choose daily or weekly when planning care.'),
-                Icons.repeat_rounded),
-          ...petPlans.map((plan) => Card(
-                child: ListTile(
-                  leading: const CircleAvatar(
-                      backgroundColor: Color(0xffffe0c6),
-                      child:
-                          Icon(Icons.repeat_rounded, color: Color(0xff8d4a2c))),
-                  title: Text('${plan['petName']} · ${plan['title']}',
-                      style: const TextStyle(fontWeight: FontWeight.w700)),
-                  subtitle: Text(plan['frequency'] == 'DAILY'
-                      ? t('每天', 'Daily')
-                      : t('每周', 'Weekly')),
-                ),
-              )),
         ],
-        const SizedBox(height: 16),
-        Card(
-          color: const Color(0xfff7f2ec),
-          child: SwitchListTile(
-            title: Text(t('到时提醒', 'Care reminders'),
-                style: const TextStyle(fontWeight: FontWeight.w700)),
-            subtitle: Text(
-                t('在这台设备上接收照护提醒', 'Receive care reminders on this device')),
-            value: reminders.enabled,
-            onChanged: busy ? null : toggleReminders,
-          ),
-        ),
       ]),
     );
   }
@@ -520,11 +507,6 @@ extension CareView on CareHomeState {
         .where((event) =>
             event['petId'] == petId ||
             (event['petId'] == null && event['petName'] == petName))
-        .toList();
-    final petPlans = plans
-        .where((plan) =>
-            plan['petId'] == petId ||
-            (plan['petId'] == null && plan['petName'] == petName))
         .toList();
     final pending = petTasks.where((v) => v['completed'] != true).toList()
       ..sort((a, b) => DateTime.parse(a['dueAt'] as String)
@@ -542,7 +524,7 @@ extension CareView on CareHomeState {
         if (pending.length > 1) _taskRow(pending[1]),
         _todayHistory(petHistory, completed.length),
       ] else
-        _alternateView(completed, petHistory, petPlans),
+        _alternateView(completed, petHistory),
     ];
   }
 }

@@ -39,6 +39,7 @@ class _PetCareAppState extends State<PetCareApp> {
             backgroundColor: Color(0xfffffdf9),
             foregroundColor: Color(0xff33241f),
             titleTextStyle: TextStyle(
+                fontFamily: 'SF Pro Display',
                 color: Color(0xff33241f),
                 fontSize: 22,
                 fontWeight: FontWeight.w700),
@@ -98,7 +99,7 @@ class _PetCareAppState extends State<PetCareApp> {
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(18)),
               textStyle:
-                  const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                  const TextStyle(fontFamily: 'SF Pro Display', fontSize: 16, fontWeight: FontWeight.w700),
             ),
           ),
           outlinedButtonTheme: OutlinedButtonThemeData(

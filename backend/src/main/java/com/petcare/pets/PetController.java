@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -22,17 +23,19 @@ class PetController extends ApiSupport {
  PetController(JdbcTemplate db) { super(db); }
  record PetInput(@NotBlank @Size(max=60) String name,
                  @Pattern(regexp="cat|dog|other") @NotNull String species,
-                 @Size(max=1500000) String photoData) {}
+                 @Size(max=1500000) String photoData,
+                 @Size(max=1000) String biography,
+                 @PastOrPresent LocalDate birthDate) {}
  @PostMapping("/pets") @ResponseStatus(HttpStatus.CREATED) @Transactional
  Map<String,String> addPet(Authentication auth, @Valid @RequestBody PetInput input) {
-  String pet = id(); db.update("INSERT INTO pets(id,household_id,name,species,photo_data) VALUES (?,?,?,?,?)",pet,household(auth),input.name().strip(),input.species(),input.photoData());
+  String pet = id(); db.update("INSERT INTO pets(id,household_id,name,species,photo_data,biography,birth_date) VALUES (?,?,?,?,?,?,?)",pet,household(auth),input.name().strip(),input.species(),input.photoData(),input.biography(),input.birthDate());
   return Map.of("id",pet);
  }
  @PatchMapping("/pets/{petId}") @Transactional
  Map<String,String> updatePet(Authentication auth, @PathVariable String petId,
                               @Valid @RequestBody PetInput input) {
-  require(db.update("UPDATE pets SET name=?,species=?,photo_data=? WHERE id=? AND household_id=?",
-    input.name().strip(),input.species(),input.photoData(),petId,household(auth)));
+  require(db.update("UPDATE pets SET name=?,species=?,photo_data=?,biography=?,birth_date=? WHERE id=? AND household_id=?",
+    input.name().strip(),input.species(),input.photoData(),input.biography(),input.birthDate(),petId,household(auth)));
   return Map.of("id",petId);
  }
  @DeleteMapping("/pets/{petId}") @ResponseStatus(HttpStatus.NO_CONTENT) @Transactional

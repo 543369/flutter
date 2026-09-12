@@ -24,8 +24,8 @@ public class CarePlans {
         for (var plan : plans) {
             var start = ((Timestamp) plan.get("starts_at")).toInstant();
             for (Instant due : Recurrence.between(start, (String) plan.get("zone_id"), (String) plan.get("frequency"), from, through)) {
-                db.update("INSERT INTO care_tasks(id,pet_id,title,due_at,plan_id) VALUES (?,?,?,?,?) ON DUPLICATE KEY UPDATE plan_id=plan_id",
-                    UUID.randomUUID().toString(), plan.get("pet_id"), plan.get("title"), Timestamp.from(due), plan.get("id"));
+                db.update("INSERT INTO care_tasks(id,pet_id,title,due_at,plan_id,care_type) VALUES (?,?,?,?,?,?) ON DUPLICATE KEY UPDATE plan_id=plan_id",
+                    UUID.randomUUID().toString(), plan.get("pet_id"), plan.get("title"), Timestamp.from(due), plan.get("id"), plan.get("care_type"));
             }
         }
     }

@@ -21,7 +21,8 @@ import com.petcare.auth.Tokens;
 class CareController extends ApiSupport {
  private final CarePlans plans;
  CareController(JdbcTemplate db, CarePlans plans) { super(db); this.plans=plans; }
- record TaskInput(@NotBlank String petId, @NotBlank @Size(max=120) String title, @NotNull Instant dueAt, @Pattern(regexp="NONE|DAILY|WEEKLY") String frequency, @Size(max=80) String zoneId) {}
+ record TaskInput(@NotBlank String petId, @NotBlank @Size(max=120) String title, @NotNull Instant dueAt, @Pattern(regexp="NONE|DAILY|WEEKLY") String frequency, @Size(max=80) String zoneId,
+                  @Pattern(regexp="FEEDING|DEWORMING|VACCINE|WALK|GROOMING|CUSTOM") String careType) {}
  record Completion(@NotNull Boolean completed) {}
  @PostMapping("/tasks") @ResponseStatus(HttpStatus.CREATED) @Transactional
  Map<String,String> addTask(Authentication auth, @Valid @RequestBody TaskInput input) {
@@ -29,19 +30,20 @@ class CareController extends ApiSupport {
   if (input.dueAt().isBefore(Instant.parse("2000-01-01T00:00:00Z")) || input.dueAt().isAfter(Instant.parse("2037-12-31T23:59:59Z")))
    throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
   String frequency = input.frequency() == null ? "NONE" : input.frequency();
+  String careType = input.careType() == null ? "CUSTOM" : input.careType();
   if (!frequency.equals("NONE")) {
    if (input.dueAt().isBefore(Instant.now().minusSeconds(86400)) || input.dueAt().isAfter(Instant.now().plusSeconds(29*86400)))
     throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
    try { java.time.ZoneId.of(input.zoneId()); }
    catch (Exception e) { throw new ResponseStatusException(HttpStatus.BAD_REQUEST); }
    String plan = id();
-   require(db.update("INSERT INTO care_plans(id,pet_id,title,frequency,zone_id,starts_at) SELECT ?,id,?,?,?,? FROM pets WHERE id=? AND household_id=?",
-    plan,input.title().strip(),frequency,input.zoneId(),Timestamp.from(input.dueAt()),input.petId(),home));
+   require(db.update("INSERT INTO care_plans(id,pet_id,title,frequency,zone_id,starts_at,care_type) SELECT ?,id,?,?,?,?,? FROM pets WHERE id=? AND household_id=?",
+    plan,input.title().strip(),frequency,input.zoneId(),Timestamp.from(input.dueAt()),careType,input.petId(),home));
    plans.materialize(home);
    String first = db.queryForObject("SELECT id FROM care_tasks WHERE plan_id=? ORDER BY due_at LIMIT 1",String.class,plan);
    return Map.of("id",first,"planId",plan);
   }
-  require(db.update("INSERT INTO care_tasks(id,pet_id,title,due_at) SELECT ?,id,?,? FROM pets WHERE id=? AND household_id=?",task,input.title().strip(),Timestamp.from(input.dueAt()),input.petId(),home));
+  require(db.update("INSERT INTO care_tasks(id,pet_id,title,due_at,care_type) SELECT ?,id,?,?,? FROM pets WHERE id=? AND household_id=?",task,input.title().strip(),Timestamp.from(input.dueAt()),careType,input.petId(),home));
   return Map.of("id",task);
  }
  @PatchMapping("/tasks/{taskId}") @Transactional

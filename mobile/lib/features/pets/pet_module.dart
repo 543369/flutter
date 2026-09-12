@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:image/image.dart' as image_lib;
 import 'package:image_picker/image_picker.dart';
 import '../../app/home_shell.dart';
+import 'pet_form_dialog.dart';
+import 'pet_detail_page.dart';
+import 'pet_profile.dart';
 
 extension PetModule on CareHomeState {
   Future<String?> pickPetPhoto() async {
@@ -38,152 +41,31 @@ extension PetModule on CareHomeState {
     }
   }
 
-  Future<void> addPet() async {
-    final name = TextEditingController();
-    String species = 'cat';
-    String? photoData;
-    final valid = await showDialog<bool>(
+  Future<void> addPet() => showPetForm();
+
+  Future<void> editPet(Map<String, dynamic> pet) => showPetForm(pet);
+
+  Future<void> showPetForm([Map<String, dynamic>? pet]) async {
+    final id = await showDialog<String>(
         context: context,
-        builder: (context) => StatefulBuilder(
-            builder: (context, update) => AlertDialog(
-                  title: Text(t('添加宠物', 'Add a pet')),
-                  content: SingleChildScrollView(
-                      child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    if (photoData != null)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: ClipRRect(
-                            borderRadius: BorderRadius.circular(18),
-                            child: Image.memory(base64Decode(photoData!),
-                                width: 150, height: 110, fit: BoxFit.cover)),
-                      ),
-                    OutlinedButton.icon(
-                        onPressed: () async {
-                          final photo = await pickPetPhoto();
-                          if (photo != null) update(() => photoData = photo);
-                        },
-                        icon: const Icon(Icons.add_photo_alternate_outlined),
-                        label: Text(t('选择宠物照片', 'Choose pet photo'))),
-                    const SizedBox(height: 12),
-                    TextField(
-                        controller: name,
-                        maxLength: 60,
-                        decoration: InputDecoration(labelText: t('名字', 'Name')),
-                        onChanged: (_) => update(() {})),
-                    DropdownButton<String>(
-                        value: species,
-                        isExpanded: true,
-                        items: [
-                          DropdownMenuItem(
-                              value: 'cat', child: Text(t('猫', 'Cat'))),
-                          DropdownMenuItem(
-                              value: 'dog', child: Text(t('狗', 'Dog'))),
-                          DropdownMenuItem(
-                              value: 'other', child: Text(t('其他', 'Other'))),
-                        ],
-                        onChanged: (v) => update(() => species = v!)),
-                  ])),
-                  actions: [
-                    TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: Text(t('取消', 'Cancel'))),
-                    FilledButton(
-                        onPressed: name.text.trim().isEmpty
-                            ? null
-                            : () => Navigator.pop(context, true),
-                        child: Text(t('保存', 'Save')))
-                  ],
-                )));
-    final value = name.text.trim();
-    if (valid == true) {
-      await perform(() async {
-        await widget.api.request('POST', '/pets', {
-          'name': value,
-          'species': species,
-          'photoData': photoData,
-        });
-      });
+        barrierDismissible: false,
+        builder: (_) => PetFormDialog(home: this, pet: pet));
+    if (id != null && mounted) {
+      if (pet == null) updateUi(() => selectedPetId = id);
+      await perform(() async {});
     }
   }
 
-  Future<void> editPet(Map<String, dynamic> pet) async {
-    final name = TextEditingController(text: pet['name'] as String);
-    String species = pet['species'] as String;
-    String? photoData = pet['photoData'] as String?;
-    final valid = await showDialog<bool>(
-        context: context,
-        builder: (context) => StatefulBuilder(
-            builder: (context, update) => AlertDialog(
-                  title: Text(t('编辑宠物档案', 'Edit pet profile')),
-                  content: SingleChildScrollView(
-                      child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    if (photoData != null)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: ClipRRect(
-                            borderRadius: BorderRadius.circular(18),
-                            child: Image.memory(base64Decode(photoData!),
-                                width: 180, height: 125, fit: BoxFit.cover)),
-                      ),
-                    Row(children: [
-                      Expanded(
-                          child: OutlinedButton.icon(
-                              onPressed: () async {
-                                final photo = await pickPetPhoto();
-                                if (photo != null) {
-                                  update(() => photoData = photo);
-                                }
-                              },
-                              icon: const Icon(Icons.photo_library_outlined),
-                              label: Text(t('更换照片', 'Change photo')))),
-                      if (photoData != null) ...[
-                        const SizedBox(width: 8),
-                        IconButton(
-                            tooltip: t('移除照片', 'Remove photo'),
-                            onPressed: () => update(() => photoData = null),
-                            icon: const Icon(Icons.delete_outline_rounded)),
-                      ],
-                    ]),
-                    const SizedBox(height: 12),
-                    TextField(
-                        controller: name,
-                        maxLength: 60,
-                        decoration: InputDecoration(labelText: t('名字', 'Name')),
-                        onChanged: (_) => update(() {})),
-                    DropdownButton<String>(
-                        value: species,
-                        isExpanded: true,
-                        items: [
-                          DropdownMenuItem(
-                              value: 'cat', child: Text(t('猫', 'Cat'))),
-                          DropdownMenuItem(
-                              value: 'dog', child: Text(t('狗', 'Dog'))),
-                          DropdownMenuItem(
-                              value: 'other', child: Text(t('其他', 'Other'))),
-                        ],
-                        onChanged: (value) => update(() => species = value!)),
-                  ])),
-                  actions: [
-                    TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: Text(t('取消', 'Cancel'))),
-                    FilledButton(
-                        onPressed: name.text.trim().isEmpty
-                            ? null
-                            : () => Navigator.pop(context, true),
-                        child: Text(t('保存', 'Save'))),
-                  ],
-                )));
-    if (valid == true) {
-      await perform(() async {
-        await widget.api.request('PATCH', '/pets/${pet['id']}', {
-          'name': name.text.trim(),
-          'species': species,
-          'photoData': photoData,
-        });
-      });
-    }
+  Future<void> openPetDetails(Map<String, dynamic> pet) async {
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => PetDetailPage(home: this, petId: pet['id'] as String)));
   }
+
+  String petSpeciesLabel(Map<String, dynamic> pet) => switch (pet['species']) {
+        'cat' => t('猫', 'Cat'),
+        'dog' => t('狗', 'Dog'),
+        _ => t('其他', 'Other'),
+      };
 
   Widget petAvatar(Map<String, dynamic> pet) {
     final photo = pet['photoData'];
@@ -238,17 +120,14 @@ extension PetModule on CareHomeState {
         ...pets.map((pet) => Card(
             color: const Color(0xfffaf1e7),
             child: ListTile(
-              onTap: busy ? null : () => editPet(pet),
+              onTap: () => openPetDetails(pet),
               contentPadding: const EdgeInsets.all(18),
               leading: petAvatar(pet),
               title: Text(pet['name'] as String,
                   style: const TextStyle(
                       fontSize: 18, fontWeight: FontWeight.w700)),
-              subtitle: Text(pet['species'] == 'cat'
-                  ? t('猫', 'Cat')
-                  : pet['species'] == 'dog'
-                      ? t('狗', 'Dog')
-                      : t('其他', 'Other')),
+              subtitle: Text(
+                  '${petSpeciesLabel(pet)} · ${petAgeLabel(pet['birthDate'] as String?, DateTime.now(), chinese: zh)}'),
               trailing: IconButton(
                   tooltip: t('删除宠物', 'Delete pet'),
                   icon: const Icon(Icons.delete_outline),

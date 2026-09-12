@@ -20,7 +20,13 @@ class CareHome extends StatefulWidget {
 
 class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
   late final ReminderService reminders = widget.reminders ?? ReminderService();
-  void updateUi(VoidCallback action) => setState(action);
+  // Keep pushed care pages in sync with mutations and background dashboard updates.
+  final careChanges = ValueNotifier<int>(0);
+  void updateUi(VoidCallback action) {
+    setState(action);
+    careChanges.value++;
+  }
+
   Timer? refreshTimer;
   bool syncing = false;
   Completer<void>? syncDone;
@@ -75,7 +81,7 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
     try {
       await reminders.initialize(() {
         if (mounted) {
-          setState(() {
+          updateUi(() {
             tab = 0;
             careFilter = 'pending';
           });
@@ -86,13 +92,14 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
     } catch (_) {
       reminderError = 'unavailable';
     }
-    if (mounted) setState(() => loading = false);
+    if (mounted) updateUi(() => loading = false);
   }
 
   @override
   void dispose() {
     refreshTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
+    careChanges.dispose();
     super.dispose();
   }
 
@@ -120,7 +127,7 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
     try {
       final next = await widget.api.dashboard();
       if (mounted) {
-        setState(() {
+        updateUi(() {
           data = next;
           error = null;
         });
@@ -130,44 +137,56 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
       if (e.status == 401) {
         await widget.api.clearSession();
         if (mounted) {
-          setState(() => data = null);
+          updateUi(() => data = null);
           await syncReminders();
         }
       } else if (mounted) {
-        setState(() => error = 'connection');
+        updateUi(() => error = 'connection');
       }
     } catch (_) {
-      if (mounted) setState(() => error = 'connection');
+      if (mounted) updateUi(() => error = 'connection');
     } finally {
       syncing = false;
       syncDone?.complete();
-      if (mounted) setState(() {});
+      if (mounted) updateUi(() {});
     }
   }
 
   Future<void> toggleReminders(bool value) async {
-    await perform(() async {
-      bool granted;
-      try {
-        if (!reminders.ready) {
-          await reminders.initialize(() {
-            if (mounted) {
-              setState(() => tab = 0);
-              refreshQuietly();
-            }
-          });
-        }
-        granted = await reminders.setEnabled(value);
-      } catch (_) {
-        reminderError = 'unavailable';
-        throw const ApiError(0, 'REMINDERS_UNAVAILABLE');
+    if (busy) return;
+    updateUi(() => busy = true);
+    try {
+      await syncDone?.future;
+      if (!mounted) return;
+      if (!reminders.ready) {
+        await reminders.initialize(() {
+          if (mounted) {
+            updateUi(() {
+              tab = 0;
+              careFilter = 'pending';
+            });
+            refreshQuietly();
+          }
+        });
       }
-      if (value && !granted && mounted) {
+      final granted = await reminders.setEnabled(value);
+      await syncReminders();
+      if (!mounted) return;
+      if (value && !granted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(t('通知权限未开启，请在系统设置中允许通知。',
                 'Notifications are disabled. Allow them in system settings.'))));
       }
-    });
+    } catch (_) {
+      reminderError = 'unavailable';
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content:
+                Text(message(const ApiError(0, 'REMINDERS_UNAVAILABLE')))));
+      }
+    } finally {
+      if (mounted) updateUi(() => busy = false);
+    }
   }
 
   String message(Object e) {
@@ -199,7 +218,7 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
 
   Future<void> perform(Future<void> Function() action) async {
     if (busy) return;
-    setState(() => busy = true);
+    updateUi(() => busy = true);
     await syncDone?.future;
     if (!mounted) return;
     try {
@@ -207,7 +226,7 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
       final next =
           widget.api.token == null ? null : await widget.api.dashboard();
       if (mounted) {
-        setState(() {
+        updateUi(() {
           data = next;
           error = null;
         });
@@ -217,7 +236,7 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
       if (e is ApiError && e.status == 401) {
         await widget.api.clearSession();
         if (mounted) {
-          setState(() => data = null);
+          updateUi(() => data = null);
           await syncReminders();
         }
       }
@@ -226,7 +245,7 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
             .showSnackBar(SnackBar(content: Text(message(e))));
       }
     } finally {
-      if (mounted) setState(() => busy = false);
+      if (mounted) updateUi(() => busy = false);
     }
   }
 
@@ -330,7 +349,7 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
           ? null
           : NavigationBar(
               selectedIndex: tab,
-              onDestinationSelected: (v) => setState(() => tab = v),
+              onDestinationSelected: (v) => updateUi(() => tab = v),
               destinations: [
                   NavigationDestination(
                       icon: const Icon(Icons.check_circle_outline_rounded),
