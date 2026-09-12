@@ -26,6 +26,7 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
   Completer<void>? syncDone;
   String? reminderError;
   String careFilter = 'pending';
+  String? selectedPetId;
   bool loading = true, busy = false;
   String? error;
   int tab = 0;
@@ -38,6 +39,13 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
   List<Map<String, dynamic>> get tasks => (data?['tasks'] as List? ?? [])
       .map((v) => Map<String, dynamic>.from(v as Map))
       .toList();
+  Map<String, dynamic>? get selectedPet {
+    if (pets.isEmpty) return null;
+    return pets.cast<Map<String, dynamic>>().firstWhere(
+        (pet) => pet['id'] == selectedPetId,
+        orElse: () => pets.first);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -279,17 +287,19 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(t('爪伴 · PetCare', 'PetCare')), actions: [
-        IconButton(
-            tooltip: t('切换语言', 'Switch language'),
-            onPressed: () => widget.onLocale(Locale(zh ? 'en' : 'zh')),
-            icon: const Icon(Icons.language)),
-        if (data != null)
-          IconButton(
-              tooltip: t('刷新', 'Refresh'),
-              onPressed: busy ? null : () => perform(() async {}),
-              icon: const Icon(Icons.refresh)),
-      ]),
+      appBar: data == null || tab == 0
+          ? null
+          : AppBar(title: Text(t('爪伴', 'PetCare')), actions: [
+              IconButton(
+                  tooltip: t('切换语言', 'Switch language'),
+                  onPressed: () => widget.onLocale(Locale(zh ? 'en' : 'zh')),
+                  icon: const Icon(Icons.language)),
+              if (data != null)
+                IconButton(
+                    tooltip: t('刷新', 'Refresh'),
+                    onPressed: busy ? null : () => perform(() async {}),
+                    icon: const Icon(Icons.refresh)),
+            ]),
       body: SafeArea(
           child: Center(
               child: ConstrainedBox(
@@ -305,8 +315,9 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
                             onRefresh: () => perform(() async {}),
                             child: ListView(
                               physics: const AlwaysScrollableScrollPhysics(),
-                              padding:
-                                  const EdgeInsets.fromLTRB(20, 12, 20, 100),
+                              padding: tab == 0
+                                  ? const EdgeInsets.only(bottom: 24)
+                                  : const EdgeInsets.fromLTRB(18, 14, 18, 104),
                               children: tab == 0
                                   ? careView()
                                   : tab == 1
@@ -322,15 +333,19 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
               onDestinationSelected: (v) => setState(() => tab = v),
               destinations: [
                   NavigationDestination(
-                      icon: const Icon(Icons.check_circle_outline),
+                      icon: const Icon(Icons.check_circle_outline_rounded),
+                      selectedIcon: const Icon(Icons.check_circle_rounded),
                       label: t('照护', 'Care')),
                   NavigationDestination(
-                      icon: const Icon(Icons.pets), label: t('宠物', 'Pets')),
+                      icon: const Icon(Icons.pets_outlined),
+                      selectedIcon: const Icon(Icons.pets),
+                      label: t('宠物', 'Pets')),
                   NavigationDestination(
-                      icon: const Icon(Icons.people_outline),
+                      icon: const Icon(Icons.people_outline_rounded),
+                      selectedIcon: const Icon(Icons.people_rounded),
                       label: t('家庭', 'Family')),
                 ]),
-      floatingActionButton: data == null || tab == 2
+      floatingActionButton: data == null || tab == 2 || tab == 0
           ? null
           : FloatingActionButton.extended(
               onPressed: busy

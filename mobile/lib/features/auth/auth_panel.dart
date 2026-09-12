@@ -54,24 +54,25 @@ class _AuthPanelState extends State<AuthPanel> {
     } catch (e) {
       if (mounted) {
         setState(() => error = e is PlatformException
-            ? t('无法保存登录凭据，请检查系统钥匙串权限。', 'Cannot save sign-in credentials. Check system keychain permissions.')
+            ? t('无法保存登录凭据，请检查系统钥匙串权限。',
+                'Cannot save sign-in credentials. Check system keychain permissions.')
             : e is ApiError
-            ? e.status == 401
-                ? t('邮箱或密码不正确，或当前设备登录已失效。',
-                    'Incorrect email or password, or the current session has expired.')
-                : e.status == 409
-                    ? t('该邮箱已注册，或当前账号已经绑定邮箱。',
-                        'Email already registered, or this account already has an email.')
-                    : e.status == 429
-                        ? t('尝试过于频繁，请一分钟后重试。',
-                            'Too many attempts. Try again in a minute.')
-                        : e.status == 400
-                            ? t('请检查邮箱和密码格式。',
-                                'Please check your email and password.')
-                            : t('服务暂不可用，请稍后重试。',
-                                'Service unavailable. Please retry.')
-            : t('连接失败，请检查网络和服务地址。',
-                'Connection failed. Check your network and server address.'));
+                ? e.status == 401
+                    ? t('邮箱或密码不正确，或当前设备登录已失效。',
+                        'Incorrect email or password, or the current session has expired.')
+                    : e.status == 409
+                        ? t('该邮箱已注册，或当前账号已经绑定邮箱。',
+                            'Email already registered, or this account already has an email.')
+                        : e.status == 429
+                            ? t('尝试过于频繁，请一分钟后重试。',
+                                'Too many attempts. Try again in a minute.')
+                            : e.status == 400
+                                ? t('请检查邮箱和密码格式。',
+                                    'Please check your email and password.')
+                                : t('服务暂不可用，请稍后重试。',
+                                    'Service unavailable. Please retry.')
+                : t('连接失败，请检查网络和服务地址。',
+                    'Connection failed. Check your network and server address.'));
       }
     } finally {
       if (mounted) setState(() => busy = false);

@@ -39,6 +39,10 @@ class ReminderService {
               requestAlertPermission: false,
               requestBadgePermission: false,
               requestSoundPermission: false),
+          macOS: DarwinInitializationSettings(
+              requestAlertPermission: false,
+              requestBadgePermission: false,
+              requestSoundPermission: false),
         ),
         onDidReceiveNotificationResponse: (_) => onTap());
     enabled = await storage.read(key: 'care_reminders') == 'true';
@@ -63,6 +67,14 @@ class ReminderService {
               ?.areNotificationsEnabled() ??
           false;
     }
+    if (defaultTargetPlatform == TargetPlatform.macOS) {
+      return (await plugin
+                  .resolvePlatformSpecificImplementation<
+                      MacOSFlutterLocalNotificationsPlugin>()
+                  ?.checkPermissions())
+              ?.isEnabled ??
+          false;
+    }
     return false;
   }
 
@@ -80,6 +92,12 @@ class ReminderService {
               .resolvePlatformSpecificImplementation<
                   AndroidFlutterLocalNotificationsPlugin>()
               ?.requestNotificationsPermission() ??
+          false;
+    } else if (value && defaultTargetPlatform == TargetPlatform.macOS) {
+      granted = await plugin
+              .resolvePlatformSpecificImplementation<
+                  MacOSFlutterLocalNotificationsPlugin>()
+              ?.requestPermissions(alert: true, badge: true, sound: true) ??
           false;
     }
     enabled = value && granted;
@@ -116,6 +134,8 @@ class ReminderService {
               priority: Priority.high,
               icon: 'ic_stat_paw'),
           iOS:
+              DarwinNotificationDetails(presentAlert: true, presentSound: true),
+          macOS:
               DarwinNotificationDetails(presentAlert: true, presentSound: true),
         ),
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,

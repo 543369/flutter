@@ -20,11 +20,20 @@ import com.petcare.auth.Tokens;
 @RequestMapping("/api")
 class PetController extends ApiSupport {
  PetController(JdbcTemplate db) { super(db); }
- record PetInput(@NotBlank @Size(max=60) String name, @Pattern(regexp="cat|dog|other") @NotNull String species) {}
+ record PetInput(@NotBlank @Size(max=60) String name,
+                 @Pattern(regexp="cat|dog|other") @NotNull String species,
+                 @Size(max=1500000) String photoData) {}
  @PostMapping("/pets") @ResponseStatus(HttpStatus.CREATED) @Transactional
  Map<String,String> addPet(Authentication auth, @Valid @RequestBody PetInput input) {
-  String pet = id(); db.update("INSERT INTO pets(id,household_id,name,species) VALUES (?,?,?,?)",pet,household(auth),input.name().strip(),input.species());
+  String pet = id(); db.update("INSERT INTO pets(id,household_id,name,species,photo_data) VALUES (?,?,?,?,?)",pet,household(auth),input.name().strip(),input.species(),input.photoData());
   return Map.of("id",pet);
+ }
+ @PatchMapping("/pets/{petId}") @Transactional
+ Map<String,String> updatePet(Authentication auth, @PathVariable String petId,
+                              @Valid @RequestBody PetInput input) {
+  require(db.update("UPDATE pets SET name=?,species=?,photo_data=? WHERE id=? AND household_id=?",
+    input.name().strip(),input.species(),input.photoData(),petId,household(auth)));
+  return Map.of("id",petId);
  }
  @DeleteMapping("/pets/{petId}") @ResponseStatus(HttpStatus.NO_CONTENT) @Transactional
  void deletePet(Authentication auth, @PathVariable String petId) {

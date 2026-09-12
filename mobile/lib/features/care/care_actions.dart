@@ -36,7 +36,7 @@ extension CareActions on CareHomeState {
                         onChanged: (_) => update(() {})),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      value: frequency,
+                      initialValue: frequency,
                       decoration: InputDecoration(labelText: t('重复', 'Repeat')),
                       items: [
                         DropdownMenuItem(

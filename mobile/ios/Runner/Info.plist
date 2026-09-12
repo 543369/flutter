@@ -45,5 +45,7 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>选择宠物照片，用于展示宠物档案和首页主视觉。</string>
 </dict>
 </plist>

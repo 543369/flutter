@@ -24,6 +24,9 @@ class FakeReminders extends ReminderService {
 class FakeApi extends CareApi {
   List<Map<String, dynamic>> items = [];
   List<Map<String, dynamic>> events = [];
+  List<Map<String, dynamic>> petItems = [
+    {'id': 'pet', 'name': 'Mochi', 'species': 'cat'}
+  ];
   @override
   Future<void> restore() async {}
   @override
@@ -38,9 +41,7 @@ class FakeApi extends CareApi {
 
   @override
   Future<Map<String, dynamic>> dashboard() async => {
-        'pets': [
-          {'id': 'pet', 'name': 'Mochi', 'species': 'cat'}
-        ],
+        'pets': petItems,
         'tasks': items,
         'history': events,
         'plans': [],
@@ -58,6 +59,7 @@ class FakeApi extends CareApi {
         {
           'id': 'event',
           'taskId': 'care',
+          'petId': 'pet',
           'action': body['completed'] == true ? 'COMPLETED' : 'REOPENED',
           'at': DateTime.now().toUtc().toIso8601String(),
           'actor': 'Alex',
@@ -84,13 +86,19 @@ void main() {
     await tester.tap(find.text('Sign in'));
     await tester.pumpAndSettle();
     expect(find.text('0 tasks to do'), findsOneWidget);
+    await tester.tap(find.text('Pets'));
+    await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Switch language'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('照护'));
     await tester.pumpAndSettle();
     expect(find.text('0 项待照护'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
   testWidgets('complete care updates reminders and displays caregiver history',
       (tester) async {
+    await tester.binding.setSurfaceSize(const Size(393, 852));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     final api = FakeApi()..token = 'test';
     api.items = [
       {
@@ -109,15 +117,23 @@ void main() {
     final reminders = FakeReminders();
     await tester.pumpWidget(PetCareApp(api: api, reminders: reminders));
     await tester.pumpAndSettle();
-    await tester.tap(find.byType(CheckboxListTile));
+    await tester.drag(find.byType(ListView), const Offset(0, -220));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Mark as done'));
     await tester.pumpAndSettle();
     expect(find.text('0 tasks to do'), findsOneWidget);
     expect(reminders.synced.first['completed'], true);
+    await tester.ensureVisible(find.text('History'));
     await tester.tap(find.text('History'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Alex · Completed'), findsOneWidget);
-    await tester.tap(find.text('Completed'));
+    expect(find.textContaining('Mochi · Alex'), findsOneWidget);
+    await tester.tap(find.byTooltip('Back to today'));
     await tester.pumpAndSettle();
+    await tester.drag(find.byType(ListView), const Offset(0, -160));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('1 completed'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byType(CheckboxListTile));
     await tester.tap(find.byType(CheckboxListTile));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Confirm'));

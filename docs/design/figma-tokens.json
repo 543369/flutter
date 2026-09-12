@@ -1,0 +1,11 @@
+{
+  "color": {
+    "brand": { "brown": "#5B3B2E", "orange": "#D95E32" },
+    "text": { "primary": "#33241F", "secondary": "#6F625C" },
+    "surface": { "base": "#FFFDF9", "warm": "#FFF6E9", "blue": "#E7F1F8" },
+    "border": { "subtle": "#EADFD5" }
+  },
+  "radius": { "button": 18, "card": 22, "hero": 30 },
+  "spacing": { "xs": 4, "sm": 8, "md": 12, "lg": 16, "page": 18, "xl": 24, "xxl": 32 },
+  "viewport": { "mobileWidth": 393, "mobileHeight": 852 }
+}

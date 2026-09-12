@@ -96,6 +96,28 @@ extension FamilyModule on CareHomeState {
   }
 
   List<Widget> familyView() => [
+        Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(22),
+            decoration: BoxDecoration(
+                color: const Color(0xffe4eef6),
+                borderRadius: BorderRadius.circular(28)),
+            child: Row(children: [
+              Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                    Text(t('照护是一家人的事', 'Better, together'),
+                        style: Theme.of(context).textTheme.headlineMedium),
+                    const SizedBox(height: 8),
+                    Text(t('让每一次照护都有回应。', 'Keep every act of care visible.')),
+                  ])),
+              const CircleAvatar(
+                  radius: 29,
+                  backgroundColor: Colors.white,
+                  child: Icon(Icons.favorite_rounded, color: Color(0xffd45f3b)))
+            ])),
+        const SizedBox(height: 18),
         if (data?['registered'] == true)
           ListTile(
               leading: const Icon(Icons.security),
@@ -124,19 +146,26 @@ extension FamilyModule on CareHomeState {
                   subtitle: Text(t('保留当前家庭、宠物和照护记录。',
                       'Keep your current household, pets and care history.')),
                   onTap: busy ? null : bindAccount)),
-        Text(t('照护是一家人的事', 'Better, together'),
-            style: Theme.of(context).textTheme.headlineMedium),
-        const SizedBox(height: 16),
-        ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(data?['me'] as String? ?? ''),
-            subtitle: Text(t('我的照护称呼', 'My caregiver name')),
-            trailing: IconButton(
-                tooltip: t('修改称呼', 'Edit name'),
-                onPressed: busy ? null : editName,
-                icon: const Icon(Icons.edit_outlined))),
-        Text(t('家庭共有 ${data?['members']} 位成员',
-            "${data?['members']} household members")),
+        Card(
+          color: const Color(0xfffff1dd),
+          child: ListTile(
+              contentPadding: const EdgeInsets.all(16),
+              leading: const CircleAvatar(
+                  backgroundColor: Colors.white,
+                  child: Icon(Icons.person_outline_rounded)),
+              title: Text(data?['me'] as String? ?? ''),
+              subtitle: Text(t('我的照护称呼', 'My caregiver name')),
+              trailing: IconButton(
+                  tooltip: t('修改称呼', 'Edit name'),
+                  onPressed: busy ? null : editName,
+                  icon: const Icon(Icons.edit_outlined))),
+        ),
+        Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Text(
+                t('家庭共有 ${data?['members']} 位成员',
+                    "${data?['members']} household members"),
+                style: Theme.of(context).textTheme.titleMedium)),
         const SizedBox(height: 24),
         FilledButton.icon(
             onPressed: busy ? null : invite,
@@ -149,7 +178,9 @@ extension FamilyModule on CareHomeState {
         const SizedBox(height: 24),
         Text(t('加入条件：当前家庭仅有你，且未添加宠物。邀请加入的人可以管理全部宠物和事项。',
             'To join, your current household must have no pets and only you. Invited members can manage all pets and tasks.')),
-        const Divider(height: 40),
+        const SizedBox(height: 18),
+        Container(height: 1, color: const Color(0xffeadfd7)),
+        const SizedBox(height: 24),
         Text(t('数据与隐私', 'Data & privacy'),
             style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 12),
