@@ -24,6 +24,7 @@ class PetPhotoCarousel extends StatefulWidget {
 class _PetPhotoCarouselState extends State<PetPhotoCarousel> {
   final controller = PageController();
   int current = 0;
+  double dragDistance = 0;
   late List<String> photos = petPhotos(widget.pet);
 
   @override
@@ -48,69 +49,89 @@ class _PetPhotoCarouselState extends State<PetPhotoCarousel> {
   @override
   Widget build(BuildContext context) {
     final chinese = Localizations.localeOf(context).languageCode == 'zh';
-    return Stack(fit: StackFit.expand, children: [
-      if (photos.isEmpty)
-        PetCover(pet: widget.pet)
-      else
-        PageView.builder(
-          key: const ValueKey('pet-photo-pages'),
-          controller: controller,
-          itemCount: photos.length,
-          onPageChanged: (index) => setState(() => current = index),
-          itemBuilder: (context, index) => Semantics(
-            label: chinese
-                ? '宠物照片 ${index + 1}/${photos.length}'
-                : 'Pet photo ${index + 1}/${photos.length}',
-            child: GestureDetector(
-              onTap: widget.openPhotos
-                  ? () => Navigator.of(context).push(MaterialPageRoute<void>(
-                      builder: (_) => Scaffold(
-                            backgroundColor: Colors.black,
-                            appBar: AppBar(
-                                backgroundColor: Colors.black,
-                                foregroundColor: Colors.white),
-                            body: Center(
-                                child: InteractiveViewer(
-                                    maxScale: 5,
-                                    child: _FullPhoto(data: photos[index]))),
-                          )))
-                  : null,
-              child: PetCover(pet: {
-                ...widget.pet,
-                'photos': [photos[index]]
-              }),
+    return GestureDetector(
+        // Overlaid text is a sibling of PageView; also accept swipes begun there.
+        onHorizontalDragStart:
+            photos.length > 1 ? (_) => dragDistance = 0 : null,
+        onHorizontalDragUpdate: photos.length > 1
+            ? (details) => dragDistance += details.primaryDelta ?? 0
+            : null,
+        onHorizontalDragEnd: photos.length > 1
+            ? (details) {
+                if (!controller.hasClients || dragDistance.abs() < 30) return;
+                final next = (current + (dragDistance < 0 ? 1 : -1))
+                    .clamp(0, photos.length - 1);
+                controller.animateToPage(next,
+                    duration: const Duration(milliseconds: 250),
+                    curve: Curves.easeOut);
+              }
+            : null,
+        child: Stack(fit: StackFit.expand, children: [
+          if (photos.isEmpty)
+            PetCover(pet: widget.pet)
+          else
+            PageView.builder(
+              key: const ValueKey('pet-photo-pages'),
+              controller: controller,
+              itemCount: photos.length,
+              onPageChanged: (index) => setState(() => current = index),
+              itemBuilder: (context, index) => Semantics(
+                label: chinese
+                    ? '宠物照片 ${index + 1}/${photos.length}'
+                    : 'Pet photo ${index + 1}/${photos.length}',
+                child: GestureDetector(
+                  onTap: widget.openPhotos
+                      ? () =>
+                          Navigator.of(context).push(MaterialPageRoute<void>(
+                              builder: (_) => Scaffold(
+                                    backgroundColor: Colors.black,
+                                    appBar: AppBar(
+                                        backgroundColor: Colors.black,
+                                        foregroundColor: Colors.white),
+                                    body: Center(
+                                        child: InteractiveViewer(
+                                            maxScale: 5,
+                                            child: _FullPhoto(
+                                                data: photos[index]))),
+                                  )))
+                      : null,
+                  child: PetCover(pet: {
+                    ...widget.pet,
+                    'photos': [photos[index]]
+                  }),
+                ),
+              ),
             ),
-          ),
-        ),
-      ...widget.overlay,
-      if (photos.length > 1)
-        Positioned(
-            left: 0,
-            right: 0,
-            bottom: widget.indicatorBottom,
-            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              for (var index = 0; index < photos.length; index++)
-                Semantics(
-                    selected: current == index,
-                    child: IconButton(
-                      key: ValueKey('pet-photo-dot-$index'),
-                      tooltip: chinese
-                          ? '第 ${index + 1} 张照片，共 ${photos.length} 张'
-                          : 'Photo ${index + 1} of ${photos.length}',
-                      constraints:
-                          const BoxConstraints.tightFor(width: 32, height: 32),
-                      padding: EdgeInsets.zero,
-                      onPressed: () => controller.animateToPage(index,
-                          duration: const Duration(milliseconds: 250),
-                          curve: Curves.easeOut),
-                      icon: Icon(Icons.circle,
-                          size: current == index ? 9 : 7,
-                          color: current == index
-                              ? const Color(0xffdf6338)
-                              : const Color(0xffd9ccb6)),
-                    )),
-            ])),
-    ]);
+          ...widget.overlay,
+          if (photos.length > 1)
+            Positioned(
+                left: 0,
+                right: 0,
+                bottom: widget.indicatorBottom,
+                child:
+                    Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  for (var index = 0; index < photos.length; index++)
+                    Semantics(
+                        selected: current == index,
+                        child: IconButton(
+                          key: ValueKey('pet-photo-dot-$index'),
+                          tooltip: chinese
+                              ? '第 ${index + 1} 张照片，共 ${photos.length} 张'
+                              : 'Photo ${index + 1} of ${photos.length}',
+                          constraints: const BoxConstraints.tightFor(
+                              width: 32, height: 32),
+                          padding: EdgeInsets.zero,
+                          onPressed: () => controller.animateToPage(index,
+                              duration: const Duration(milliseconds: 250),
+                              curve: Curves.easeOut),
+                          icon: Icon(Icons.circle,
+                              size: current == index ? 9 : 7,
+                              color: current == index
+                                  ? const Color(0xffdf6338)
+                                  : const Color(0xffd9ccb6)),
+                        )),
+                ])),
+        ]));
   }
 }
 

@@ -48,6 +48,10 @@ void main() {
     ];
     final photo = base64Encode(
         File('assets/images/petcare_cat_cover.jpg').readAsBytesSync());
+    final galleryMode = Platform.environment['PETCARE_QA_GALLERY'] == '1';
+    if (galleryMode) {
+      api.petItems.first['photos'] = List.filled(5, photo);
+    }
     api.memories.add({
       'id': 'first',
       'petId': 'pet',
@@ -106,6 +110,11 @@ void main() {
       });
     }
 
+    if (galleryMode) {
+      await capture('gallery-home-first');
+      await tester.tap(find.byKey(const ValueKey('pet-photo-dot-4')));
+      await capture('gallery-home-fifth');
+    }
     await tester.tap(find.text('宠物'));
     await capture('pets-mobile');
     await tester.binding.setSurfaceSize(const Size(800, 1000));
@@ -114,6 +123,12 @@ void main() {
     await tester.pumpAndSettle();
     await tapVisible(tester, find.byKey(const ValueKey('pet-card-pet')));
     await capture('pet-detail');
+    if (galleryMode) {
+      await tester.tap(find.byTooltip('编辑档案'));
+      await capture('gallery-editor');
+      await tester.tap(find.text('取消'));
+      await tester.pumpAndSettle();
+    }
     await tapVisible(tester, find.text('它的回忆录'));
     await capture('memories');
     await tapVisible(tester, find.text('有阳光的午后'));

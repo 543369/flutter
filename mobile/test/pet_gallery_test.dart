@@ -95,6 +95,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(pages().controller!.page, 1);
     expect(home.selectedPet?['id'], 'pet');
+    await tester.dragFrom(const Offset(125, 165), const Offset(-100, 0));
+    await tester.pumpAndSettle();
+    expect(pages().controller!.page, 2);
     await tester.tap(find.byKey(const ValueKey('pet-photo-dot-4')));
     await tester.pumpAndSettle();
     expect(pages().controller!.page, 4);
