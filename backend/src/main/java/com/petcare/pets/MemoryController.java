@@ -1,6 +1,7 @@
 package com.petcare.pets;
 
 import com.petcare.shared.ApiSupport;
+import com.petcare.benefits.HouseholdBenefits;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import java.time.LocalDate;
@@ -15,16 +16,18 @@ import org.springframework.web.server.ResponseStatusException;
 @RestController
 @RequestMapping("/api/pets/{petId}/memories")
 class MemoryController extends ApiSupport {
- MemoryController(JdbcTemplate db) { super(db); }
+ private final HouseholdBenefits benefits;
+ MemoryController(JdbcTemplate db, HouseholdBenefits benefits) { super(db); this.benefits=benefits; }
  record MemoryInput(@NotBlank @Size(max=120) String title,
                     @NotBlank @Size(max=5000) String story,
                     @NotNull @PastOrPresent LocalDate happenedOn,
                     @NotNull @Size(max=6) List<@NotBlank @Size(max=1500000) String> photos) {}
 
- private void checkPet(Authentication auth, String petId) {
+ private String checkPet(Authentication auth, String petId) {
   String home = household(auth);
   if (db.queryForObject("SELECT COUNT(*) FROM pets WHERE id=? AND household_id=?", Integer.class, petId, home) != 1)
    throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+  return home;
  }
  private Map<String,Object> summary(java.sql.ResultSet r, int n) throws java.sql.SQLException {
   Map<String,Object> row = new LinkedHashMap<>();
@@ -67,16 +70,16 @@ class MemoryController extends ApiSupport {
  }
  @PostMapping @ResponseStatus(HttpStatus.CREATED) @Transactional
  Map<String,String> create(Authentication auth,@PathVariable String petId,@Valid @RequestBody MemoryInput input) {
-  checkPet(auth,petId); String memory=id();
+  String home=checkPet(auth,petId); long before=benefits.usedBytes(home); String memory=id();
   db.update("INSERT INTO pet_memories(id,pet_id,author_id,title,story,happened_on) VALUES (?,?,?,?,?,?)",memory,petId,auth.getName(),input.title().strip(),input.story().strip(),input.happenedOn());
-  savePhotos(memory,input.photos()); return Map.of("id",memory);
+  savePhotos(memory,input.photos()); benefits.checkGrowth(home,before); return Map.of("id",memory);
  }
  @PatchMapping("/{memoryId}") @Transactional
  Map<String,String> update(Authentication auth,@PathVariable String petId,@PathVariable String memoryId,@Valid @RequestBody MemoryInput input) {
-  checkPet(auth,petId);
+  String home=checkPet(auth,petId); long before=benefits.usedBytes(home);
   require(db.update("UPDATE pet_memories SET title=?,story=?,happened_on=?,updated_at=CURRENT_TIMESTAMP(6) WHERE id=? AND pet_id=?",input.title().strip(),input.story().strip(),input.happenedOn(),memoryId,petId));
   db.update("DELETE FROM pet_memory_photos WHERE memory_id=?",memoryId);
-  savePhotos(memoryId,input.photos()); return Map.of("id",memoryId);
+  savePhotos(memoryId,input.photos()); benefits.checkGrowth(home,before); return Map.of("id",memoryId);
  }
  @DeleteMapping("/{memoryId}") @ResponseStatus(HttpStatus.NO_CONTENT) @Transactional
  void delete(Authentication auth,@PathVariable String petId,@PathVariable String memoryId) {

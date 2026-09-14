@@ -13,6 +13,7 @@ Flutter + Java 21 / Spring Boot 4.1.1 + MySQL 的宠物照护与家庭协作新�
 - [模块划分与登录注册](docs/modules-and-auth.md)
 - [移动端设计规范与首页参考](docs/design/README.md)
 - [照护闭环使用说明](docs/care-workflow.md)
+- [家庭会员权益与导出](docs/household-benefits.md)
 - [API 接口说明](docs/api.md)
 - [市场依据与产品路线](docs/market.md)
 - [App Store 发布准备](docs/app-store.md)

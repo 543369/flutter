@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app/home_shell.dart';
 import '../../core/widgets/profile_dialog.dart';
 import 'pet_module.dart';
+import '../benefits/benefits_page.dart';
 
 String _day(DateTime date) =>
     '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
@@ -95,7 +96,14 @@ class _PetMemoriesPageState extends State<PetMemoriesPage> {
     final pet =
         widget.home.pets.where((p) => p['id'] == widget.petId).firstOrNull;
     return Scaffold(
-      appBar: AppBar(title: Text(t('回忆录', 'Memories'))),
+      appBar: AppBar(title: Text(t('回忆录', 'Memories')), actions: [
+        IconButton(
+            tooltip: t('导出回忆录', 'Export memory book'),
+            icon: const Icon(Icons.picture_as_pdf_outlined),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                builder: (_) => BenefitsPage(
+                    home: widget.home, initialPetId: widget.petId)))),
+      ]),
       body: SafeArea(
           child: Center(
               child: ConstrainedBox(

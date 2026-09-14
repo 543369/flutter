@@ -190,6 +190,14 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
 
   String message(Object e) {
     if (e is ApiError) {
+      if (e.status == 413) {
+        return t('家庭照片空间已满，请到家庭权益查看用量或移除不需要的照片。',
+            'Photo storage is full. Review your household storage or remove unwanted photos.');
+      }
+      if (e.status == 403) {
+        return t('当前家庭暂未开放此权益。',
+            'This benefit is not available for your household.');
+      }
       if (e.code == 'REMINDERS_UNAVAILABLE') {
         return t('无法设置提醒，请检查系统通知权限后重试。',
             'Could not set up reminders. Check system notification permissions and retry.');

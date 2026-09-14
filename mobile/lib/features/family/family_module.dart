@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../app/home_shell.dart';
 import '../auth/account_security_page.dart';
 import '../pets/pet_cover.dart';
+import '../benefits/benefits_page.dart';
 import '../care/care_view.dart';
 import '../care/care_pages.dart';
 import 'package:flutter/services.dart';
@@ -201,6 +202,22 @@ extension FamilyModule on CareHomeState {
                   familyStat('$memories', t('篇回忆', 'Memories'))
                 ])),
           ])),
+      const SizedBox(height: 18),
+      Card(
+          color: const Color(0xffffefcc),
+          child: ListTile(
+            key: const ValueKey('household-benefits'),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            leading: const Icon(Icons.auto_awesome_outlined,
+                color: Color(0xffa15e40)),
+            title: Text(t('家庭权益', 'Household benefits')),
+            subtitle: Text(t('照片空间 · 回忆录导出 · 年度成长报告',
+                'Photo storage · Memory books · Annual reports')),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                builder: (_) => BenefitsPage(home: this))),
+          )),
       const SizedBox(height: 26),
       Text(t('一起陪伴的人', 'The people who care'),
           style: Theme.of(context).textTheme.titleLarge),
