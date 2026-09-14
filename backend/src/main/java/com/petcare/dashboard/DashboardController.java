@@ -25,10 +25,14 @@ class DashboardController extends ApiSupport {
  @GetMapping("/dashboard") @Transactional
  Map<String,Object> dashboard(Authentication auth) {
   String home = household(auth);
+  Map<String,List<String>> photoGallery = new HashMap<>();
+  db.query("SELECT f.pet_id,f.photo_data FROM pet_photos f JOIN pets p ON p.id=f.pet_id WHERE p.household_id=? ORDER BY f.pet_id,f.position_index", r -> {
+   photoGallery.computeIfAbsent(r.getString(1), ignored -> new ArrayList<>()).add(r.getString(2));
+  }, home);
   var pets = db.query("SELECT id,name,species,photo_data,biography,birth_date,created_at,(SELECT COUNT(*) FROM pet_memories m WHERE m.pet_id=pets.id) AS memory_count FROM pets WHERE household_id = ? ORDER BY name,id", (r,n) -> {
    Map<String,Object> row = new LinkedHashMap<>();
    row.put("id",r.getString(1)); row.put("name",r.getString(2)); row.put("species",r.getString(3));
-   row.put("photoData",r.getString(4)); row.put("biography",r.getString(5));
+   row.put("photoData",r.getString(4)); row.put("photos",photoGallery.getOrDefault(r.getString(1),List.of())); row.put("biography",r.getString(5));
    row.put("birthDate",r.getDate(6)==null?null:r.getDate(6).toLocalDate().toString());
    row.put("createdAt",r.getTimestamp(7)==null?null:r.getTimestamp(7).toInstant().toString()); row.put("memoryCount",r.getInt(8)); return row;
   }, home);

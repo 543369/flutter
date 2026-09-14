@@ -69,7 +69,7 @@ extension PetModule on CareHomeState {
       };
 
   Widget petAvatar(Map<String, dynamic> pet) {
-    final photo = pet['photoData'];
+    final photo = petPhotos(pet).firstOrNull;
     if (photo is String && photo.isNotEmpty) {
       try {
         return CircleAvatar(

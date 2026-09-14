@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'pet_profile.dart';
 
 class PetCover extends StatelessWidget {
   const PetCover({super.key, required this.pet});
@@ -21,7 +22,7 @@ class PetCover extends StatelessWidget {
             alignment: pet['species'] == 'cat'
                 ? Alignment.topCenter
                 : Alignment.centerRight);
-    final value = pet['photoData'] as String?;
+    final value = petPhotos(pet).firstOrNull;
     if (value == null || value.isEmpty) return fallback();
     try {
       return Image.memory(base64Decode(value),

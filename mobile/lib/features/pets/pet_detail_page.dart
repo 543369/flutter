@@ -3,7 +3,7 @@ import '../../app/home_shell.dart';
 import '../care/care_pages.dart';
 import 'pet_module.dart';
 import 'pet_profile.dart';
-import 'pet_cover.dart';
+import 'pet_photo_carousel.dart';
 import 'memory_pages.dart';
 
 class PetDetailPage extends StatelessWidget {
@@ -45,7 +45,9 @@ class PetDetailPage extends StatelessWidget {
                         ClipRRect(
                             borderRadius: BorderRadius.circular(28),
                             child: AspectRatio(
-                                aspectRatio: 1.5, child: PetCover(pet: pet))),
+                                aspectRatio: 1.5,
+                                child: PetPhotoCarousel(
+                                    pet: pet, openPhotos: true))),
                         const SizedBox(height: 20),
                         Text(pet['name'] as String,
                             style: Theme.of(context).textTheme.headlineLarge),

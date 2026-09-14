@@ -1,9 +1,9 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../app/home_shell.dart';
 import 'care_actions.dart';
 import 'care_pages.dart';
 import 'care_kind.dart';
+import '../pets/pet_photo_carousel.dart';
 
 extension CareView on CareHomeState {
   List<Map<String, dynamic>> get history => (data?['history'] as List? ?? [])
@@ -31,22 +31,6 @@ extension CareView on CareHomeState {
   String _time(Map<String, dynamic> task) {
     final date = DateTime.parse(task['dueAt'] as String).toLocal();
     return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
-  }
-
-  Widget _heroImage(Map<String, dynamic>? pet) {
-    final encoded = pet?['photoData'];
-    if (encoded is String && encoded.isNotEmpty) {
-      try {
-        return Image.memory(base64Decode(encoded),
-            fit: BoxFit.cover,
-            gaplessPlayback: true,
-            errorBuilder: (_, __, ___) => Image.asset(
-                'assets/images/petcare_shiba_hero.png',
-                fit: BoxFit.cover));
-      } catch (_) {}
-    }
-    return Image.asset('assets/images/petcare_shiba_hero.png',
-        fit: BoxFit.cover);
   }
 
   Widget _petSelector(Map<String, dynamic>? pet, String name) =>
@@ -95,109 +79,99 @@ extension CareView on CareHomeState {
       clipper: const _HeroWaveClipper(),
       child: SizedBox(
         height: 392,
-        child: Stack(fit: StackFit.expand, children: [
-          _heroImage(pet),
-          Positioned(
-            left: 28,
-            top: 22,
-            right: 22,
-            child: Row(children: [
-              Stack(clipBehavior: Clip.none, children: [
-                Text(t('爪伴', 'PetCare'),
-                    style: const TextStyle(
-                        color: Color(0xff34231e),
-                        fontSize: 27,
-                        fontWeight: FontWeight.w800)),
-                const Positioned(
-                    right: -9,
-                    top: 1,
-                    child: DecoratedBox(
-                        decoration: BoxDecoration(
-                            color: Color(0xffd95e32), shape: BoxShape.circle),
-                        child: SizedBox(width: 7, height: 7))),
-              ]),
-              const Spacer(),
-              IconButton(
-                  tooltip: t('提醒设置', 'Reminder settings'),
-                  onPressed: openReminderSettings,
-                  icon: const Icon(Icons.notifications_none_rounded,
-                      size: 27, color: Color(0xff34231e))),
-            ]),
-          ),
-          Positioned(
-            left: 28,
-            top: 92,
-            right: 174,
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('${_weekday()} · ${now.month}月${now.day}日',
-                  style: const TextStyle(
-                      color: Color(0xff76645a),
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600)),
-              const SizedBox(height: 12),
-              Text(t('今天，\n也要好好陪你。', 'Today,\nwe are here for you.'),
-                  style: const TextStyle(
-                      color: Color(0xff34231e),
-                      fontSize: 32,
-                      height: 1.16,
-                      fontWeight: FontWeight.w800)),
-            ]),
-          ),
-          Positioned(
-            left: 28,
-            bottom: 58,
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              _petSelector(pet, name),
-              const SizedBox(height: 4),
-              Text(
-                  pet?['species'] == 'dog'
-                      ? t('狗狗', 'Dog')
-                      : pet?['species'] == 'cat'
-                          ? t('猫咪', 'Cat')
-                          : t('宠物', 'Pet'),
-                  style:
-                      const TextStyle(color: Color(0xff786961), fontSize: 15)),
-            ]),
-          ),
-          Positioned(
-            right: 20,
-            bottom: 61,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: .96),
-                  borderRadius: BorderRadius.circular(24)),
-              child: Row(children: [
-                const Icon(Icons.check_circle_rounded,
-                    size: 20, color: Color(0xff5b4439)),
-                const SizedBox(width: 7),
-                Text(t('$remaining 项待照护', '$remaining tasks to do'),
-                    style: const TextStyle(
-                        color: Color(0xff4a3730),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700)),
-              ]),
-            ),
-          ),
-          const Positioned(
-            left: 0,
-            right: 0,
-            bottom: 24,
-            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              DecoratedBox(
+        child: PetPhotoCarousel(
+            pet: pet ?? {'species': 'dog'},
+            indicatorBottom: 12,
+            overlay: [
+              Positioned(
+                left: 28,
+                top: 22,
+                right: 22,
+                child: Row(children: [
+                  Stack(clipBehavior: Clip.none, children: [
+                    Text(t('爪伴', 'PetCare'),
+                        style: const TextStyle(
+                            color: Color(0xff34231e),
+                            fontSize: 27,
+                            fontWeight: FontWeight.w800)),
+                    const Positioned(
+                        right: -9,
+                        top: 1,
+                        child: DecoratedBox(
+                            decoration: BoxDecoration(
+                                color: Color(0xffd95e32),
+                                shape: BoxShape.circle),
+                            child: SizedBox(width: 7, height: 7))),
+                  ]),
+                  const Spacer(),
+                  IconButton(
+                      tooltip: t('提醒设置', 'Reminder settings'),
+                      onPressed: openReminderSettings,
+                      icon: const Icon(Icons.notifications_none_rounded,
+                          size: 27, color: Color(0xff34231e))),
+                ]),
+              ),
+              Positioned(
+                left: 28,
+                top: 92,
+                right: 174,
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('${_weekday()} · ${now.month}月${now.day}日',
+                          style: const TextStyle(
+                              color: Color(0xff76645a),
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 12),
+                      Text(t('今天，\n也要好好陪你。', 'Today,\nwe are here for you.'),
+                          style: const TextStyle(
+                              color: Color(0xff34231e),
+                              fontSize: 32,
+                              height: 1.16,
+                              fontWeight: FontWeight.w800)),
+                    ]),
+              ),
+              Positioned(
+                left: 28,
+                bottom: 58,
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _petSelector(pet, name),
+                      const SizedBox(height: 4),
+                      Text(
+                          pet?['species'] == 'dog'
+                              ? t('狗狗', 'Dog')
+                              : pet?['species'] == 'cat'
+                                  ? t('猫咪', 'Cat')
+                                  : t('宠物', 'Pet'),
+                          style: const TextStyle(
+                              color: Color(0xff786961), fontSize: 15)),
+                    ]),
+              ),
+              Positioned(
+                right: 20,
+                bottom: 61,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
-                      color: Color(0xffdf6338), shape: BoxShape.circle),
-                  child: SizedBox(width: 8, height: 8)),
-              SizedBox(width: 8),
-              DecoratedBox(
-                  decoration: BoxDecoration(
-                      color: Color(0xffd9ccb6), shape: BoxShape.circle),
-                  child: SizedBox(width: 8, height: 8)),
+                      color: Colors.white.withValues(alpha: .96),
+                      borderRadius: BorderRadius.circular(24)),
+                  child: Row(children: [
+                    const Icon(Icons.check_circle_rounded,
+                        size: 20, color: Color(0xff5b4439)),
+                    const SizedBox(width: 7),
+                    Text(t('$remaining 项待照护', '$remaining tasks to do'),
+                        style: const TextStyle(
+                            color: Color(0xff4a3730),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700)),
+                  ]),
+                ),
+              ),
             ]),
-          ),
-        ]),
       ),
     );
   }

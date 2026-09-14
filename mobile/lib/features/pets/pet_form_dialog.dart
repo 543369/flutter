@@ -1,14 +1,16 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../app/home_shell.dart';
 import '../../core/widgets/profile_dialog.dart';
 import 'pet_module.dart';
 import 'pet_profile.dart';
+import 'pet_cover.dart';
 
 class PetFormDialog extends StatefulWidget {
-  const PetFormDialog({super.key, required this.home, this.pet});
+  const PetFormDialog(
+      {super.key, required this.home, this.pet, this.photoPicker});
   final CareHomeState home;
   final Map<String, dynamic>? pet;
+  final Future<String?> Function()? photoPicker;
   @override
   State<PetFormDialog> createState() => _PetFormDialogState();
 }
@@ -18,7 +20,7 @@ class _PetFormDialogState extends State<PetFormDialog> {
   late final biography =
       TextEditingController(text: widget.pet?['biography'] as String?);
   late String species = widget.pet?['species'] as String? ?? 'cat';
-  late String? photoData = widget.pet?['photoData'] as String?;
+  late List<String> photos = petPhotos(widget.pet);
   late DateTime? birth =
       DateTime.tryParse(widget.pet?['birthDate'] as String? ?? '');
   bool saving = false, picking = false;
@@ -37,13 +39,15 @@ class _PetFormDialogState extends State<PetFormDialog> {
       : '${birth!.year.toString().padLeft(4, '0')}-${birth!.month.toString().padLeft(2, '0')}-${birth!.day.toString().padLeft(2, '0')}';
 
   Future<void> choosePhoto() async {
+    if (picking || saving || photos.length >= 5) return;
     setState(() => picking = true);
-    final photo = await widget.home.pickPetPhoto();
-    if (mounted) {
-      setState(() {
-        picking = false;
-        if (photo != null) photoData = photo;
-      });
+    try {
+      final photo = await (widget.photoPicker ?? widget.home.pickPetPhoto)();
+      if (mounted && photo != null) setState(() => photos.add(photo));
+    } catch (e) {
+      if (mounted) setState(() => error = widget.home.message(e));
+    } finally {
+      if (mounted) setState(() => picking = false);
     }
   }
 
@@ -69,7 +73,8 @@ class _PetFormDialogState extends State<PetFormDialog> {
           widget.pet == null ? '/pets' : '/pets/${widget.pet!['id']}', {
         'name': name.text.trim(),
         'species': species,
-        'photoData': photoData,
+        'photos': photos,
+        'photoData': photos.firstOrNull,
         'biography': biography.text.trim(),
         'birthDate': birthDate,
       });
@@ -97,38 +102,65 @@ class _PetFormDialogState extends State<PetFormDialog> {
         saveLabel: t('保存', 'Save'),
         cancelLabel: t('取消', 'Cancel'),
         children: [
-          Center(
-              child: Stack(children: [
-            ClipRRect(
-                borderRadius: BorderRadius.circular(28),
-                child: photoData == null || photoData!.isEmpty
-                    ? Container(
-                        width: 108,
-                        height: 108,
-                        color: const Color(0xffe3f0fb),
-                        child: const Icon(Icons.pets_rounded,
-                            size: 46, color: Color(0xff684739)))
-                    : Image.memory(base64Decode(photoData!),
-                        width: 108,
-                        height: 108,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => const SizedBox(
-                            width: 108,
-                            height: 108,
-                            child: Icon(Icons.pets_rounded, size: 46)))),
-          ])),
-          TextButton.icon(
-              onPressed: saving || picking ? null : choosePhoto,
+          Text(
+              t('宠物照片 · ${photos.length}/5', 'Pet photos · ${photos.length}/5'),
+              style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 6),
+          Text(t('第一张作为封面，首页可左右滑动查看全部照片。',
+              'The first photo is the cover. Swipe through all photos on the home screen.')),
+          const SizedBox(height: 14),
+          Wrap(spacing: 10, runSpacing: 12, children: [
+            for (final entry in photos.indexed)
+              SizedBox(
+                  width: 92,
+                  child: Column(children: [
+                    SizedBox(
+                        height: 92,
+                        child: Stack(fit: StackFit.expand, children: [
+                          ClipRRect(
+                              borderRadius: BorderRadius.circular(18),
+                              child: PetCover(pet: {
+                                'species': species,
+                                'photos': [entry.$2]
+                              })),
+                          Align(
+                              alignment: Alignment.topRight,
+                              child: IconButton.filledTonal(
+                                  key: ValueKey('remove-pet-photo-${entry.$1}'),
+                                  tooltip: t('移除照片', 'Remove photo'),
+                                  constraints: const BoxConstraints.tightFor(
+                                      width: 32, height: 32),
+                                  padding: EdgeInsets.zero,
+                                  onPressed: saving || picking
+                                      ? null
+                                      : () => setState(
+                                          () => photos.removeAt(entry.$1)),
+                                  icon: const Icon(Icons.close_rounded,
+                                      size: 18))),
+                        ])),
+                    TextButton(
+                        key: ValueKey('cover-pet-photo-${entry.$1}'),
+                        onPressed: saving || picking || entry.$1 == 0
+                            ? null
+                            : () => setState(() {
+                                  photos.insert(0, photos.removeAt(entry.$1));
+                                }),
+                        child: Text(
+                            entry.$1 == 0
+                                ? t('封面', 'Cover')
+                                : t('设为封面', 'Set cover'),
+                            style: const TextStyle(fontSize: 12))),
+                  ])),
+          ]),
+          OutlinedButton.icon(
+              key: const ValueKey('add-pet-photo'),
+              onPressed:
+                  saving || picking || photos.length >= 5 ? null : choosePhoto,
               icon: const Icon(Icons.add_photo_alternate_outlined),
-              label: Text(photoData == null
-                  ? t('选择宠物照片', 'Choose pet photo')
-                  : t('更换照片', 'Change photo'))),
-          if (photoData != null)
-            TextButton(
-                onPressed:
-                    saving ? null : () => setState(() => photoData = null),
-                child: Text(t('移除照片', 'Remove photo'))),
-          const SizedBox(height: 12),
+              label: Text(photos.length >= 5
+                  ? t('已添加 5 张照片', '5 photos added')
+                  : t('添加宠物照片', 'Add pet photo'))),
+          const SizedBox(height: 16),
           TextField(
               key: const ValueKey('pet-name'),
               controller: name,

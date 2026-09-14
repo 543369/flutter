@@ -25,18 +25,40 @@ class PetController extends ApiSupport {
                  @Pattern(regexp="cat|dog|other") @NotNull String species,
                  @Size(max=1500000) String photoData,
                  @Size(max=1000) String biography,
-                 @PastOrPresent LocalDate birthDate) {}
+                 @PastOrPresent LocalDate birthDate,
+                 @Size(max=5) List<@NotBlank @Size(max=1500000) String> photos) {}
  @PostMapping("/pets") @ResponseStatus(HttpStatus.CREATED) @Transactional
  Map<String,String> addPet(Authentication auth, @Valid @RequestBody PetInput input) {
   String pet = id(); db.update("INSERT INTO pets(id,household_id,name,species,photo_data,biography,birth_date) VALUES (?,?,?,?,?,?,?)",pet,household(auth),input.name().strip(),input.species(),input.photoData(),input.biography(),input.birthDate());
+  savePhotos(pet, input.photos() != null ? input.photos() :
+    input.photoData() == null || input.photoData().isEmpty() ? List.of() : List.of(input.photoData()));
   return Map.of("id",pet);
  }
  @PatchMapping("/pets/{petId}") @Transactional
  Map<String,String> updatePet(Authentication auth, @PathVariable String petId,
                               @Valid @RequestBody PetInput input) {
-  require(db.update("UPDATE pets SET name=?,species=?,photo_data=?,biography=?,birth_date=? WHERE id=? AND household_id=?",
-    input.name().strip(),input.species(),input.photoData(),input.biography(),input.birthDate(),petId,household(auth)));
+  require(db.update("UPDATE pets SET name=?,species=?,biography=?,birth_date=? WHERE id=? AND household_id=?",
+    input.name().strip(),input.species(),input.biography(),input.birthDate(),petId,household(auth)));
+  if (input.photos() != null) {
+   savePhotos(petId, input.photos());
+  } else if (input.photoData() != null && !input.photoData().isEmpty()) {
+   // Older clients can replace the cover without losing the remaining photos.
+   var photos = new ArrayList<>(db.queryForList("SELECT photo_data FROM pet_photos WHERE pet_id=? ORDER BY position_index",String.class,petId));
+   if (photos.isEmpty()) photos.add(input.photoData()); else photos.set(0,input.photoData());
+   savePhotos(petId,photos);
+  }
   return Map.of("id",petId);
+ }
+ private void savePhotos(String petId, List<String> photos) {
+  for (String photo : photos) {
+   try {
+    if (Base64.getDecoder().decode(photo).length == 0) throw new IllegalArgumentException();
+   } catch (IllegalArgumentException e) { throw new ResponseStatusException(HttpStatus.BAD_REQUEST); }
+  }
+  db.update("DELETE FROM pet_photos WHERE pet_id=?",petId);
+  for (int i=0;i<photos.size();i++)
+   db.update("INSERT INTO pet_photos(pet_id,position_index,photo_data) VALUES (?,?,?)",petId,i,photos.get(i));
+  db.update("UPDATE pets SET photo_data=? WHERE id=?",photos.isEmpty()?null:photos.getFirst(),petId);
  }
  @DeleteMapping("/pets/{petId}") @ResponseStatus(HttpStatus.NO_CONTENT) @Transactional
  void deletePet(Authentication auth, @PathVariable String petId) {
