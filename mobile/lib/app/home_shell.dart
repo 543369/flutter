@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../core/network/care_api.dart';
 import '../features/auth/auth_panel.dart';
 import '../features/care/reminder_service.dart';
-import '../features/care/care_actions.dart';
 import '../features/care/care_view.dart';
 import '../features/pets/pet_module.dart';
 import '../features/family/family_module.dart';
@@ -364,17 +363,6 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
                       selectedIcon: const Icon(Icons.people_rounded),
                       label: t('家庭', 'Family')),
                 ]),
-      floatingActionButton: data == null || tab == 2 || tab == 0
-          ? null
-          : FloatingActionButton.extended(
-              onPressed: busy
-                  ? null
-                  : tab == 0
-                      ? addTask
-                      : addPet,
-              icon: const Icon(Icons.add),
-              label: Text(
-                  tab == 0 ? t('安排照护', 'Plan care') : t('添加宠物', 'Add pet'))),
     );
   }
 

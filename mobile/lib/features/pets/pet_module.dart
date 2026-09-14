@@ -6,6 +6,7 @@ import '../../app/home_shell.dart';
 import 'pet_form_dialog.dart';
 import 'pet_detail_page.dart';
 import 'pet_profile.dart';
+import 'pet_cover.dart';
 
 extension PetModule on CareHomeState {
   Future<String?> pickPetPhoto() async {
@@ -87,68 +88,130 @@ extension PetModule on CareHomeState {
             color: const Color(0xff694536)));
   }
 
+  Future<bool> deletePetProfile(Map<String, dynamic> pet) async {
+    if (!await confirm(
+        t('删除宠物？', 'Delete pet?'),
+        t('此宠物的档案、照护事项和图文回忆录将一并删除，所有家庭成员都会受影响。',
+            'This deletes the pet profile, care tasks and photo memories for everyone.'))) {
+      return false;
+    }
+    var deleted = false;
+    await perform(() async {
+      await widget.api.request('DELETE', '/pets/${pet['id']}');
+      deleted = true;
+    });
+    return deleted;
+  }
+
   List<Widget> petView() => [
-        Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(22),
-            decoration: BoxDecoration(
-                color: const Color(0xffffedc3),
-                borderRadius: BorderRadius.circular(28)),
-            child: Row(children: [
-              Expanded(
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                    Text(t('家里的小伙伴', 'Your companions'),
-                        style: Theme.of(context).textTheme.headlineMedium),
-                    const SizedBox(height: 8),
-                    Text(t('每一位，都有自己的照护节奏。',
-                        'Every companion has their own care rhythm.')),
-                  ])),
-              Container(
-                  width: 58,
-                  height: 58,
-                  decoration: const BoxDecoration(
-                      color: Colors.white, shape: BoxShape.circle),
-                  child: const Icon(Icons.pets_rounded,
-                      size: 30, color: Color(0xffa25030)))
-            ])),
-        const SizedBox(height: 18),
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                Text(t('我们的毛孩子', 'Our companions'),
+                    style: Theme.of(context).textTheme.headlineMedium),
+                const SizedBox(height: 8),
+                Text(t('把陪伴的每一天，都好好收藏。', 'Every day together, worth keeping.')),
+              ])),
+          const SizedBox(width: 8),
+          TextButton.icon(
+              onPressed: busy ? null : addPet,
+              icon: const Icon(Icons.add_rounded, size: 19),
+              label: Text(t('添加宠物', 'Add a pet'))),
+        ]),
+        const SizedBox(height: 24),
         if (pets.isEmpty)
-          empty(t('还没有宠物档案', 'No pets yet'),
-              t('添加第一位家庭小成员。', 'Add your first companion.'), Icons.pets),
-        ...pets.map((pet) => Card(
-            color: const Color(0xfffaf1e7),
-            child: ListTile(
-              onTap: () => openPetDetails(pet),
-              contentPadding: const EdgeInsets.all(18),
-              leading: petAvatar(pet),
-              title: Text(pet['name'] as String,
-                  style: const TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.w700)),
-              subtitle: Text(
-                  '${petSpeciesLabel(pet)} · ${petAgeLabel(pet['birthDate'] as String?, DateTime.now(), chinese: zh)}'),
-              trailing: IconButton(
-                  tooltip: t('删除宠物', 'Delete pet'),
-                  icon: const Icon(Icons.delete_outline),
-                  onPressed: busy
-                      ? null
-                      : () async {
-                          if (await confirm(
-                              t('删除宠物？', 'Delete pet?'),
-                              t('将同时删除此宠物的全部照护事项，所有家庭成员均受影响。',
-                                  'All care tasks for this pet will also be deleted for everyone.'))) {
-                            await perform(() async {
-                              await widget.api
-                                  .request('DELETE', '/pets/${pet['id']}');
-                            });
-                          }
-                        }),
-            ))),
-        const SizedBox(height: 8),
-        FilledButton.icon(
-            onPressed: busy ? null : addPet,
-            icon: const Icon(Icons.add_rounded),
-            label: Text(t('添加宠物', 'Add a pet'))),
+          empty(
+              t('第一位小伙伴，等你来介绍', 'Meet your first companion'),
+              t('添加照片和名字，开启属于你们的故事。',
+                  'Add a photo and name to start your story.'),
+              Icons.pets_rounded),
+        LayoutBuilder(builder: (context, constraints) {
+          final columns = constraints.maxWidth < 330
+              ? 1
+              : constraints.maxWidth >= 650
+                  ? 3
+                  : 2;
+          final width = (constraints.maxWidth - (columns - 1) * 16) / columns;
+          return Wrap(
+              spacing: 16,
+              runSpacing: 20,
+              children: pets.indexed.map((entry) {
+                final pet = entry.$2;
+                return SizedBox(
+                    width: width,
+                    child: Material(
+                      color: entry.$1.isEven
+                          ? const Color(0xfffff0df)
+                          : const Color(0xffeaf2f7),
+                      borderRadius: BorderRadius.circular(24),
+                      clipBehavior: Clip.antiAlias,
+                      child: InkWell(
+                        key: ValueKey('pet-card-${pet['id']}'),
+                        onTap: () => openPetDetails(pet),
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              AspectRatio(
+                                  aspectRatio: 1.05, child: PetCover(pet: pet)),
+                              Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(children: [
+                                          Expanded(
+                                              child: Text(pet['name'] as String,
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: Theme.of(context)
+                                                      .textTheme
+                                                      .titleLarge)),
+                                          const Icon(
+                                              Icons.arrow_outward_rounded,
+                                              size: 18)
+                                        ]),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                            '${petSpeciesLabel(pet)} · ${petAgeLabel(pet['birthDate'] as String?, DateTime.now(), chinese: zh)}',
+                                            maxLines: 2,
+                                            style:
+                                                const TextStyle(fontSize: 12)),
+                                        const SizedBox(height: 14),
+                                        Row(children: [
+                                          const Icon(
+                                              Icons.auto_stories_outlined,
+                                              size: 16),
+                                          const SizedBox(width: 5),
+                                          Expanded(
+                                              child: Text(
+                                                  t('${pet['memoryCount'] ?? 0} 篇小回忆',
+                                                      '${pet['memoryCount'] ?? 0} memories'),
+                                                  style: const TextStyle(
+                                                      fontSize: 12)))
+                                        ]),
+                                      ])),
+                            ]),
+                      ),
+                    ));
+              }).toList());
+        }),
+        const SizedBox(height: 28),
+        Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+                color: const Color(0xfff7f2ec),
+                borderRadius: BorderRadius.circular(22)),
+            child: Row(children: [
+              const Icon(Icons.favorite_border_rounded,
+                  color: Color(0xffce6b4c)),
+              const SizedBox(width: 12),
+              Expanded(
+                  child: Text(t('点击小伙伴的卡片，看看档案，写下一段新回忆。',
+                      'Open a companion’s card to view their profile and add a memory.')))
+            ])),
       ];
 }

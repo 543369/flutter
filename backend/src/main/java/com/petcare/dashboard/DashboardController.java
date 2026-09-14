@@ -25,12 +25,12 @@ class DashboardController extends ApiSupport {
  @GetMapping("/dashboard") @Transactional
  Map<String,Object> dashboard(Authentication auth) {
   String home = household(auth);
-  var pets = db.query("SELECT id,name,species,photo_data,biography,birth_date,created_at FROM pets WHERE household_id = ? ORDER BY name,id", (r,n) -> {
+  var pets = db.query("SELECT id,name,species,photo_data,biography,birth_date,created_at,(SELECT COUNT(*) FROM pet_memories m WHERE m.pet_id=pets.id) AS memory_count FROM pets WHERE household_id = ? ORDER BY name,id", (r,n) -> {
    Map<String,Object> row = new LinkedHashMap<>();
    row.put("id",r.getString(1)); row.put("name",r.getString(2)); row.put("species",r.getString(3));
    row.put("photoData",r.getString(4)); row.put("biography",r.getString(5));
    row.put("birthDate",r.getDate(6)==null?null:r.getDate(6).toLocalDate().toString());
-   row.put("createdAt",r.getTimestamp(7)==null?null:r.getTimestamp(7).toInstant().toString()); return row;
+   row.put("createdAt",r.getTimestamp(7)==null?null:r.getTimestamp(7).toInstant().toString()); row.put("memoryCount",r.getInt(8)); return row;
   }, home);
   plans.materialize(home);
   var tasks = db.query("SELECT t.id,t.pet_id,t.title,t.due_at,t.completed,p.name,t.plan_id,t.care_type FROM care_tasks t JOIN pets p ON p.id=t.pet_id WHERE p.household_id=? AND t.cancelled=FALSE ORDER BY t.completed,t.due_at,t.id", (r,n) -> {
@@ -46,7 +46,8 @@ class DashboardController extends ApiSupport {
    row.put("title",r.getString(6)); row.put("petName",r.getString(7)); row.put("petId",r.getString(8)); row.put("careType",r.getString(9)); return row;
   }, home);
   var recurring = db.queryForList("SELECT c.id,c.title,c.frequency,c.zone_id AS zoneId,c.active,c.care_type AS careType,p.name AS petName,p.id AS petId FROM care_plans c JOIN pets p ON p.id=c.pet_id WHERE p.household_id=? ORDER BY c.active DESC,c.title,c.id",home);
-  return Map.of("registered",db.queryForObject("SELECT (email IS NOT NULL OR apple_subject IS NOT NULL) FROM accounts WHERE id=?",Boolean.class,auth.getName()),"pets",pets,"tasks",tasks,"history",history,"plans",recurring,
+  var memberProfiles=db.query("SELECT id,display_name FROM accounts WHERE household_id=? ORDER BY display_name,id",(r,n)->Map.of("id",r.getString(1),"name",r.getString(2),"isMe",r.getString(1).equals(auth.getName())),home);
+  return Map.of("memberProfiles",memberProfiles,"registered",db.queryForObject("SELECT (email IS NOT NULL OR apple_subject IS NOT NULL) FROM accounts WHERE id=?",Boolean.class,auth.getName()),"pets",pets,"tasks",tasks,"history",history,"plans",recurring,
    "me",db.queryForObject("SELECT display_name FROM accounts WHERE id=?",String.class,auth.getName()),
    "members",db.queryForObject("SELECT COUNT(*) FROM accounts WHERE household_id=?", Integer.class, home));
  }

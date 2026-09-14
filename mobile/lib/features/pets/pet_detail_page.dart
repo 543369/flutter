@@ -1,9 +1,10 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../app/home_shell.dart';
 import '../care/care_pages.dart';
 import 'pet_module.dart';
 import 'pet_profile.dart';
+import 'pet_cover.dart';
+import 'memory_pages.dart';
 
 class PetDetailPage extends StatelessWidget {
   const PetDetailPage({super.key, required this.home, required this.petId});
@@ -44,7 +45,7 @@ class PetDetailPage extends StatelessWidget {
                         ClipRRect(
                             borderRadius: BorderRadius.circular(28),
                             child: AspectRatio(
-                                aspectRatio: 1.5, child: _photo(pet))),
+                                aspectRatio: 1.5, child: PetCover(pet: pet))),
                         const SizedBox(height: 20),
                         Text(pet['name'] as String,
                             style: Theme.of(context).textTheme.headlineLarge),
@@ -52,6 +53,38 @@ class PetDetailPage extends StatelessWidget {
                         Text(
                             '${home.petSpeciesLabel(pet)} · ${petAgeLabel(pet['birthDate'] as String?, DateTime.now(), chinese: home.zh)}'),
                         const SizedBox(height: 20),
+                        Card(
+                            color: const Color(0xffffe9df),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(22),
+                              onTap: () => Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                      builder: (_) => PetMemoriesPage(
+                                          home: home, petId: petId))),
+                              child: Padding(
+                                  padding: const EdgeInsets.all(20),
+                                  child: Row(children: [
+                                    const Icon(Icons.auto_stories_outlined,
+                                        size: 32, color: Color(0xffb75f43)),
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                        child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                          Text(t('它的回忆录', 'Their memory book'),
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .titleLarge),
+                                          const SizedBox(height: 6),
+                                          Text(t(
+                                              '${pet['memoryCount'] ?? 0} 篇故事 · 收藏美好日常',
+                                              '${pet['memoryCount'] ?? 0} stories · Little moments to keep')),
+                                        ])),
+                                    const Icon(Icons.chevron_right_rounded),
+                                  ])),
+                            )),
+                        const SizedBox(height: 8),
                         Card(
                             child: Padding(
                                 padding: const EdgeInsets.all(20),
@@ -108,25 +141,23 @@ class PetDetailPage extends StatelessWidget {
                                 home.busy ? null : () => home.editPet(pet),
                             icon: const Icon(Icons.edit_outlined),
                             label: Text(t('编辑档案', 'Edit profile'))),
+                        const SizedBox(height: 16),
+                        TextButton.icon(
+                            onPressed: home.busy
+                                ? null
+                                : () async {
+                                    final deleted =
+                                        await home.deletePetProfile(pet);
+                                    if (deleted && context.mounted) {
+                                      Navigator.of(context).pop();
+                                    }
+                                  },
+                            icon: const Icon(Icons.delete_outline_rounded),
+                            label: Text(t('删除宠物档案', 'Delete pet profile'))),
                       ],
                     ),
             ))),
           );
         },
       );
-
-  Widget _photo(Map<String, dynamic> pet) {
-    final photo = pet['photoData'] as String?;
-    Widget fallback() => Container(
-        color: const Color(0xffffefcc),
-        child:
-            const Icon(Icons.pets_rounded, size: 80, color: Color(0xff916b53)));
-    if (photo == null || photo.isEmpty) return fallback();
-    try {
-      return Image.memory(base64Decode(photo),
-          fit: BoxFit.cover, errorBuilder: (_, __, ___) => fallback());
-    } catch (_) {
-      return fallback();
-    }
-  }
 }
