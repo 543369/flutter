@@ -1,12 +1,13 @@
 /// The ordered gallery is authoritative; accept older single-photo dashboards.
 List<String> petPhotos(Map<String, dynamic>? pet) {
   final photos = pet?['photos'];
-  if (photos is List)
+  if (photos is List) {
     return photos
         .whereType<String>()
         .where((p) => p.isNotEmpty)
         .take(5)
         .toList();
+  }
   final cover = pet?['photoData'];
   return cover is String && cover.isNotEmpty ? [cover] : [];
 }
