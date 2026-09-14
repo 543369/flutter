@@ -19,7 +19,7 @@ class PetCover extends StatelessWidget {
                 : 'assets/images/petcare_shiba_hero.png',
             fit: BoxFit.cover,
             alignment: pet['species'] == 'cat'
-                ? Alignment.center
+                ? Alignment.topCenter
                 : Alignment.centerRight);
     final value = pet['photoData'] as String?;
     if (value == null || value.isEmpty) return fallback();

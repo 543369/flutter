@@ -1,5 +1,15 @@
 # 照护类型配图
 
+## 猫咪默认封面（2026-09-14）
+
+新增 `mobile/assets/images/petcare_cat_cover.jpg`，由内置 imagegen 生成，缩放为 800 px JPEG；用于没有自有照片的猫咪卡片和档案。狗狗继续使用已有 `petcare_shiba_hero.png`。回忆录中的图片由用户选择，不自动填充默认图。
+
+生成提示词：
+
+> Create a single square premium pet portrait photograph for a warm cream-colored pet care mobile application. A friendly fluffy cream and ginger domestic cat with green eyes sitting on a pale butter-yellow studio background, full head and chest, looking at the camera, centered with comfortable margin above ears, soft natural daylight, realistic fine fur, cozy gentle mood, uncluttered, no lettering no logo no watermark. This will be a default cover for cat profile cards, clear recognizable cat face at small sizes.
+
+## 照护物品
+
 使用内置 imagegen 工具生成，成品保存于 `mobile/assets/images/`，各图缩放为 512 px JPEG 供移动端使用。喂食继续使用原有 `petcare_food_bowl.png`。
 
 | 类型 | 文件 | 画面 |

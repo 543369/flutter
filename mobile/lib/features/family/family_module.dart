@@ -38,26 +38,44 @@ extension FamilyModule on CareHomeState {
   }
 
   Future<void> invite() async {
-    Map<String,dynamic>? invitation;
+    Map<String, dynamic>? invitation;
     await perform(() async {
-      invitation = Map<String,dynamic>.from(await widget.api.request('POST', '/invites') as Map);
+      invitation = Map<String, dynamic>.from(
+          await widget.api.request('POST', '/invites') as Map);
     });
     if (!mounted || invitation == null) return;
-    await showDialog<void>(context: context, builder: (dialogContext) => AlertDialog(
-      title: Text(t('邀请家人', 'Invite family')),
-      content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(t('24 小时内有效，仅可使用一次。受邀家人可以共同管理宠物、照护与回忆录。',
-          'Valid for 24 hours and one use. Invited family can manage pets, care and memories.')),
-        const SizedBox(height: 18), SelectableText(invitation!['code'] as String),
-      ]),
-      actions: [Row(children: [
-        Expanded(child: TextButton(onPressed: () => Navigator.pop(dialogContext), child: Text(t('关闭', 'Close')))),
-        Expanded(child: FilledButton(onPressed: () async {
-          await Clipboard.setData(ClipboardData(text: invitation!['code'] as String));
-          if(dialogContext.mounted) Navigator.pop(dialogContext);
-        }, child: Text(t('复制邀请码', 'Copy invitation')))),
-      ])],
-    ));
+    await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+              title: Text(t('邀请家人', 'Invite family')),
+              content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(t('24 小时内有效，仅可使用一次。受邀家人可以共同管理宠物、照护与回忆录。',
+                        'Valid for 24 hours and one use. Invited family can manage pets, care and memories.')),
+                    const SizedBox(height: 18),
+                    SelectableText(invitation!['code'] as String),
+                  ]),
+              actions: [
+                Row(children: [
+                  Expanded(
+                      child: TextButton(
+                          onPressed: () => Navigator.pop(dialogContext),
+                          child: Text(t('关闭', 'Close')))),
+                  Expanded(
+                      child: FilledButton(
+                          onPressed: () async {
+                            await Clipboard.setData(ClipboardData(
+                                text: invitation!['code'] as String));
+                            if (dialogContext.mounted) {
+                              Navigator.pop(dialogContext);
+                            }
+                          },
+                          child: Text(t('复制邀请码', 'Copy invitation')))),
+                ])
+              ],
+            ));
   }
 
   Future<void> join() async {

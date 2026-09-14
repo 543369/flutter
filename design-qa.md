@@ -1,14 +1,46 @@
-# Design QA
+# Design QA — 宠物、回忆录与家庭
 
-- Source: `docs/design/home-warm-companion.png`
-- Implementation: Flutter views under `mobile/lib/features/`
-- Viewport checked: 393 × 852 widget surface
-- Interaction validation: passed
-- Static analysis: passed
-- Visual structure: warm yellow pet hero, dark brown CTA, rounded care cards, warm white background, and three-item navigation are implemented consistently.
-- Other screens: Pets, Family, and authentication use the same theme, spacing, radius, cards, inputs, and button hierarchy.
-- Capture limitation: Flutter's headless golden renderer did not load the product images or a CJK fallback font faithfully, so its raster output was not suitable for a trustworthy side-by-side comparison.
+2026-09-14，Flutter 原生界面检查。
 
-## Final result
+## 目标与证据
 
-blocked
+- 视觉来源：用户提供的旧宠物/家庭页面截图，以及 [已确认的首页风格](docs/design/home-warm-companion.png)（853 × 1844 px）。本次明确要求重新设计旧列表，而非逐像素复刻旧页面。
+- 设计目标：照片加名字的宠物卡片；进入档案和带图故事；家庭概览、成员与邀请入口；延续暖白、棕色、杏色和浅蓝配色。旧截图中的账号等真实数据未用作测试数据。
+- 实现截图：`docs/design/qa/2026-09-14/`；可复现脚本：`mobile/tool/memories_visual_qa_test.dart`。
+- 手机视口 393 × 852 逻辑像素，导出 786 × 1704 px；桌面视口 800 × 1000，导出 1600 × 2000 px，均为 2 倍密度。观察时按逻辑尺寸归一化。
+- 中文截图使用本机 PingFang 加载到应用字体及回退字体。截图来自真实 Flutter Widget 渲染，未伪造 macOS 标题栏或手机状态栏。系统原生字体的抗锯齿可能略有差异。
+- 首页风格图和实现截图在同一图像检查输入中打开，比较共同的色彩、摄影、圆角与文字层级；页面不同，未声称像素一致。宠物/家庭手机与桌面全图、回忆详情和表单分别检查了图片裁切、信息层级、留白和操作入口。
+
+## 页面检查
+
+| 页面 / 状态 | 截图 | 结果 |
+| --- | --- | --- |
+| 宠物卡片，手机 / 桌面 | [手机](docs/design/qa/2026-09-14/pets-mobile.png)、[桌面](docs/design/qa/2026-09-14/pets-desktop.png) | 图片、名字、年龄、故事数清楚；单一创建入口；卡片打开详情 |
+| 宠物档案 | [详情](docs/design/qa/2026-09-14/pet-detail.png) | 默认猫图保留耳朵；简介、生日、年龄、创建时间和回忆入口层级分明 |
+| 回忆列表与详情 | [列表](docs/design/qa/2026-09-14/memories.png)、[详情](docs/design/qa/2026-09-14/memory-detail.png) | 照片可见；列表摘要、故事正文、作者与日期可读 |
+| 回忆编辑 | [表单](docs/design/qa/2026-09-14/memory-editor.png)、[照片](docs/design/qa/2026-09-14/memory-editor-photos.png) | 正文可滚动；附件可移除；取消/保存固定在可见底部 |
+| 家庭概览 | [手机](docs/design/qa/2026-09-14/family-mobile.png)、[桌面](docs/design/qa/2026-09-14/family-desktop.png) | 成员、计数、邀请和加入家庭分区清晰；导航可见，无溢出 |
+| 家庭设置与空动态 | [下半页](docs/design/qa/2026-09-14/family-settings.png) | 清晰的空状态；账号、提醒、隐私为独立可点击入口 |
+
+## 迭代记录
+
+1. [P2，已修复] 猫咪默认封面在档案页横向画幅中裁掉耳朵。将默认猫图对齐方式改为顶部居中，再次捕获同一视口；`pet-detail.png` 中耳朵完整且脸部清楚。
+2. [检查阻塞，已解决] 首轮截图里回忆照片仍在异步解码。截图脚本改为等待当前页面实际 ImageProvider 解码，再次捕获 `memories.png` 和 `memory-detail.png`，确认照片已显示。没有将空白截图判为通过。
+3. 邀请弹窗改为接口完成后打开，避免对话框展示期间整页一直处于忙碌状态；手机和桌面交互测试均通过。
+
+## 字体、布局与素材
+
+- 字体：中文无缺字方框；标题、名字、辅助文案与正文层级清楚；长故事可换行，长名字省略显示，完整名字在档案中查看。
+- 布局：宠物画廊按可用宽度切换 1/2/3 列，页面保留暖白留白；卡片使用 24 px 圆角；家庭入口成对排列；长内容可滚动。
+- 色彩：暖白 `#FFFDF9`、主操作棕 `#5B3B2E`、浅蓝和杏色延续首页方向，状态同时用文本和图标表达。
+- 图片：优先自有照片；猫、狗默认摄影按物种区分；图像无拉伸，普通图标来自 Material Icons。列表封面允许裁切，回忆详情点击图片可查看完整大图。
+- 文案：计数来自服务端，照片和名字仅在测试环境使用示例；不向真实家庭填充演示故事。
+
+## 功能验证与边界
+
+- Flutter：24 项测试通过，包括回忆创建、详情、编辑、删除，图片附加/移除、保存失败后重试、两种屏宽下成员和邀请入口。
+- API：9 项后端测试通过；独立 HTTP/MySQL 集成检查覆盖图片往返、回滚、分页、家庭共享/隔离、稳定创建时间和删除级联。
+- 视觉检查：中文 393 × 852、800 × 1000 实际渲染检查完成，无待处理 P0/P1/P2。
+- 边界：自动化使用注入的照片选择器，未代替系统文件选择器的手动操作测试；未进行全量辅助功能审计或真机 iOS/Android 验证。
+
+final result: passed
