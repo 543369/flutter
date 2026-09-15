@@ -26,7 +26,7 @@ class CareController extends ApiSupport {
  record Completion(@NotNull Boolean completed) {}
  @PostMapping("/tasks") @ResponseStatus(HttpStatus.CREATED) @Transactional
  Map<String,String> addTask(Authentication auth, @Valid @RequestBody TaskInput input) {
-  String home=household(auth), task=id();
+  String home=permission(auth,"CARE"), task=id();
   if (input.dueAt().isBefore(Instant.parse("2000-01-01T00:00:00Z")) || input.dueAt().isAfter(Instant.parse("2037-12-31T23:59:59Z")))
    throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
   String frequency = input.frequency() == null ? "NONE" : input.frequency();
@@ -48,7 +48,7 @@ class CareController extends ApiSupport {
  }
  @PatchMapping("/tasks/{taskId}") @Transactional
  Map<String,Boolean> complete(Authentication auth, @PathVariable String taskId, @Valid @RequestBody Completion input) {
-  String home = household(auth);
+  String home = permission(auth,"CARE");
   var states = db.queryForList("SELECT t.completed FROM care_tasks t JOIN pets p ON p.id=t.pet_id WHERE t.id=? AND p.household_id=? AND t.cancelled=FALSE FOR UPDATE",Boolean.class,taskId,home);
   if (states.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
   if (!states.getFirst().equals(input.completed())) {
@@ -57,9 +57,18 @@ class CareController extends ApiSupport {
   }
   return Map.of("completed",input.completed());
  }
+ record Assignment(String memberId) {}
+ @PatchMapping("/tasks/{taskId}/assignment") @Transactional
+ Map<String,Boolean> assign(Authentication auth,@PathVariable String taskId,@RequestBody Assignment input) {
+  String home=permission(auth,"CARE");
+  if(input.memberId()!=null && db.queryForObject("SELECT COUNT(*) FROM accounts WHERE id=? AND household_id=? AND (access_until IS NULL OR access_until>CURRENT_TIMESTAMP(6)) AND (family_role='ADMIN' OR FIND_IN_SET('CARE',permissions)>0)",Integer.class,input.memberId(),home)!=1)
+   throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"INVALID_ASSIGNEE");
+  require(db.update("UPDATE care_tasks t JOIN pets p ON p.id=t.pet_id SET t.assigned_to=? WHERE t.id=? AND p.household_id=? AND t.cancelled=FALSE",input.memberId(),taskId,home));
+  return Map.of("saved",true);
+ }
  @DeleteMapping("/plans/{planId}") @ResponseStatus(HttpStatus.NO_CONTENT) @Transactional
  void stopPlan(Authentication auth, @PathVariable String planId) {
-  String home = household(auth);
+  String home = permission(auth,"CARE");
   require(db.update("UPDATE care_plans c JOIN pets p ON p.id=c.pet_id SET c.active=FALSE WHERE c.id=? AND p.household_id=?",planId,home));
   // Preserve overdue occurrences and all completed care/history.
   db.update("UPDATE care_tasks SET cancelled=TRUE WHERE plan_id=? AND completed=FALSE AND due_at>?",planId,Timestamp.from(Instant.now()));

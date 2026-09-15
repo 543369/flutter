@@ -12,7 +12,7 @@ class AuthController {
  private final AuthService auth;
  private final AuthRateLimiter limits;
  AuthController(AuthService auth,AuthRateLimiter limits) { this.auth=auth; this.limits=limits; }
- record Registration(@NotBlank @Email @Size(max=254) String email,@NotBlank @Size(min=10,max=72) String password,@NotBlank @Size(max=40) String name) {}
+ record Registration(@NotBlank @Email @Size(max=254) String email,@NotBlank @Size(min=10,max=72) String password,@Size(max=40) String name, @Size(max=35) String locale) {}
  record Login(@NotBlank @Email @Size(max=254) String email,@NotBlank @Size(max=72) String password) {}
  private String device(HttpServletRequest request) {
   String value=request.getHeader("X-Device-Name");
@@ -25,7 +25,7 @@ class AuthController {
   limits.check(request.getRemoteAddr());
   if(request.getHeader("Authorization") != null && (user == null || "anonymousUser".equals(user.getName())))
    throw new org.springframework.web.server.ResponseStatusException(HttpStatus.UNAUTHORIZED);
-  return auth.register(input.email(),input.password(),input.name(),user,device(request));
+  return auth.register(input.email(),input.password(),input.name()==null || input.name().isBlank()?DefaultNames.forLocale(input.locale()):input.name(),user,device(request));
  }
  @PostMapping("/login")
  Map<String,String> login(@Valid @RequestBody Login input,HttpServletRequest request) {

@@ -31,8 +31,8 @@ void main() {
                 }))));
     await tester.tap(find.text('New here? Create an account'));
     await tester.pumpAndSettle();
-    await tester.enterText(
-        find.widgetWithText(TextFormField, 'Caregiver name'), 'Alex');
+    // An empty nickname is now valid: the server generates a regional name.
+    expect(find.text('Caregiver name (optional)'), findsOneWidget);
     await tester.enterText(
         find.widgetWithText(TextFormField, 'Email'), 'alex@example.com');
     await tester.enterText(
@@ -53,6 +53,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(api.registrations, 1);
     expect(authenticated, true);
+    expect(
+        find.textContaining('Change your nickname in Family'), findsOneWidget);
   });
   testWidgets('incorrect credentials remain on the login form', (tester) async {
     var authenticated = false;

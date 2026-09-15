@@ -17,11 +17,11 @@ class BenefitsController extends ApiSupport {
  private final HouseholdBenefits benefits;
  BenefitsController(JdbcTemplate db,HouseholdBenefits benefits) {super(db);this.benefits=benefits;}
  @GetMapping @Transactional
- Map<String,Object> status(Authentication auth) {return benefits.status(household(auth));}
+ Map<String,Object> status(Authentication auth) {return benefits.status(permission(auth,"READ"));}
 
  @GetMapping("/memories/{petId}") @Transactional
  Map<String,Object> export(Authentication auth,@PathVariable String petId,@RequestParam(defaultValue="0") int offset) {
-  String home=household(auth); benefits.requireExtended(home);
+  String home=permission(auth,"MEMORIES"); permission(auth,"REPORTS"); benefits.requireExtended(home);
   if(offset<0) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
   if(db.queryForObject("SELECT COUNT(*) FROM pets WHERE id=? AND household_id=?",Integer.class,petId,home)!=1)
    throw new ResponseStatusException(HttpStatus.NOT_FOUND);
@@ -39,7 +39,7 @@ class BenefitsController extends ApiSupport {
 
  @GetMapping("/annual") @Transactional
  Map<String,Object> annual(Authentication auth,@RequestParam int year,@RequestParam(defaultValue="Asia/Shanghai") String zoneId) {
-  String home=household(auth); benefits.requireExtended(home);
+  String home=permission(auth,"REPORTS"); benefits.requireExtended(home);
   ZoneId zone;
   try {zone=ZoneId.of(zoneId);} catch(DateTimeException e) {throw new ResponseStatusException(HttpStatus.BAD_REQUEST);}
   if(year<1900 || year>LocalDate.now(zone).getYear()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);

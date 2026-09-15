@@ -34,6 +34,7 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
   String? selectedPetId;
   bool loading = true, busy = false;
   String? error;
+  bool accessExpired = false;
   int tab = 0;
   Map<String, dynamic>? data;
   bool get zh => Localizations.localeOf(context).languageCode == 'zh';
@@ -70,6 +71,9 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
     } on ApiError catch (e) {
       if (e.status == 401) {
         await widget.api.clearSession();
+        data = null;
+      } else if (e.code == 'ACCESS_EXPIRED') {
+        accessExpired = true;
         data = null;
       } else {
         error = 'connection';
@@ -128,6 +132,7 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
       if (mounted) {
         updateUi(() {
           data = next;
+          accessExpired = false;
           error = null;
         });
         await syncReminders();
@@ -139,6 +144,12 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
           updateUi(() => data = null);
           await syncReminders();
         }
+      } else if (e.code == 'ACCESS_EXPIRED' && mounted) {
+        updateUi(() {
+          accessExpired = true;
+          data = null;
+        });
+        await syncReminders();
       } else if (mounted) {
         updateUi(() => error = 'connection');
       }
@@ -188,8 +199,30 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
     }
   }
 
+  bool can(String permission) {
+    final access = data?['access'] as Map?;
+    if (access == null) return true;
+    if (access['role'] == 'ADMIN') return true;
+    return permission != 'ADMIN' &&
+        (access['permissions'] as String? ?? '')
+            .split(',')
+            .contains(permission);
+  }
+
   String message(Object e) {
     if (e is ApiError) {
+      if (e.code == 'ACCESS_EXPIRED') {
+        return t('临时照护权限已到期，请联系家庭管理员续期。',
+            'Your access has expired. Ask a household admin to renew it.');
+      }
+      if (e.code == 'PERMISSION_DENIED') {
+        return t('当前角色没有此操作权限，请联系家庭管理员。',
+            'Your role cannot perform this action. Contact a household admin.');
+      }
+      if (e.code == 'LAST_ADMIN') {
+        return t('请先指定另一位管理员，再退出或调整自己的角色。',
+            'Assign another administrator before leaving or changing your role.');
+      }
       if (e.status == 413) {
         return t('家庭照片空间已满，请到家庭权益查看用量或移除不需要的照片。',
             'Photo storage is full. Review your household storage or remove unwanted photos.');
@@ -235,11 +268,19 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
       if (mounted) {
         updateUi(() {
           data = next;
+          accessExpired = false;
           error = null;
         });
         await syncReminders();
       }
     } catch (e) {
+      if (e is ApiError && e.code == 'ACCESS_EXPIRED' && mounted) {
+        updateUi(() {
+          accessExpired = true;
+          data = null;
+        });
+        await syncReminders();
+      }
       if (e is ApiError && e.status == 401) {
         await widget.api.clearSession();
         if (mounted) {
@@ -374,9 +415,35 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
     );
   }
 
-  Widget welcome() => AuthPanel(
-      api: widget.api,
-      onAuthenticated: () async {
-        await perform(() async {});
-      });
+  Widget welcome() => accessExpired
+      ? Center(
+          child: Padding(
+              padding: const EdgeInsets.all(28),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                const Icon(Icons.timer_off_outlined, size: 48),
+                const SizedBox(height: 18),
+                Text(t('临时照护权限已到期', 'Care access has expired'),
+                    style: Theme.of(context).textTheme.headlineSmall),
+                const SizedBox(height: 12),
+                Text(t('联系家庭管理员续期，或退出这个家庭。',
+                    'Ask an administrator to renew access, or leave this home.')),
+                TextButton(
+                    onPressed: busy ? null : () => perform(() async {}),
+                    child: Text(t('检查权限', 'Check access'))),
+                OutlinedButton(
+                    onPressed: busy
+                        ? null
+                        : () => perform(() async {
+                              await widget.api.request('POST', '/family/leave');
+                            }),
+                    child: Text(t('退出当前家庭', 'Leave household'))),
+                TextButton(
+                    onPressed: busy ? null : () => perform(widget.api.logout),
+                    child: Text(t('退出登录', 'Sign out'))),
+              ])))
+      : AuthPanel(
+          api: widget.api,
+          onAuthenticated: () async {
+            await perform(() async {});
+          });
 }

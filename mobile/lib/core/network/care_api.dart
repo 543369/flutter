@@ -41,7 +41,16 @@ class CareApi {
           .join()
           .timeout(const Duration(seconds: 15));
       if (response.statusCode >= 400) {
-        throw ApiError(response.statusCode, 'REQUEST_FAILED');
+        var code = 'REQUEST_FAILED';
+        try {
+          final body = jsonDecode(text);
+          if (body is Map && body['error'] is String) {
+            code = body['error'] as String;
+          }
+        } on FormatException {
+          /* An upstream proxy may return non-JSON errors. */
+        }
+        throw ApiError(response.statusCode, code);
       }
       return text.isEmpty ? null : jsonDecode(text);
     } finally {
@@ -60,8 +69,12 @@ class CareApi {
   }
 
   Future<void> register(String email, String password, String name) async {
-    final result = await request('POST', '/auth/register',
-        {'email': email.trim(), 'password': password, 'name': name.trim()});
+    final result = await request('POST', '/auth/register', {
+      'email': email.trim(),
+      'password': password,
+      'name': name.trim(),
+      'locale': Platform.localeName.replaceAll('_', '-')
+    });
     await saveSession(result['token'] as String);
   }
 

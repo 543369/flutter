@@ -24,7 +24,7 @@ class MemoryController extends ApiSupport {
                     @NotNull @Size(max=6) List<@NotBlank @Size(max=1500000) String> photos) {}
 
  private String checkPet(Authentication auth, String petId) {
-  String home = household(auth);
+  String home = permission(auth,"MEMORIES");
   if (db.queryForObject("SELECT COUNT(*) FROM pets WHERE id=? AND household_id=?", Integer.class, petId, home) != 1)
    throw new ResponseStatusException(HttpStatus.NOT_FOUND);
   return home;

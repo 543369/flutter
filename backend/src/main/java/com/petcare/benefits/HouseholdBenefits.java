@@ -28,10 +28,10 @@ public class HouseholdBenefits {
  }
  public long usedBytes(String home) {
   // Count decoded image bytes once; pets.photo_data mirrors the first gallery image.
-  return db.queryForObject("SELECT COALESCE(SUM(bytes),0) FROM (SELECT OCTET_LENGTH(FROM_BASE64(f.photo_data)) bytes FROM pet_photos f JOIN pets p ON p.id=f.pet_id WHERE p.household_id=? UNION ALL SELECT OCTET_LENGTH(FROM_BASE64(f.photo_data)) bytes FROM pet_memory_photos f JOIN pet_memories m ON m.id=f.memory_id JOIN pets p ON p.id=m.pet_id WHERE p.household_id=?) images",Long.class,home,home);
+  return db.queryForObject("SELECT COALESCE(SUM(bytes),0) FROM (SELECT OCTET_LENGTH(FROM_BASE64(f.photo_data)) bytes FROM pet_photos f JOIN pets p ON p.id=f.pet_id WHERE p.household_id=? UNION ALL SELECT OCTET_LENGTH(FROM_BASE64(f.photo_data)) bytes FROM pet_memory_photos f JOIN pet_memories m ON m.id=f.memory_id JOIN pets p ON p.id=m.pet_id WHERE p.household_id=? UNION ALL SELECT OCTET_LENGTH(FROM_BASE64(f.photo_data)) bytes FROM health_attachments f JOIN health_records h ON h.id=f.record_id JOIN pets p ON p.id=h.pet_id WHERE p.household_id=?) images",Long.class,home,home,home);
  }
  public long photoCount(String home) {
-  return db.queryForObject("SELECT (SELECT COUNT(*) FROM pet_photos f JOIN pets p ON p.id=f.pet_id WHERE p.household_id=?)+(SELECT COUNT(*) FROM pet_memory_photos f JOIN pet_memories m ON m.id=f.memory_id JOIN pets p ON p.id=m.pet_id WHERE p.household_id=?)",Long.class,home,home);
+  return db.queryForObject("SELECT (SELECT COUNT(*) FROM pet_photos f JOIN pets p ON p.id=f.pet_id WHERE p.household_id=?)+(SELECT COUNT(*) FROM pet_memory_photos f JOIN pet_memories m ON m.id=f.memory_id JOIN pets p ON p.id=m.pet_id WHERE p.household_id=?)+(SELECT COUNT(*) FROM health_attachments f JOIN health_records h ON h.id=f.record_id JOIN pets p ON p.id=h.pet_id WHERE p.household_id=?)",Long.class,home,home,home);
  }
  public void checkGrowth(String home,long before) {
   long after=usedBytes(home);
@@ -49,6 +49,8 @@ public class HouseholdBenefits {
   result.put("baseLimitBytes",freeBytes); result.put("usedBytes",usedBytes(home));
   result.put("photoCount",photoCount(home)); result.put("expiresAt",access.expiresAt());
   result.put("canExport",access.extended()); result.put("canReport",access.extended());
+  result.put("canHealthTrends",access.extended()); result.put("canBatchOrganize",access.extended());
+  result.put("canAdvancedRoles",access.extended()); result.put("healthAttachmentLimit",access.extended()?12:2);
   result.put("billingEnabled",false);
   return result;
  }

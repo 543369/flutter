@@ -127,7 +127,8 @@ void main() {
     await tester.pumpAndSettle();
     await tapVisible(tester, find.text('Mochi'));
     expect(find.text('Pet profile'), findsOneWidget);
-    await tester.ensureVisible(find.text('Not recorded (older profile)'));
+    await tester.scrollUntilVisible(find.text('Not recorded (older profile)'),
+        200, scrollable: find.byType(Scrollable).first);
     expect(find.text('Not recorded (older profile)'), findsOneWidget);
     await tester.tap(find.byTooltip('Edit profile'));
     await tester.pumpAndSettle();

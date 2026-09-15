@@ -152,6 +152,8 @@ void main() {
       await tester.binding.setSurfaceSize(Size(width, 1000));
       await tester.tap(find.text('Family'));
       await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text('Sam'), 200,
+          scrollable: find.byType(Scrollable).first);
       expect(find.text('Sam'), findsOneWidget);
       await tapVisible(tester, find.text('Invite family'));
       expect(find.text('TEST-CODE'), findsOneWidget);

@@ -31,7 +31,7 @@ class PetController extends ApiSupport {
                  @Size(max=5) List<@NotBlank @Size(max=1500000) String> photos) {}
  @PostMapping("/pets") @ResponseStatus(HttpStatus.CREATED) @Transactional
  Map<String,String> addPet(Authentication auth, @Valid @RequestBody PetInput input) {
-  String home=household(auth); long before=benefits.usedBytes(home);
+  String home=permission(auth,"PETS"); long before=benefits.usedBytes(home);
   String pet = id(); db.update("INSERT INTO pets(id,household_id,name,species,photo_data,biography,birth_date) VALUES (?,?,?,?,?,?,?)",pet,home,input.name().strip(),input.species(),input.photoData(),input.biography(),input.birthDate());
   savePhotos(pet, input.photos() != null ? input.photos() :
     input.photoData() == null || input.photoData().isEmpty() ? List.of() : List.of(input.photoData()));
@@ -41,7 +41,7 @@ class PetController extends ApiSupport {
  @PatchMapping("/pets/{petId}") @Transactional
  Map<String,String> updatePet(Authentication auth, @PathVariable String petId,
                               @Valid @RequestBody PetInput input) {
-  String home=household(auth); long before=benefits.usedBytes(home);
+  String home=permission(auth,"PETS"); long before=benefits.usedBytes(home);
   require(db.update("UPDATE pets SET name=?,species=?,biography=?,birth_date=? WHERE id=? AND household_id=?",
     input.name().strip(),input.species(),input.biography(),input.birthDate(),petId,home));
   if (input.photos() != null) {
@@ -68,7 +68,7 @@ class PetController extends ApiSupport {
  }
  @DeleteMapping("/pets/{petId}") @ResponseStatus(HttpStatus.NO_CONTENT) @Transactional
  void deletePet(Authentication auth, @PathVariable String petId) {
-  require(db.update("DELETE FROM pets WHERE id=? AND household_id=?", petId, household(auth)));
+  require(db.update("DELETE FROM pets WHERE id=? AND household_id=?", petId, permission(auth,"PETS")));
  }
 
 }

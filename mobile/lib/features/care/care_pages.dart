@@ -151,6 +151,29 @@ extension CarePages on CareHomeState {
     });
   }
 
+  Future<void> assignCare(Map<String, dynamic> task) async {
+    final selected = await showDialog<String>(
+        context: context,
+        builder: (c) => SimpleDialog(
+                title: Text(t('指定照护人', 'Assign caregiver')),
+                children: [
+                  SimpleDialogOption(
+                      onPressed: () => Navigator.pop(c, ''),
+                      child: Text(t('暂不指定', 'Unassigned'))),
+                  for (final member in data?['memberProfiles'] as List? ?? [])
+                    SimpleDialogOption(
+                        onPressed: () =>
+                            Navigator.pop(c, member['id'] as String),
+                        child: Text(member['name'] as String)),
+                ]));
+    if (selected != null && mounted) {
+      await perform(() async {
+        await widget.api.request('PATCH', '/tasks/${task['id']}/assignment',
+            {'memberId': selected.isEmpty ? null : selected});
+      });
+    }
+  }
+
   Future<void> openTaskDetails(Map<String, dynamic> original) =>
       _openCarePage(t('安排详情', 'Plan details'), (_) {
         final task =
@@ -175,6 +198,12 @@ extension CarePages on CareHomeState {
                 style: Theme.of(context).textTheme.headlineMedium),
             const SizedBox(height: 12),
             _detailField(t('宠物', 'Pet'), task['petName'] as String),
+            _detailField(
+                t('负责照护', 'Assigned caregiver'),
+                (data?['memberProfiles'] as List? ?? [])
+                        .where((m) => m['id'] == task['assignedTo'])
+                        .firstOrNull?['name'] as String? ??
+                    t('尚未指定', 'Unassigned')),
             _detailField(t('安排时间', 'Scheduled'),
                 dateLabel(DateTime.parse(task['dueAt'] as String).toLocal())),
             _detailField(t('照护类型', 'Care type'), CareKind.of(task).label(zh)),
@@ -182,6 +211,10 @@ extension CarePages on CareHomeState {
             _detailField(t('状态', 'Status'),
                 completed ? t('已完成', 'Completed') : t('待照护', 'Pending')),
           ]),
+          OutlinedButton.icon(
+              onPressed: busy ? null : () => assignCare(task),
+              icon: const Icon(Icons.person_add_alt_outlined),
+              label: Text(t('指定照护人', 'Assign caregiver'))),
           FilledButton.icon(
             onPressed: busy ? null : () => changeCompletion(task, !completed),
             icon: Icon(

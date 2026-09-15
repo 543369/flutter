@@ -48,7 +48,7 @@ class AppleIdentityController {
    account=UUID.randomUUID().toString();String home=UUID.randomUUID().toString();
    db.update("INSERT INTO households(id) VALUES (?)",home);
    // Apple subject is the identity. Email is not used to auto-link existing accounts.
-   db.update("INSERT INTO accounts(id,token_hash,household_id,display_name,apple_subject) VALUES (?,?,?,?,?)",account,Tokens.hash(Tokens.create()),home,"Apple 家人",jwt.getSubject());
+   db.update("INSERT INTO accounts(id,token_hash,household_id,display_name,apple_subject) VALUES (?,?,?,?,?)",account,Tokens.hash(Tokens.create()),home,DefaultNames.forLocale(request.getLocale().toLanguageTag()),jwt.getSubject());
   } else account=rows.getFirst();
   return auth.session(account,"iOS Apple");
  }

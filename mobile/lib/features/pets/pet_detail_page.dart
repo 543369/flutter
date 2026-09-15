@@ -1,3 +1,4 @@
+import '../health/health_pages.dart';
 import 'package:flutter/material.dart';
 import '../../app/home_shell.dart';
 import '../care/care_pages.dart';
@@ -55,6 +56,22 @@ class PetDetailPage extends StatelessWidget {
                         Text(
                             '${home.petSpeciesLabel(pet)} · ${petAgeLabel(pet['birthDate'] as String?, DateTime.now(), chinese: home.zh)}'),
                         const SizedBox(height: 20),
+                        Card(
+                            color: const Color(0xffe6eee2),
+                            child: ListTile(
+                                contentPadding: const EdgeInsets.all(18),
+                                leading: const Icon(
+                                    Icons.health_and_safety_outlined),
+                                title: Text(t('健康档案', 'Health records')),
+                                subtitle: Text(t('疫苗 · 驱虫 · 用药 · 过敏 · 体重 · 就诊',
+                                    'Vaccines · Medication · Weight · Vet visits')),
+                                trailing: const Icon(Icons.chevron_right),
+                                onTap: () => Navigator.push<void>(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (_) => HealthRecordsPage(
+                                            home: home, petId: petId))))),
+                        const SizedBox(height: 12),
                         Card(
                             color: const Color(0xffffe9df),
                             child: InkWell(

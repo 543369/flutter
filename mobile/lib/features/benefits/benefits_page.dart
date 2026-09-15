@@ -1,3 +1,4 @@
+import '../family/household_management_pages.dart';
 import 'dart:typed_data';
 import 'dart:io';
 import 'package:file_selector/file_selector.dart';
@@ -179,8 +180,8 @@ class _BenefitsPageState extends State<BenefitsPage> {
                         minHeight: 8,
                         borderRadius: BorderRadius.circular(8)),
                     const SizedBox(height: 10),
-                    Text(t('${status!['photoCount']} 张照片 · 宠物档案与回忆录共用',
-                        '${status!['photoCount']} photos · Shared by pet profiles and memories')),
+                    Text(t('${status!['photoCount']} 张照片 · 档案、回忆与健康附件共用',
+                        '${status!['photoCount']} photos · Profiles, memories and health attachments')),
                     if (limit > (status!['baseLimitBytes'] as num)) ...[
                       const SizedBox(height: 8),
                       Text(t(
@@ -268,6 +269,24 @@ class _BenefitsPageState extends State<BenefitsPage> {
                                         AnnualReportPage(home: widget.home))),
                         icon: const Icon(Icons.auto_graph_rounded),
                         label: Text(t('查看年度成长报告', 'View annual report'))),
+                    const SizedBox(height: 12),
+                    Text(t('新增高级权益：长期体重趋势、健康附件扩容、批量归档、历史周报与多宠趋势、临时照护和自定义权限。',
+                        'Advanced benefits also include weight history, larger health attachments, batch folders, historical reports, multi-pet trends and temporary access.')),
+                    TextButton(
+                        onPressed: () => Navigator.push<void>(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) =>
+                                    FamilyWeeklyPage(home: widget.home))),
+                        child:
+                            Text(t('家庭周报与多宠统计', 'Weekly report & pet trends'))),
+                    TextButton(
+                        onPressed: () => Navigator.push<void>(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) =>
+                                    HouseholdMembersPage(home: widget.home))),
+                        child: Text(t('家人与照护权限', 'People and permissions'))),
                   ]),
                 ],
               ]))),

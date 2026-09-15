@@ -50,6 +50,11 @@ class _AuthPanelState extends State<AuthPanel> {
       } else {
         await widget.api.login(email.text, password.text);
       }
+      if (mounted && registering) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(t('注册成功！昵称可在「家庭 → 个人资料 → 编辑资料」修改。',
+                'Welcome! Change your nickname in Family → Personal profile → Edit profile.'))));
+      }
       if (mounted) await widget.onAuthenticated();
     } catch (e) {
       if (mounted) {
@@ -92,6 +97,11 @@ class _AuthPanelState extends State<AuthPanel> {
       final result = await widget.api.request('POST', '/auth/apple/login',
           {'identityToken': identity, 'nonce': challenge['nonce']});
       await widget.api.saveSession(result['token'] as String);
+      if (mounted && registering) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(t('注册成功！昵称可在「家庭 → 个人资料 → 编辑资料」修改。',
+                'Welcome! Change your nickname in Family → Personal profile → Edit profile.'))));
+      }
       if (mounted) await widget.onAuthenticated();
     } catch (_) {
       if (mounted) {
@@ -135,10 +145,11 @@ class _AuthPanelState extends State<AuthPanel> {
                           maxLength: 40,
                           textInputAction: TextInputAction.next,
                           decoration: InputDecoration(
-                              labelText: t('照护称呼', 'Caregiver name')),
-                          validator: (v) => v == null || v.trim().isEmpty
-                              ? t('请输入称呼', 'Enter your name')
-                              : null),
+                              labelText:
+                                  t('照护称呼（选填）', 'Caregiver name (optional)'),
+                              helperText: t('留空将按设备地区生成昵称，可在家庭 → 个人资料修改。',
+                                  'Leave blank for a local nickname. Change it in Family → Personal profile.')),
+                          validator: (v) => null),
                       const SizedBox(height: 12),
                     ],
                     TextFormField(

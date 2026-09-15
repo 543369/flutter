@@ -1,3 +1,5 @@
+import 'household_management_pages.dart';
+import 'personal_profile_page.dart';
 import 'package:flutter/material.dart';
 import '../../app/home_shell.dart';
 import '../auth/account_security_page.dart';
@@ -9,33 +11,8 @@ import 'package:flutter/services.dart';
 
 extension FamilyModule on CareHomeState {
   Future<void> editName() async {
-    final controller =
-        TextEditingController(text: data?['me'] as String? ?? '');
-    final saved = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-              title: Text(t('我的照护称呼', 'My caregiver name')),
-              content: TextField(
-                  controller: controller,
-                  maxLength: 40,
-                  decoration: InputDecoration(
-                      labelText: t('家人会在记录中看到这个名字',
-                          'Shown to your household in care history'))),
-              actions: [
-                TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: Text(t('取消', 'Cancel'))),
-                FilledButton(
-                    onPressed: () => Navigator.pop(context, true),
-                    child: Text(t('保存', 'Save')))
-              ],
-            ));
-    if (saved == true && controller.text.trim().isNotEmpty) {
-      await perform(() async {
-        await widget.api
-            .request('PATCH', '/profile', {'name': controller.text.trim()});
-      });
-    }
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => PersonalProfilePage(home: this)));
   }
 
   Future<void> invite() async {
@@ -219,6 +196,31 @@ extension FamilyModule on CareHomeState {
                 builder: (_) => BenefitsPage(home: this))),
           )),
       const SizedBox(height: 26),
+      Card(
+          color: const Color(0xffe8eee0),
+          child: ListTile(
+              leading: const Icon(Icons.insights_outlined),
+              title: Text(t('家庭周报与多宠统计', 'Weekly report & pet trends')),
+              subtitle: Text(t(
+                  '完成率、遗漏与成员分工', 'Completion, missed care and contributions')),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push<void>(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => FamilyWeeklyPage(home: this))))),
+      Card(
+          color: const Color(0xffffefdf),
+          child: ListTile(
+              leading: const Icon(Icons.admin_panel_settings_outlined),
+              title: Text(t('家人与照护权限', 'People and permissions')),
+              subtitle:
+                  Text(t('角色、临时照护与到期时间', 'Roles, temporary care and expiry')),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push<void>(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => HouseholdMembersPage(home: this))))),
+      const SizedBox(height: 22),
       Text(t('一起陪伴的人', 'The people who care'),
           style: Theme.of(context).textTheme.titleLarge),
       const SizedBox(height: 14),
@@ -252,7 +254,8 @@ extension FamilyModule on CareHomeState {
                                             fontWeight: FontWeight.w700)),
                                     Text(
                                         member['isMe'] == true
-                                            ? t('我 · 点击修改称呼', 'Me · edit name')
+                                            ? t('我 · 查看个人资料',
+                                                'Me · personal profile')
                                             : t('家人', 'Family'),
                                         style: const TextStyle(fontSize: 11)),
                                   ])),
@@ -271,7 +274,7 @@ extension FamilyModule on CareHomeState {
             t('把照护分享给在意的人', 'Share the care'),
             Icons.person_add_alt_rounded,
             const Color(0xffffe9de),
-            busy ? null : invite),
+            busy || !can('ADMIN') ? null : invite),
         const SizedBox(width: 12),
         familyAction(
             t('加入家庭', 'Join a family'),
@@ -323,6 +326,13 @@ extension FamilyModule on CareHomeState {
       Card(
           color: const Color(0xfff5f1ec),
           child: Column(children: [
+            ListTile(
+                leading: const Icon(Icons.person_outline_rounded),
+                title: Text(t('个人资料', 'Personal profile')),
+                subtitle: Text(
+                    t('昵称、生日、手机号与账号', 'Name, birthday, phone and account')),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: busy ? null : editName),
             if (data?['registered'] == true)
               ListTile(
                   leading: const Icon(Icons.shield_outlined),
