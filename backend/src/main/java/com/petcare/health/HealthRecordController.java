@@ -38,6 +38,19 @@ public class HealthRecordController extends ApiSupport {
   int total=db.queryForObject("SELECT COUNT(*) FROM health_records WHERE pet_id=? AND (?='' OR kind=?)",Integer.class,petId,kind,kind);
   return Map.of("items",items,"total",total,"hasMore",offset+items.size()<total,"advanced",benefits.access(home).extended(),"attachmentLimit",benefits.access(home).extended()?12:2);
  }
+ @GetMapping("/timeline") @Transactional
+ public Map<String,Object> timeline(Authentication auth,@PathVariable String petId,
+   @RequestParam(required=false) LocalDate from,@RequestParam(required=false) LocalDate to) {
+  pet(auth,petId);permission(auth,"REPORTS");
+  if(from!=null && to!=null && from.isAfter(to))throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+  var records=db.query("SELECT h.*,(SELECT COUNT(*) FROM health_attachments f WHERE f.record_id=h.id) attachment_count FROM health_records h WHERE pet_id=? AND (? IS NULL OR happened_on>=?) AND (? IS NULL OR happened_on<=?) ORDER BY happened_on,created_at,id",(r,n)->{
+   var item=row(r,n);item.put("attachmentCount",r.getInt("attachment_count"));return item;
+  },petId,from,from,to,to);
+  var pet=db.queryForObject("SELECT id,name,species,birth_date FROM pets WHERE id=?",(r,n)->{
+   Map<String,Object> value=new LinkedHashMap<>();value.put("id",r.getString(1));value.put("name",r.getString(2));value.put("species",r.getString(3));value.put("birthDate",r.getDate(4)==null?null:r.getDate(4).toString());return value;
+  },petId);
+  return Map.of("pet",pet,"items",records,"generatedAt",java.time.Instant.now().toString());
+ }
  @GetMapping("/{recordId}") @Transactional
  public Map<String,Object> get(Authentication auth,@PathVariable String petId,@PathVariable String recordId) {
   pet(auth,petId);var rows=db.query("SELECT * FROM health_records WHERE id=? AND pet_id=?",this::row,recordId,petId);

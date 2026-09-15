@@ -39,6 +39,23 @@ class HealthAndRolesTests {
   advanced.organize(auth(owner),pet,new HealthRecordController.Batch(List.of(record),"2026 健康检查"));
   assertEquals("2026 健康检查",advanced.get(auth(owner),pet,record).get("folder"));
  }
+ @Test void timelineIsChronologicalScopedAndFilteredWithoutPrivateFields(){
+  String home=home(),owner=account(home,"ADMIN","CARE,HEALTH,MEMORIES,PETS,REPORTS"),pet=pet(home);
+  var controller=new HealthRecordController(db,benefits(false));
+  LocalDate today=LocalDate.now();
+  controller.create(auth(owner),pet,new HealthRecordController.Input("WEIGHT","近期体重","",today,new BigDecimal("4.5"),List.of()));
+  controller.create(auth(owner),pet,new HealthRecordController.Input("VACCINE","较早疫苗","医嘱",today.minusDays(10),null,List.of("AA==")));
+  var timeline=controller.timeline(auth(owner),pet,null,null);
+  var items=(List<Map<String,Object>>)timeline.get("items");
+  assertEquals("较早疫苗",items.getFirst().get("title"));assertEquals(1,items.getFirst().get("attachmentCount"));
+  assertFalse(items.getFirst().containsKey("photos"));assertFalse(((Map<?,?>)timeline.get("pet")).containsKey("phone"));
+  assertEquals(1,((List<?>)controller.timeline(auth(owner),pet,today,today).get("items")).size());
+  assertThrows(ResponseStatusException.class,()->controller.timeline(auth(owner),pet,today,today.minusDays(1)));
+  String restricted=account(home,"TEMP","HEALTH");
+  assertEquals(403,assertThrows(ResponseStatusException.class,()->controller.timeline(auth(restricted),pet,null,null)).getStatusCode().value());
+  String other=account(home(),"ADMIN","");
+  assertEquals(404,assertThrows(ResponseStatusException.class,()->controller.timeline(auth(other),pet,null,null)).getStatusCode().value());
+ }
  @Test void roleExpiryLastAdminAndBasicRoleChanges(){
   String home=home(),owner=account(home,"ADMIN","CARE,HEALTH,MEMORIES,PETS,REPORTS"),member=account(home,"MEMBER","CARE,HEALTH,MEMORIES,PETS,REPORTS");
   var controller=new FamilyRolesController(db,benefits(true));

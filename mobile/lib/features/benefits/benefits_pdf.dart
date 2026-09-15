@@ -87,37 +87,78 @@ class BenefitsPdf {
   }
 }
 
-/// Add one fetched page at a time instead of retaining a second full photo list.
+enum MemoryBookTemplate { warm, botanical, editorial }
+
+/// Each template changes both the palette and the photo layout.
 class MemoryBookPdf {
   MemoryBookPdf(
-      {required this.pet, required this.total, required ByteData font})
+      {required this.pet,
+      required this.total,
+      required ByteData font,
+      this.template = MemoryBookTemplate.warm})
       : document = pw.Document(title: '${pet['name']}的回忆录', author: 'PetCare'),
         theme = BenefitsPdf.theme(font) {
     document.addPage(pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         theme: theme,
-        margin: const pw.EdgeInsets.all(36),
+        margin: pw.EdgeInsets.all(
+            template == MemoryBookTemplate.editorial ? 26 : 38),
         footer: BenefitsPdf.footer,
         build: (_) => [
-              pw.SizedBox(height: 55),
-              pw.Text('和${pet['name']}的故事',
-                  style: pw.TextStyle(fontSize: 30, color: BenefitsPdf.brown)),
-              pw.SizedBox(height: 16),
-              pw.Text('$total 篇回忆 · 一起走过的日子'),
-              pw.SizedBox(height: 28),
+              pw.Container(
+                  width: double.infinity,
+                  color: paper,
+                  padding: const pw.EdgeInsets.all(24),
+                  child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                            template == MemoryBookTemplate.editorial
+                                ? 'THE PET JOURNAL'
+                                : 'PETCARE / OUR LITTLE DAYS',
+                            style: pw.TextStyle(
+                                fontSize: 10, color: ink, letterSpacing: 2)),
+                        pw.SizedBox(height: 22),
+                        pw.Text('和${pet['name']}的故事',
+                            style: pw.TextStyle(
+                                fontSize:
+                                    template == MemoryBookTemplate.editorial
+                                        ? 36
+                                        : 28,
+                                color: ink)),
+                        pw.SizedBox(height: 16),
+                        pw.Text('$total 篇回忆 · 一起走过的日子',
+                            style: pw.TextStyle(color: ink)),
+                      ])),
+              pw.SizedBox(height: 24),
               if (petPhotos(pet).isNotEmpty)
-                photo(petPhotos(pet).first, height: 300),
-              pw.SizedBox(height: 22),
-              pw.Text((pet['biography'] as String? ?? '').isEmpty
-                  ? '每一件小事，都值得好好珍藏。'
-                  : pet['biography'] as String),
+                photo(petPhotos(pet).first,
+                    height:
+                        template == MemoryBookTemplate.editorial ? 350 : 280),
+              pw.SizedBox(height: 24),
+              pw.Text(
+                  (pet['biography'] as String? ?? '').isEmpty
+                      ? '每一件小事，都值得好好珍藏。'
+                      : pet['biography'] as String,
+                  overflow: pw.TextOverflow.span,
+                  style: const pw.TextStyle(fontSize: 12, lineSpacing: 4)),
             ]));
   }
   final Map<String, dynamic> pet;
   final int total;
   final pw.Document document;
   final pw.ThemeData theme;
-
+  final MemoryBookTemplate template;
+  PdfColor get ink => PdfColor.fromHex(switch (template) {
+        MemoryBookTemplate.warm => '#76503A',
+        MemoryBookTemplate.botanical => '#426451',
+        MemoryBookTemplate.editorial => '#24384C'
+      });
+  PdfColor get paper => PdfColor.fromHex(switch (template) {
+        MemoryBookTemplate.warm => '#FFF0DC',
+        MemoryBookTemplate.botanical => '#EAF0E5',
+        MemoryBookTemplate.editorial => '#E7EDF3'
+      });
   static pw.Widget photo(String data, {double height = 260}) {
     try {
       return pw.Container(
@@ -130,31 +171,64 @@ class MemoryBookPdf {
     }
   }
 
+  List<pw.Widget> pictures(List photos) {
+    if (template == MemoryBookTemplate.botanical) {
+      return [
+        for (var i = 0; i < photos.length; i += 2)
+          pw.Padding(
+              padding: const pw.EdgeInsets.only(bottom: 16),
+              child: pw.Row(children: [
+                for (var j = i; j < i + 2; j++)
+                  pw.Expanded(
+                      child: pw.Padding(
+                          padding: const pw.EdgeInsets.all(6),
+                          child: j < photos.length
+                              ? photo(photos[j] as String, height: 200)
+                              : pw.SizedBox(height: 200))),
+              ]))
+      ];
+    }
+    return [
+      for (final value in photos)
+        pw.Padding(
+            padding: const pw.EdgeInsets.only(bottom: 18),
+            child: template == MemoryBookTemplate.warm
+                ? pw.Container(
+                    color: paper,
+                    padding: const pw.EdgeInsets.fromLTRB(12, 12, 12, 24),
+                    child: photo(value as String, height: 230))
+                : photo(value as String, height: 350))
+    ];
+  }
+
   void addMemory(Map<String, dynamic> memory) {
     document.addPage(pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         theme: theme,
-        margin: const pw.EdgeInsets.all(36),
+        margin: pw.EdgeInsets.all(
+            template == MemoryBookTemplate.editorial ? 26 : 38),
         maxPages: 40,
         footer: BenefitsPdf.footer,
         build: (_) => [
-              pw.Text(memory['happenedOn'] as String,
-                  style: pw.TextStyle(color: BenefitsPdf.brown, fontSize: 12)),
-              pw.SizedBox(height: 10),
+              pw.Container(
+                  width: double.infinity,
+                  padding: const pw.EdgeInsets.all(14),
+                  color: paper,
+                  child: pw.Text(
+                      '${memory['happenedOn']}  /  ${template == MemoryBookTemplate.botanical ? '生长的日常' : template == MemoryBookTemplate.editorial ? 'LIFE WITH YOU' : '温暖的一页'}',
+                      style: pw.TextStyle(color: ink, fontSize: 12))),
+              pw.SizedBox(height: 20),
               pw.Text(memory['title'] as String,
-                  style: pw.TextStyle(fontSize: 24, color: BenefitsPdf.brown)),
-              pw.SizedBox(height: 10),
+                  style: pw.TextStyle(fontSize: 26, color: ink)),
+              pw.SizedBox(height: 12),
               pw.Text('由 ${memory['author'] ?? '家人'} 记录',
                   style: const pw.TextStyle(fontSize: 11)),
               pw.SizedBox(height: 20),
               pw.Text(memory['story'] as String,
                   overflow: pw.TextOverflow.span,
                   style: const pw.TextStyle(fontSize: 12, lineSpacing: 6)),
-              pw.SizedBox(height: 20),
-              for (final value in memory['photos'] as List) ...[
-                photo(value as String),
-                pw.SizedBox(height: 14),
-              ],
+              pw.SizedBox(height: 22),
+              ...pictures(memory['photos'] as List),
               pw.Text('创建时间：${memory['createdAt']}',
                   style: const pw.TextStyle(fontSize: 9)),
             ]));

@@ -27,6 +27,7 @@ class _BenefitsPageState extends State<BenefitsPage> {
   bool loading = true, exporting = false;
   int operation = 0;
   String progress = '';
+  MemoryBookTemplate bookTemplate = MemoryBookTemplate.warm;
   String t(String zh, String en) => widget.home.t(zh, en);
 
   @override
@@ -75,8 +76,11 @@ class _BenefitsPageState extends State<BenefitsPage> {
         final page = await widget.home.widget.api
             .request('GET', '/benefits/memories/${pet['id']}?offset=$offset');
         if (!active()) return;
-        book ??=
-            MemoryBookPdf(pet: pet, total: page['total'] as int, font: font);
+        book ??= MemoryBookPdf(
+            pet: pet,
+            total: page['total'] as int,
+            font: font,
+            template: bookTemplate);
         final items = page['items'] as List;
         if (items.isEmpty && offset == 0) {
           setState(() => error = t('还没有回忆。先到宠物档案写下第一篇故事吧。',
@@ -180,8 +184,10 @@ class _BenefitsPageState extends State<BenefitsPage> {
                         minHeight: 8,
                         borderRadius: BorderRadius.circular(8)),
                     const SizedBox(height: 10),
-                    Text(t('${status!['photoCount']} 张照片 · 档案、回忆与健康附件共用',
-                        '${status!['photoCount']} photos · Profiles, memories and health attachments')),
+                    Text(t('共 ${status!['photoCount']} 张图片，包含健康附件。',
+                        '${status!['photoCount']} images, including health attachments.')),
+                    Text(t('宠物档案照片、回忆录照片和健康图片附件共用家庭空间。',
+                        'Pet profile photos, memory photos and health image attachments share the same household storage.')),
                     if (limit > (status!['baseLimitBytes'] as num)) ...[
                       const SizedBox(height: 8),
                       Text(t(
@@ -190,8 +196,8 @@ class _BenefitsPageState extends State<BenefitsPage> {
                     ],
                     if (used >= limit) ...[
                       const SizedBox(height: 8),
-                      Text(t('空间已满。已有内容仍可查看，可移除不需要的照片释放空间。',
-                          'Storage is full. Existing content stays available; remove unwanted photos to free space.'))
+                      Text(t('空间已满。已有内容仍可查看，可删除不需要的照片或健康附件释放空间。',
+                          'Storage is full. Existing content stays available; delete unwanted photos or health attachments to free space.'))
                     ],
                   ]),
                   const SizedBox(height: 18),
@@ -216,6 +222,67 @@ class _BenefitsPageState extends State<BenefitsPage> {
                           onChanged: exporting
                               ? null
                               : (value) => setState(() => petId = value)),
+                    const SizedBox(height: 16),
+                    Text(t('选择回忆录模板', 'Choose a book template')),
+                    const SizedBox(height: 10),
+                    Wrap(spacing: 8, runSpacing: 8, children: [
+                      for (final style in MemoryBookTemplate.values)
+                        SizedBox(
+                            width: 100,
+                            child: InkWell(
+                                key: ValueKey('memory-template-${style.name}'),
+                                onTap: exporting
+                                    ? null
+                                    : () =>
+                                        setState(() => bookTemplate = style),
+                                borderRadius: BorderRadius.circular(14),
+                                child: Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                        color: switch (style) {
+                                          MemoryBookTemplate.warm =>
+                                            const Color(0xffffefda),
+                                          MemoryBookTemplate.botanical =>
+                                            const Color(0xffe7eee1),
+                                          MemoryBookTemplate.editorial =>
+                                            const Color(0xffe4ebf3)
+                                        },
+                                        borderRadius: BorderRadius.circular(14),
+                                        border: Border.all(
+                                            color: bookTemplate == style
+                                                ? const Color(0xff76503a)
+                                                : Colors.transparent,
+                                            width: 2)),
+                                    child: Column(children: [
+                                      Icon(
+                                          style == MemoryBookTemplate.warm
+                                              ? Icons.photo_album_outlined
+                                              : style ==
+                                                      MemoryBookTemplate
+                                                          .botanical
+                                                  ? Icons.grid_view_rounded
+                                                  : Icons
+                                                      .chrome_reader_mode_outlined,
+                                          size: 34),
+                                      const SizedBox(height: 10),
+                                      Text(
+                                          switch (style) {
+                                            MemoryBookTemplate.warm =>
+                                              t('暖日相册', 'Warm album'),
+                                            MemoryBookTemplate.botanical =>
+                                              t('森系手记', 'Botanical'),
+                                            MemoryBookTemplate.editorial =>
+                                              t('简约杂志', 'Editorial')
+                                          },
+                                          textAlign: TextAlign.center),
+                                      if (bookTemplate == style)
+                                        const Icon(Icons.check_circle,
+                                            size: 16),
+                                    ]))))
+                    ]),
+                    const SizedBox(height: 8),
+                    Text(t('相框式大图 · 双栏照片 · 杂志大图。生成后可预览，再保存。',
+                        'Framed photos · Two-column photos · Large editorial photos. Preview the PDF before saving.')),
                     if (pets.isEmpty)
                       Text(t('先添加一位小伙伴，再开始收藏回忆。',
                           'Add a pet to start collecting memories.')),

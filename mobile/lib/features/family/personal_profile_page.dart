@@ -153,8 +153,8 @@ class _PersonalProfilePageState extends State<PersonalProfilePage> {
                                   ])),
                               const SizedBox(height: 18),
                               Text(
-                                  t('生日和手机号仅本人可查看。手机号作为个人资料保存，尚未验证，不用于登录或找回密码。',
-                                      'Birthday and phone are visible only to you. Your phone is unverified profile information, not a sign-in or recovery method.'),
+                                  t('你的手机号仅本人可见，不向其他家庭成员展示，包括管理员和临时照护者。你可以随时在编辑资料中删除手机号。生日也仅本人可见。手机号由服务端保存，尚未验证，不用于登录或找回密码。',
+                                      'Your phone number is visible only to you in the app, not to other household members, administrators or temporary caregivers. You can remove it in Edit profile at any time. Your birthday is also private. Your phone is stored on the server and is unverified; it is not used for sign-in or account recovery.'),
                                   style: const TextStyle(
                                       fontSize: 12, color: Color(0xff8b7a70))),
                             ]))),
@@ -282,6 +282,9 @@ class _ProfileEditorState extends State<_ProfileEditor> {
                                 decoration: InputDecoration(
                                     labelText: t('手机号（选填）', 'Phone (optional)'),
                                     hintText: '+86 138 0000 0000',
+                                    helperText: t('仅本人可见，不向其他家庭成员展示。可随时清除。',
+                                        'Only you can view this in the app. Hidden from other household members. You can remove it anytime.'),
+                                    helperMaxLines: 4,
                                     prefixIcon:
                                         const Icon(Icons.phone_outlined)),
                                 validator: (v) => v != null &&

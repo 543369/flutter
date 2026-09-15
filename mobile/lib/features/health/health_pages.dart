@@ -1,3 +1,4 @@
+import 'health_timeline_page.dart';
 import 'package:flutter/material.dart';
 import '../../app/home_shell.dart';
 import '../../core/widgets/profile_dialog.dart';
@@ -128,7 +129,16 @@ class _HealthRecordsPageState extends State<HealthRecordsPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-      appBar: AppBar(title: Text(t('健康档案', 'Health records'))),
+      appBar: AppBar(title: Text(t('健康档案', 'Health records')), actions: [
+        IconButton(
+            tooltip: t('时间线与导出', 'Timeline & export'),
+            onPressed: () => Navigator.push<void>(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => HealthTimelinePage(
+                        home: widget.home, petId: widget.petId))),
+            icon: const Icon(Icons.ios_share_outlined))
+      ]),
       floatingActionButton: FloatingActionButton.extended(
           onPressed: loading ? null : () => edit(),
           icon: const Icon(Icons.add),
@@ -403,6 +413,8 @@ class _HealthRecordEditorState extends State<HealthRecordEditor> {
                         'Medication, dosage, allergy details or veterinary notes'))),
             Text(t('图片附件 ${photos.length}/${widget.limit}',
                 'Image attachments ${photos.length}/${widget.limit}')),
+            Text(t('健康附件计入家庭共享空间，与档案照片和回忆录照片共用额度。',
+                'Health attachments count toward the same household storage as pet profile and memory photos.')),
             Wrap(spacing: 8, runSpacing: 8, children: [
               for (final entry in photos.indexed)
                 SizedBox(
