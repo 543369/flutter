@@ -1,3 +1,4 @@
+import '../../core/theme/app_spacing.dart';
 import 'package:flutter/material.dart';
 import '../../app/home_shell.dart';
 
@@ -50,13 +51,13 @@ class _PersonalProfilePageState extends State<PersonalProfilePage> {
       padding: const EdgeInsets.symmetric(vertical: 15),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Icon(icon, size: 21, color: const Color(0xff9a7560)),
-        const SizedBox(width: 14),
+        const SizedBox(width: AppSpacing.item),
         Expanded(
             child:
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(label,
               style: const TextStyle(fontSize: 12, color: Color(0xff8b7a70))),
-          const SizedBox(height: 6),
+          const SizedBox(height: AppSpacing.inline),
           SelectableText(value, style: const TextStyle(fontSize: 16)),
         ])),
       ]));
@@ -82,7 +83,7 @@ class _PersonalProfilePageState extends State<PersonalProfilePage> {
                     child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 620),
                         child: ListView(
-                            padding: const EdgeInsets.all(24),
+                            padding: AppSpacing.dialogInsets,
                             children: [
                               Container(
                                   padding: const EdgeInsets.all(28),
@@ -97,25 +98,25 @@ class _PersonalProfilePageState extends State<PersonalProfilePage> {
                                             Icons.person_outline_rounded,
                                             size: 40,
                                             color: Color(0xff80523f))),
-                                    const SizedBox(height: 16),
+                                    const SizedBox(height: AppSpacing.content),
                                     Text(profile!['name'] as String,
                                         textAlign: TextAlign.center,
                                         style: Theme.of(context)
                                             .textTheme
                                             .headlineSmall),
-                                    const SizedBox(height: 8),
+                                    const SizedBox(height: AppSpacing.inline),
                                     Text(
                                         t('每一份陪伴，都有你的名字。',
                                             'Every little act of care carries your name.'),
                                         textAlign: TextAlign.center),
-                                    const SizedBox(height: 20),
+                                    const SizedBox(height: AppSpacing.section),
                                     FilledButton.icon(
                                         onPressed: edit,
                                         icon: const Icon(Icons.edit_outlined,
                                             size: 18),
                                         label: Text(t('编辑资料', 'Edit profile'))),
                                   ])),
-                              const SizedBox(height: 22),
+                              const SizedBox(height: AppSpacing.section),
                               Container(
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 22, vertical: 8),
@@ -151,7 +152,7 @@ class _PersonalProfilePageState extends State<PersonalProfilePage> {
                                         t('账号 ID', 'Account ID'),
                                         profile!['id'] as String),
                                   ])),
-                              const SizedBox(height: 18),
+                              const SizedBox(height: AppSpacing.content),
                               Text(
                                   t('你的手机号仅本人可见，不向其他家庭成员展示，包括管理员和临时照护者。你可以随时在编辑资料中删除手机号。生日也仅本人可见。手机号由服务端保存，尚未验证，不用于登录或找回密码。',
                                       'Your phone number is visible only to you in the app, not to other household members, administrators or temporary caregivers. You can remove it in Edit profile at any time. Your birthday is also private. Your phone is stored on the server and is unverified; it is not used for sign-in or account recovery.'),
@@ -231,7 +232,7 @@ class _ProfileEditorState extends State<_ProfileEditor> {
           child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 460),
               child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
+                  padding: AppSpacing.dialogInsets,
                   child: Form(
                       key: form,
                       child: Column(
@@ -241,10 +242,10 @@ class _ProfileEditorState extends State<_ProfileEditor> {
                             Text(t('让家人更熟悉你', 'A little more about you'),
                                 style:
                                     Theme.of(context).textTheme.headlineSmall),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: AppSpacing.inline),
                             Text(t('完善资料，留下属于你的陪伴印记。',
                                 'Make your profile feel like you.')),
-                            const SizedBox(height: 24),
+                            const SizedBox(height: AppSpacing.section),
                             TextFormField(
                                 controller: name,
                                 enabled: !saving,
@@ -256,7 +257,7 @@ class _ProfileEditorState extends State<_ProfileEditor> {
                                 validator: (v) => v == null || v.trim().isEmpty
                                     ? t('请输入称呼', 'Enter a name')
                                     : null),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: AppSpacing.item),
                             Row(children: [
                               Expanded(
                                   child: OutlinedButton.icon(
@@ -273,7 +274,7 @@ class _ProfileEditorState extends State<_ProfileEditor> {
                                     tooltip: t('清除生日', 'Clear birthday'),
                                     icon: const Icon(Icons.close))
                             ]),
-                            const SizedBox(height: 18),
+                            const SizedBox(height: AppSpacing.content),
                             TextFormField(
                                 controller: phone,
                                 enabled: !saving,
@@ -302,7 +303,7 @@ class _ProfileEditorState extends State<_ProfileEditor> {
                                           color: Theme.of(context)
                                               .colorScheme
                                               .error))),
-                            const SizedBox(height: 24),
+                            const SizedBox(height: AppSpacing.section),
                             Row(children: [
                               Expanded(
                                   child: TextButton(
@@ -310,7 +311,7 @@ class _ProfileEditorState extends State<_ProfileEditor> {
                                           ? null
                                           : () => Navigator.pop(context),
                                       child: Text(t('取消', 'Cancel')))),
-                              const SizedBox(width: 12),
+                              const SizedBox(width: AppSpacing.item),
                               Expanded(
                                   child: FilledButton(
                                       onPressed: saving ? null : save,

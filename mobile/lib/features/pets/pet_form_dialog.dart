@@ -1,3 +1,4 @@
+import '../../core/theme/app_spacing.dart';
 import 'package:flutter/material.dart';
 import '../../app/home_shell.dart';
 import '../../core/widgets/profile_dialog.dart';
@@ -105,10 +106,10 @@ class _PetFormDialogState extends State<PetFormDialog> {
           Text(
               t('宠物照片 · ${photos.length}/5', 'Pet photos · ${photos.length}/5'),
               style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 6),
+          const SizedBox(height: AppSpacing.inline),
           Text(t('第一张作为封面，首页可左右滑动查看全部照片。',
               'The first photo is the cover. Swipe through all photos on the home screen.')),
-          const SizedBox(height: 14),
+          const SizedBox(height: AppSpacing.item),
           Wrap(spacing: 10, runSpacing: 12, children: [
             for (final entry in photos.indexed)
               SizedBox(
@@ -160,7 +161,7 @@ class _PetFormDialogState extends State<PetFormDialog> {
               label: Text(photos.length >= 5
                   ? t('已添加 5 张照片', '5 photos added')
                   : t('添加宠物照片', 'Add pet photo'))),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.content),
           TextField(
               key: const ValueKey('pet-name'),
               controller: name,
@@ -170,8 +171,12 @@ class _PetFormDialogState extends State<PetFormDialog> {
                   labelText: t('名字', 'Name'),
                   hintText: t('小伙伴叫什么？', 'What is their name?')),
               onChanged: (_) => setState(() {})),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.inline),
           DropdownButtonFormField<String>(
+              borderRadius: BorderRadius.circular(16),
+              dropdownColor: Theme.of(context).colorScheme.surface,
+              elevation: 3,
+              icon: const Icon(Icons.expand_more_rounded, size: 20),
               initialValue: species,
               decoration: InputDecoration(
                   labelText: t('种类', 'Species'),
@@ -182,7 +187,7 @@ class _PetFormDialogState extends State<PetFormDialog> {
                 DropdownMenuItem(value: 'other', child: Text(t('其他', 'Other'))),
               ],
               onChanged: saving ? null : (v) => setState(() => species = v!)),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.content),
           Card(
               color: const Color(0xfffff3dc),
               child: Column(children: [

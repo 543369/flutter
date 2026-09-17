@@ -1,3 +1,4 @@
+import '../../core/theme/app_spacing.dart';
 import 'household_management_pages.dart';
 import 'personal_profile_page.dart';
 import 'package:flutter/material.dart';
@@ -32,7 +33,7 @@ extension FamilyModule on CareHomeState {
                   children: [
                     Text(t('24 小时内有效，仅可使用一次。受邀家人可以共同管理宠物、照护与回忆录。',
                         'Valid for 24 hours and one use. Invited family can manage pets, care and memories.')),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: AppSpacing.content),
                     SelectableText(invitation!['code'] as String),
                   ]),
               actions: [
@@ -91,7 +92,7 @@ extension FamilyModule on CareHomeState {
                 fontSize: 25,
                 fontWeight: FontWeight.w700,
                 color: Color(0xff34231e))),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppSpacing.tight),
         Text(label, style: const TextStyle(fontSize: 12)),
       ]));
 
@@ -105,19 +106,19 @@ extension FamilyModule on CareHomeState {
               child: InkWell(
                   onTap: action,
                   child: Padding(
-                      padding: const EdgeInsets.all(18),
+                      padding: AppSpacing.cardInsets,
                       child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Icon(icon, size: 27),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: AppSpacing.content),
                             Text(title,
                                 style: const TextStyle(
                                     fontSize: 17, fontWeight: FontWeight.w700)),
-                            const SizedBox(height: 6),
+                            const SizedBox(height: AppSpacing.inline),
                             Text(subtitle,
                                 style: const TextStyle(fontSize: 12)),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: AppSpacing.item),
                             const Align(
                                 alignment: Alignment.centerRight,
                                 child: Icon(Icons.arrow_forward_rounded,
@@ -133,7 +134,7 @@ extension FamilyModule on CareHomeState {
         0, (sum, pet) => sum + (pet['memoryCount'] as int? ?? 0));
     return [
       Container(
-          padding: const EdgeInsets.all(24),
+          padding: AppSpacing.dialogInsets,
           decoration: BoxDecoration(
               color: const Color(0xffe4eef6),
               borderRadius: BorderRadius.circular(28)),
@@ -142,21 +143,21 @@ extension FamilyModule on CareHomeState {
             Row(children: [
               const Icon(Icons.favorite_rounded,
                   color: Color(0xffcf6947), size: 19),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppSpacing.inline),
               Text(t('我们的小家', 'OUR LITTLE HOME'),
                   style: const TextStyle(fontSize: 12, letterSpacing: 1.5))
             ]),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.content),
             Text(t('一起照顾，\n一起珍藏。', 'Care together.\nKeep the memories.'),
                 style: Theme.of(context).textTheme.headlineLarge),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.item),
             Text(t('有人惦记，有人陪伴，就是家的样子。',
                 'A little care from everyone makes a home.')),
             if (pets.isNotEmpty) ...[
-              const SizedBox(height: 18),
+              const SizedBox(height: AppSpacing.content),
               Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                  spacing: AppSpacing.inline,
+                  runSpacing: AppSpacing.inline,
                   children: pets
                       .take(5)
                       .map((pet) => SizedBox(
@@ -167,9 +168,10 @@ extension FamilyModule on CareHomeState {
                               child: PetCover(pet: pet))))
                       .toList()),
             ],
-            const SizedBox(height: 22),
+            const SizedBox(height: AppSpacing.section),
             Container(
-                padding: const EdgeInsets.symmetric(vertical: 18),
+                padding:
+                    const EdgeInsets.symmetric(vertical: AppSpacing.content),
                 decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: .8),
                     borderRadius: BorderRadius.circular(20)),
@@ -179,13 +181,13 @@ extension FamilyModule on CareHomeState {
                   familyStat('$memories', t('篇回忆', 'Memories'))
                 ])),
           ])),
-      const SizedBox(height: 18),
+      const SizedBox(height: AppSpacing.content),
       Card(
           color: const Color(0xffffefcc),
           child: ListTile(
             key: const ValueKey('household-benefits'),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            contentPadding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.content, vertical: AppSpacing.inline),
             leading: const Icon(Icons.auto_awesome_outlined,
                 color: Color(0xffa15e40)),
             title: Text(t('家庭权益', 'Household benefits')),
@@ -195,7 +197,7 @@ extension FamilyModule on CareHomeState {
             onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
                 builder: (_) => BenefitsPage(home: this))),
           )),
-      const SizedBox(height: 26),
+      const SizedBox(height: AppSpacing.item),
       Card(
           color: const Color(0xffe8eee0),
           child: ListTile(
@@ -220,13 +222,13 @@ extension FamilyModule on CareHomeState {
                   context,
                   MaterialPageRoute(
                       builder: (_) => HouseholdMembersPage(home: this))))),
-      const SizedBox(height: 22),
+      const SizedBox(height: AppSpacing.item),
       Text(t('一起陪伴的人', 'The people who care'),
           style: Theme.of(context).textTheme.titleLarge),
-      const SizedBox(height: 14),
+      const SizedBox(height: AppSpacing.item),
       Wrap(
-          spacing: 10,
-          runSpacing: 10,
+          spacing: AppSpacing.item,
+          runSpacing: AppSpacing.item,
           children: memberProfiles
               .map((member) => Material(
                   color: const Color(0xfffff0db),
@@ -235,14 +237,14 @@ extension FamilyModule on CareHomeState {
                     borderRadius: BorderRadius.circular(20),
                     onTap: member['isMe'] == true && !busy ? editName : null,
                     child: Padding(
-                        padding: const EdgeInsets.all(14),
+                        padding: AppSpacing.cardInsets,
                         child: Row(mainAxisSize: MainAxisSize.min, children: [
                           const CircleAvatar(
                               radius: 21,
                               backgroundColor: Colors.white,
                               child:
                                   Icon(Icons.person_outline_rounded, size: 23)),
-                          const SizedBox(width: 10),
+                          const SizedBox(width: AppSpacing.inline),
                           ConstrainedBox(
                               constraints: const BoxConstraints(maxWidth: 170),
                               child: Column(
@@ -260,13 +262,13 @@ extension FamilyModule on CareHomeState {
                                         style: const TextStyle(fontSize: 11)),
                                   ])),
                           if (member['isMe'] == true) ...[
-                            const SizedBox(width: 8),
+                            const SizedBox(width: AppSpacing.inline),
                             const Icon(Icons.edit_outlined, size: 16)
                           ],
                         ])),
                   )))
               .toList()),
-      const SizedBox(height: 18),
+      const SizedBox(height: AppSpacing.content),
       IntrinsicHeight(
           child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         familyAction(
@@ -275,7 +277,7 @@ extension FamilyModule on CareHomeState {
             Icons.person_add_alt_rounded,
             const Color(0xffffe9de),
             busy || !can('ADMIN') ? null : invite),
-        const SizedBox(width: 12),
+        const SizedBox(width: AppSpacing.item),
         familyAction(
             t('加入家庭', 'Join a family'),
             t('输入邀请码，成为一份子', 'Enter an invitation code'),
@@ -283,7 +285,7 @@ extension FamilyModule on CareHomeState {
             const Color(0xffeef0e5),
             busy ? null : join),
       ])),
-      const SizedBox(height: 26),
+      const SizedBox(height: AppSpacing.section),
       Row(children: [
         Expanded(
             child: Text(t('家里的近况', 'Around the home'),
@@ -291,38 +293,38 @@ extension FamilyModule on CareHomeState {
         const Icon(Icons.favorite_border_rounded,
             size: 20, color: Color(0xffb06c51))
       ]),
-      const SizedBox(height: 12),
+      const SizedBox(height: AppSpacing.item),
       Card(
           color: const Color(0xfffaf4ec),
-          child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Column(children: [
-                if (history.isEmpty)
-                  Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Text(t('还没有照护动态。家人完成照护后，会在这里留下记录。',
-                          'Family care updates will appear here after a task is completed.'))),
-                ...history.take(3).map((event) => ListTile(
-                    leading: CircleAvatar(
-                        radius: 18,
-                        backgroundColor: const Color(0xffe9eee1),
-                        child: Icon(
-                            event['action'] == 'REOPENED'
-                                ? Icons.undo_rounded
-                                : Icons.check_rounded,
-                            size: 20)),
-                    title: Text('${event['petName']} · ${event['title']}',
-                        maxLines: 1, overflow: TextOverflow.ellipsis),
-                    subtitle: Text(
-                        '${event['actor'] ?? t('家人', 'Family')} · ${dateLabel(DateTime.parse(event['at'] as String).toLocal())}',
-                        style: const TextStyle(fontSize: 12)),
-                    trailing: const Icon(Icons.chevron_right_rounded, size: 19),
-                    onTap: () => openRecordDetails(event))),
-              ]))),
-      const SizedBox(height: 20),
+          child: Column(children: [
+            if (history.isEmpty)
+              Padding(
+                  padding: AppSpacing.cardInsets,
+                  child: Text(t('还没有照护动态。家人完成照护后，会在这里留下记录。',
+                      'Family care updates will appear here after a task is completed.'))),
+            ...history.take(3).map((event) => ListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.content, vertical: AppSpacing.tight),
+                leading: CircleAvatar(
+                    radius: 18,
+                    backgroundColor: const Color(0xffe9eee1),
+                    child: Icon(
+                        event['action'] == 'REOPENED'
+                            ? Icons.undo_rounded
+                            : Icons.check_rounded,
+                        size: 20)),
+                title: Text('${event['petName']} · ${event['title']}',
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
+                subtitle: Text(
+                    '${event['actor'] ?? t('家人', 'Family')} · ${dateLabel(DateTime.parse(event['at'] as String).toLocal())}',
+                    style: const TextStyle(fontSize: 12)),
+                trailing: const Icon(Icons.chevron_right_rounded, size: 19),
+                onTap: () => openRecordDetails(event))),
+          ])),
+      const SizedBox(height: AppSpacing.item),
       Text(t('账号与偏好', 'Account & preferences'),
           style: Theme.of(context).textTheme.titleLarge),
-      const SizedBox(height: 12),
+      const SizedBox(height: AppSpacing.item),
       Card(
           color: const Color(0xfff5f1ec),
           child: Column(children: [
@@ -367,12 +369,13 @@ extension FamilyModule on CareHomeState {
                 key: const PageStorageKey('family-data-privacy'),
                 leading: const Icon(Icons.lock_outline_rounded),
                 title: Text(t('数据与隐私', 'Data & privacy')),
-                childrenPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                childrenPadding: const EdgeInsets.fromLTRB(AppSpacing.content,
+                    0, AppSpacing.content, AppSpacing.content),
                 children: [
                   Text(t(
                       '家庭成员可共同管理宠物、照护和回忆录。照片、故事和档案保存在服务端，只对家庭成员开放。加入其他家庭要求当前家庭只有你且没有宠物。',
                       'Household members share pets, care and memories. Photos, stories and profiles are stored on the server and are only available to your household. Joining another home requires a solo household with no pets.')),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: AppSpacing.item),
                   TextButton.icon(
                       icon: const Icon(Icons.delete_outline_rounded),
                       label: Text(t('删除我的账号', 'Delete my account')),
@@ -393,7 +396,7 @@ extension FamilyModule on CareHomeState {
                   title: Text(t('退出登录', 'Sign out')),
                   onTap: busy ? null : logout),
           ])),
-      const SizedBox(height: 12),
+      const SizedBox(height: AppSpacing.item),
       Center(
           child: Text(t('有你们在，小日子就很温暖。', 'Home is warmer with you in it.'),
               style: const TextStyle(fontSize: 12, color: Color(0xff9a887b)))),

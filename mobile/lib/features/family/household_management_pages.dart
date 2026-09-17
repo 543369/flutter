@@ -1,3 +1,4 @@
+import '../../core/theme/app_spacing.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../app/home_shell.dart';
@@ -92,9 +93,9 @@ class _HouseholdMembersPageState extends State<HouseholdMembersPage> {
       body: Center(
           child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 720),
-              child: ListView(padding: const EdgeInsets.all(24), children: [
+              child: ListView(padding: AppSpacing.pageInsets, children: [
                 Container(
-                    padding: const EdgeInsets.all(24),
+                    padding: AppSpacing.dialogInsets,
                     decoration: BoxDecoration(
                         color: const Color(0xffe4edf5),
                         borderRadius: BorderRadius.circular(28)),
@@ -102,16 +103,16 @@ class _HouseholdMembersPageState extends State<HouseholdMembersPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Icon(Icons.diversity_1_outlined, size: 36),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: AppSpacing.item),
                           Text(
                               t('安心托付，一起照顾。',
                                   'Share the care, with confidence.'),
                               style: Theme.of(context).textTheme.headlineSmall),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: AppSpacing.inline),
                           Text(t('管理员管理家人；家庭成员共同照护；临时照护者按授权与到期时间访问。',
                               'Admins manage access. Members share care. Temporary caregivers have limited, expiring access.'))
                         ])),
-                const SizedBox(height: 20),
+                const SizedBox(height: AppSpacing.section),
                 if (busy) const LinearProgressIndicator(),
                 if (error != null) ...[
                   Text(error!),
@@ -129,7 +130,8 @@ class _HouseholdMembersPageState extends State<HouseholdMembersPage> {
                       return Card(
                           color: const Color(0xfffff0dc),
                           child: ListTile(
-                              contentPadding: const EdgeInsets.all(18),
+                              contentPadding:
+                                  const EdgeInsets.all(AppSpacing.content),
                               leading: Icon(m['role'] == 'ADMIN'
                                   ? Icons.shield_outlined
                                   : Icons.person_outline),
@@ -145,17 +147,17 @@ class _HouseholdMembersPageState extends State<HouseholdMembersPage> {
                                   : null));
                     }),
                   if (data!['canManage'] == true) ...[
-                    const SizedBox(height: 18),
+                    const SizedBox(height: AppSpacing.content),
                     FilledButton.icon(
                         onPressed: busy ? null : () => edit(),
                         icon: const Icon(Icons.person_add_alt_1_outlined),
                         label: Text(t('邀请家人 / 临时照护', 'Invite a caregiver')))
                   ],
-                  const SizedBox(height: 14),
+                  const SizedBox(height: AppSpacing.item),
                   Text(t('临时照护与自定义权限属于高级权益。最后一位管理员需先移交管理权，才能退出。',
                       'Temporary access and custom permissions are advanced benefits. Transfer administration before the last admin leaves.')),
                 ],
-                const SizedBox(height: 24),
+                const SizedBox(height: AppSpacing.section),
                 TextButton(
                     onPressed: busy ? null : leave,
                     child: Text(t('退出当前家庭', 'Leave this household'))),
@@ -231,7 +233,7 @@ class _RoleEditorState extends State<_RoleEditor> {
                     content: Column(mainAxisSize: MainAxisSize.min, children: [
                       Text(t('邀请码 24 小时有效，仅可使用一次。',
                           'Valid for 24 hours and one use.')),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: AppSpacing.content),
                       SelectableText(result['code'] as String)
                     ]),
                     actions: [
@@ -275,6 +277,10 @@ class _RoleEditorState extends State<_RoleEditor> {
           onSave: save,
           children: [
             DropdownButtonFormField<String>(
+                borderRadius: BorderRadius.circular(16),
+                dropdownColor: Theme.of(context).colorScheme.surface,
+                elevation: 3,
+                icon: const Icon(Icons.expand_more_rounded, size: 20),
                 isExpanded: true,
                 initialValue: role,
                 decoration: InputDecoration(labelText: t('角色', 'Role')),
@@ -296,7 +302,7 @@ class _RoleEditorState extends State<_RoleEditor> {
                               : null;
                         })),
             if (role != 'ADMIN') ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.content),
               for (final entry in permissionNames.entries)
                 CheckboxListTile(
                     contentPadding: EdgeInsets.zero,
@@ -370,7 +376,7 @@ class _FamilyWeeklyPageState extends State<FamilyWeeklyPage> {
   Widget stat(String value, String label) => Expanded(
           child: Column(children: [
         Text(value, style: Theme.of(context).textTheme.headlineSmall),
-        const SizedBox(height: 6),
+        const SizedBox(height: AppSpacing.inline),
         Text(label)
       ]));
   @override
@@ -379,7 +385,7 @@ class _FamilyWeeklyPageState extends State<FamilyWeeklyPage> {
       body: Center(
           child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 760),
-              child: ListView(padding: const EdgeInsets.all(24), children: [
+              child: ListView(padding: AppSpacing.pageInsets, children: [
                 Row(children: [
                   Expanded(
                       child: Text(t('这一周，一起照顾。', 'This week, together.'),
@@ -389,7 +395,7 @@ class _FamilyWeeklyPageState extends State<FamilyWeeklyPage> {
                       onPressed: busy ? null : load,
                       icon: const Icon(Icons.refresh))
                 ]),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.item),
                 OutlinedButton.icon(
                     onPressed: busy || data?['advanced'] != true
                         ? null
@@ -413,9 +419,9 @@ class _FamilyWeeklyPageState extends State<FamilyWeeklyPage> {
                   Padding(
                       padding: const EdgeInsets.all(12), child: Text(error!)),
                 if (data != null) ...[
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpacing.content),
                   Container(
-                      padding: const EdgeInsets.all(24),
+                      padding: AppSpacing.dialogInsets,
                       decoration: BoxDecoration(
                           color: const Color(0xffffefcc),
                           borderRadius: BorderRadius.circular(26)),
@@ -426,14 +432,14 @@ class _FamilyWeeklyPageState extends State<FamilyWeeklyPage> {
                                 : '${(data!['completionRate'] as num).toStringAsFixed(0)}%',
                             style: Theme.of(context).textTheme.headlineLarge),
                         Text(t('到期安排完成率', 'Completion rate for due tasks')),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: AppSpacing.section),
                         Row(children: [
                           stat('${data!['due']}', t('已到期', 'Due')),
                           stat('${data!['completed']}', t('已完成', 'Done')),
                           stat('${data!['missed']}', t('遗漏', 'Missed'))
                         ])
                       ])),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: AppSpacing.section),
                   Text(t('多宠照护', 'Care by pet'),
                       style: Theme.of(context).textTheme.titleLarge),
                   for (final pet in data!['pets'] as List)
@@ -445,7 +451,7 @@ class _FamilyWeeklyPageState extends State<FamilyWeeklyPage> {
                             subtitle: Text(t(
                                 '${pet['completed']} / ${pet['due']} 项完成 · ${pet['missed']} 项遗漏',
                                 '${pet['completed']} / ${pet['due']} complete · ${pet['missed']} missed')))),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: AppSpacing.section),
                   Text(t('成员分工', 'Family contributions'),
                       style: Theme.of(context).textTheme.titleLarge),
                   for (final member in data!['members'] as List)
@@ -457,7 +463,7 @@ class _FamilyWeeklyPageState extends State<FamilyWeeklyPage> {
                             'Assigned ${member['assigned']} · Completed ${member['completed']}'))),
                   Text(t('${data!['unassigned']} 项尚未指定照护人，可在安排详情中分配。',
                       '${data!['unassigned']} tasks have no assignee. Assign them from plan details.')),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: AppSpacing.section),
                   Text(t('需要留意的遗漏', 'Missed care to review'),
                       style: Theme.of(context).textTheme.titleLarge),
                   if ((data!['missedTasks'] as List).isEmpty)
@@ -489,24 +495,24 @@ class _FamilyWeeklyPageState extends State<FamilyWeeklyPage> {
                     Card(
                         color: const Color(0xffeaf0e2),
                         child: Padding(
-                            padding: const EdgeInsets.all(18),
+                            padding: const EdgeInsets.all(AppSpacing.content),
                             child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
                                       '${period['start']} · ${period['completed']}/${period['due']}'),
-                                  const SizedBox(height: 10),
+                                  const SizedBox(height: AppSpacing.inline),
                                   LinearProgressIndicator(
                                       value: period['due'] == 0
                                           ? 0
                                           : (period['completed'] as num) /
                                               (period['due'] as num)),
-                                  const SizedBox(height: 10),
+                                  const SizedBox(height: AppSpacing.inline),
                                   for (final pet in period['pets'] as List)
                                     Text(
                                         '${pet['name']}: ${pet['completed']}/${pet['due']}')
                                 ]))),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: AppSpacing.section),
                   Text(
                       t('仅统计本周截至现在或历史周末已到期、未取消的安排。完成状态取统计截止时的最后操作；分工取当前负责人。已删除记录不参与统计。',
                           'Counts retained, non-cancelled tasks due by now or the historical week end. Completion uses the last action at that cutoff; assignments reflect current assignees.'),

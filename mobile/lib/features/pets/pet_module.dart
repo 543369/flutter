@@ -1,3 +1,4 @@
+import '../../core/theme/app_spacing.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as image_lib;
@@ -111,16 +112,16 @@ extension PetModule on CareHomeState {
                   children: [
                 Text(t('我们的毛孩子', 'Our companions'),
                     style: Theme.of(context).textTheme.headlineMedium),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppSpacing.inline),
                 Text(t('把陪伴的每一天，都好好收藏。', 'Every day together, worth keeping.')),
               ])),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.inline),
           TextButton.icon(
               onPressed: busy ? null : addPet,
               icon: const Icon(Icons.add_rounded, size: 19),
               label: Text(t('添加宠物', 'Add a pet'))),
         ]),
-        const SizedBox(height: 24),
+        const SizedBox(height: AppSpacing.section),
         if (pets.isEmpty)
           empty(
               t('第一位小伙伴，等你来介绍', 'Meet your first companion'),
@@ -133,10 +134,12 @@ extension PetModule on CareHomeState {
               : constraints.maxWidth >= 650
                   ? 3
                   : 2;
-          final width = (constraints.maxWidth - (columns - 1) * 16) / columns;
+          final width =
+              (constraints.maxWidth - (columns - 1) * AppSpacing.content) /
+                  columns;
           return Wrap(
-              spacing: 16,
-              runSpacing: 20,
+              spacing: AppSpacing.content,
+              runSpacing: AppSpacing.content,
               children: pets.indexed.map((entry) {
                 final pet = entry.$2;
                 return SizedBox(
@@ -156,7 +159,7 @@ extension PetModule on CareHomeState {
                               AspectRatio(
                                   aspectRatio: 1.05, child: PetCover(pet: pet)),
                               Padding(
-                                  padding: const EdgeInsets.all(16),
+                                  padding: AppSpacing.cardInsets,
                                   child: Column(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
@@ -174,18 +177,20 @@ extension PetModule on CareHomeState {
                                               Icons.arrow_outward_rounded,
                                               size: 18)
                                         ]),
-                                        const SizedBox(height: 6),
+                                        const SizedBox(
+                                            height: AppSpacing.inline),
                                         Text(
                                             '${petSpeciesLabel(pet)} · ${petAgeLabel(pet['birthDate'] as String?, DateTime.now(), chinese: zh)}',
                                             maxLines: 2,
                                             style:
                                                 const TextStyle(fontSize: 12)),
-                                        const SizedBox(height: 14),
+                                        const SizedBox(height: AppSpacing.item),
                                         Row(children: [
                                           const Icon(
                                               Icons.auto_stories_outlined,
                                               size: 16),
-                                          const SizedBox(width: 5),
+                                          const SizedBox(
+                                              width: AppSpacing.tight),
                                           Expanded(
                                               child: Text(
                                                   t('${pet['memoryCount'] ?? 0} 篇小回忆',
@@ -199,16 +204,16 @@ extension PetModule on CareHomeState {
                     ));
               }).toList());
         }),
-        const SizedBox(height: 28),
+        const SizedBox(height: AppSpacing.section),
         Container(
-            padding: const EdgeInsets.all(20),
+            padding: AppSpacing.cardInsets,
             decoration: BoxDecoration(
                 color: const Color(0xfff7f2ec),
                 borderRadius: BorderRadius.circular(22)),
             child: Row(children: [
               const Icon(Icons.favorite_border_rounded,
                   color: Color(0xffce6b4c)),
-              const SizedBox(width: 12),
+              const SizedBox(width: AppSpacing.item),
               Expanded(
                   child: Text(t('点击小伙伴的卡片，看看档案，写下一段新回忆。',
                       'Open a companion’s card to view their profile and add a memory.')))

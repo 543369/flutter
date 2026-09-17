@@ -1,3 +1,4 @@
+import '../../core/theme/app_spacing.dart';
 import '../health/health_pages.dart';
 import 'package:flutter/material.dart';
 import '../../app/home_shell.dart';
@@ -40,7 +41,7 @@ class PetDetailPage extends StatelessWidget {
                   ? Text(t(
                       '此宠物档案已不存在。', 'This pet profile is no longer available.'))
                   : ListView(
-                      padding: const EdgeInsets.all(24),
+                      padding: AppSpacing.dialogInsets,
                       children: [
                         if (home.busy) const LinearProgressIndicator(),
                         ClipRRect(
@@ -49,17 +50,18 @@ class PetDetailPage extends StatelessWidget {
                                 aspectRatio: 1.5,
                                 child: PetPhotoCarousel(
                                     pet: pet, openPhotos: true))),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: AppSpacing.section),
                         Text(pet['name'] as String,
                             style: Theme.of(context).textTheme.headlineLarge),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: AppSpacing.inline),
                         Text(
                             '${home.petSpeciesLabel(pet)} · ${petAgeLabel(pet['birthDate'] as String?, DateTime.now(), chinese: home.zh)}'),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: AppSpacing.section),
                         Card(
                             color: const Color(0xffe6eee2),
                             child: ListTile(
-                                contentPadding: const EdgeInsets.all(18),
+                                contentPadding:
+                                    const EdgeInsets.all(AppSpacing.content),
                                 leading: const Icon(
                                     Icons.health_and_safety_outlined),
                                 title: Text(t('健康档案', 'Health records')),
@@ -71,7 +73,7 @@ class PetDetailPage extends StatelessWidget {
                                     MaterialPageRoute(
                                         builder: (_) => HealthRecordsPage(
                                             home: home, petId: petId))))),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: AppSpacing.item),
                         Card(
                             color: const Color(0xffffe9df),
                             child: InkWell(
@@ -81,11 +83,11 @@ class PetDetailPage extends StatelessWidget {
                                       builder: (_) => PetMemoriesPage(
                                           home: home, petId: petId))),
                               child: Padding(
-                                  padding: const EdgeInsets.all(20),
+                                  padding: AppSpacing.cardInsets,
                                   child: Row(children: [
                                     const Icon(Icons.auto_stories_outlined,
                                         size: 32, color: Color(0xffb75f43)),
-                                    const SizedBox(width: 14),
+                                    const SizedBox(width: AppSpacing.item),
                                     Expanded(
                                         child: Column(
                                             crossAxisAlignment:
@@ -95,7 +97,8 @@ class PetDetailPage extends StatelessWidget {
                                               style: Theme.of(context)
                                                   .textTheme
                                                   .titleLarge),
-                                          const SizedBox(height: 6),
+                                          const SizedBox(
+                                              height: AppSpacing.inline),
                                           Text(t(
                                               '${pet['memoryCount'] ?? 0} 篇故事 · 收藏美好日常',
                                               '${pet['memoryCount'] ?? 0} stories · Little moments to keep')),
@@ -103,10 +106,10 @@ class PetDetailPage extends StatelessWidget {
                                     const Icon(Icons.chevron_right_rounded),
                                   ])),
                             )),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: AppSpacing.inline),
                         Card(
                             child: Padding(
-                                padding: const EdgeInsets.all(20),
+                                padding: AppSpacing.cardInsets,
                                 child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
@@ -115,7 +118,7 @@ class PetDetailPage extends StatelessWidget {
                                           style: Theme.of(context)
                                               .textTheme
                                               .titleLarge),
-                                      const SizedBox(height: 8),
+                                      const SizedBox(height: AppSpacing.inline),
                                       Text((pet['biography'] as String? ?? '')
                                               .trim()
                                               .isEmpty
@@ -154,13 +157,13 @@ class PetDetailPage extends StatelessWidget {
                             },
                             icon: const Icon(Icons.event_available_rounded),
                             label: Text(t('查看照护安排', 'View care plans'))),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: AppSpacing.inline),
                         OutlinedButton.icon(
                             onPressed:
                                 home.busy ? null : () => home.editPet(pet),
                             icon: const Icon(Icons.edit_outlined),
                             label: Text(t('编辑档案', 'Edit profile'))),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: AppSpacing.content),
                         TextButton.icon(
                             onPressed: home.busy
                                 ? null

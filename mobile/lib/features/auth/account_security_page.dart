@@ -1,3 +1,4 @@
+import '../../core/theme/app_spacing.dart';
 import 'dart:convert';
 import 'email_action_page.dart';
 import 'package:flutter/material.dart';
@@ -140,7 +141,7 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: Text(t('账号安全', 'Account security'))),
-        body: ListView(padding: const EdgeInsets.all(20), children: [
+        body: ListView(padding: AppSpacing.cardInsets, children: [
           if (identity?['email'] != null)
             ListTile(
                 subtitle: Text(identity?['verified'] == true
@@ -204,7 +205,7 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
                       validator: (s) => s != newPassword.text
                           ? t('两次密码不一致', 'Passwords do not match')
                           : null),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AppSpacing.item),
                   Text(t('修改后保留本次登录，其他会话将退出。',
                       'This session stays signed in. All other sessions will be signed out.')),
                   FilledButton(
@@ -212,7 +213,7 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
                       child: Text(t('修改密码', 'Change password'))),
                 ])),
           ],
-          const SizedBox(height: 24),
+          const SizedBox(height: AppSpacing.section),
           Row(children: [
             Expanded(
                 child: Text(t('登录会话', 'Sign-in sessions'),

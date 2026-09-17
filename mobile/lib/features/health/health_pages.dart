@@ -1,3 +1,4 @@
+import '../../core/theme/app_spacing.dart';
 import 'health_timeline_page.dart';
 import 'package:flutter/material.dart';
 import '../../app/home_shell.dart';
@@ -150,7 +151,7 @@ class _HealthRecordsPageState extends State<HealthRecordsPage> {
                   padding: const EdgeInsets.fromLTRB(24, 12, 24, 100),
                   children: [
                     Container(
-                        padding: const EdgeInsets.all(24),
+                        padding: AppSpacing.dialogInsets,
                         decoration: BoxDecoration(
                             color: const Color(0xffe6eee2),
                             borderRadius: BorderRadius.circular(28)),
@@ -159,17 +160,17 @@ class _HealthRecordsPageState extends State<HealthRecordsPage> {
                             children: [
                               const Icon(Icons.favorite_outline,
                                   size: 32, color: Color(0xff657e5f)),
-                              const SizedBox(height: 12),
+                              const SizedBox(height: AppSpacing.item),
                               Text(
                                   t('把每一次照顾，\n好好记下来。',
                                       'Every detail of care,\nin one place.'),
                                   style: Theme.of(context)
                                       .textTheme
                                       .headlineSmall),
-                              const SizedBox(height: 10),
+                              const SizedBox(height: AppSpacing.inline),
                               Text(t('基础记录免费 · 疫苗、驱虫、用药、过敏、体重与就诊',
                                   'Free basic records · Vaccines, medication, weight and more')),
-                              const SizedBox(height: 12),
+                              const SizedBox(height: AppSpacing.item),
                               OutlinedButton.icon(
                                   onPressed: advanced
                                       ? () => Navigator.push<void>(
@@ -183,30 +184,33 @@ class _HealthRecordsPageState extends State<HealthRecordsPage> {
                                   label: Text(t('长期体重趋势 · 高级权益',
                                       'Long-term weight trends · Advanced'))),
                             ])),
-                    const SizedBox(height: 20),
-                    Wrap(spacing: 8, runSpacing: 8, children: [
-                      ChoiceChip(
-                          label: Text(t('全部', 'All')),
-                          selected: kind.isEmpty,
-                          onSelected: loading
-                              ? null
-                              : (_) {
-                                  setState(() => kind = '');
-                                  load();
-                                }),
-                      for (final entry in healthKinds.entries)
-                        ChoiceChip(
-                            avatar: Icon(entry.value.$3, size: 18),
-                            label: Text(t(entry.value.$1, entry.value.$2)),
-                            selected: kind == entry.key,
-                            onSelected: loading
-                                ? null
-                                : (_) {
-                                    setState(() => kind = entry.key);
-                                    load();
-                                  }),
-                    ]),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: AppSpacing.section),
+                    Wrap(
+                        spacing: AppSpacing.inline,
+                        runSpacing: AppSpacing.inline,
+                        children: [
+                          ChoiceChip(
+                              label: Text(t('全部', 'All')),
+                              selected: kind.isEmpty,
+                              onSelected: loading
+                                  ? null
+                                  : (_) {
+                                      setState(() => kind = '');
+                                      load();
+                                    }),
+                          for (final entry in healthKinds.entries)
+                            ChoiceChip(
+                                avatar: Icon(entry.value.$3, size: 18),
+                                label: Text(t(entry.value.$1, entry.value.$2)),
+                                selected: kind == entry.key,
+                                onSelected: loading
+                                    ? null
+                                    : (_) {
+                                        setState(() => kind = entry.key);
+                                        load();
+                                      }),
+                        ]),
+                    const SizedBox(height: AppSpacing.item),
                     if (advanced)
                       Row(children: [
                         Expanded(
@@ -238,7 +242,8 @@ class _HealthRecordsPageState extends State<HealthRecordsPage> {
                       Card(
                           color: const Color(0xfffaf2e8),
                           child: ListTile(
-                              contentPadding: const EdgeInsets.all(14),
+                              contentPadding:
+                                  const EdgeInsets.all(AppSpacing.content),
                               leading: advanced
                                   ? Checkbox(
                                       value: selected.contains(item['id']),
@@ -362,6 +367,10 @@ class _HealthRecordEditorState extends State<HealthRecordEditor> {
           onSave: title.text.trim().isEmpty ? null : save,
           children: [
             DropdownButtonFormField<String>(
+                borderRadius: BorderRadius.circular(16),
+                dropdownColor: Theme.of(context).colorScheme.surface,
+                elevation: 3,
+                icon: const Icon(Icons.expand_more_rounded, size: 20),
                 isExpanded: true,
                 initialValue: kind,
                 decoration: InputDecoration(labelText: t('记录类型', 'Type')),
@@ -370,7 +379,7 @@ class _HealthRecordEditorState extends State<HealthRecordEditor> {
                         value: e.key, child: Text(t(e.value.$1, e.value.$2))))
                     .toList(),
                 onChanged: saving ? null : (v) => setState(() => kind = v!)),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.item),
             TextField(
                 controller: title,
                 enabled: !saving,
@@ -379,6 +388,7 @@ class _HealthRecordEditorState extends State<HealthRecordEditor> {
                 decoration: InputDecoration(
                     labelText: t('名称 / 主题', 'Title'),
                     hintText: t('例如：年度疫苗、复诊检查', 'e.g. Annual vaccination'))),
+            const SizedBox(height: AppSpacing.item),
             OutlinedButton.icon(
                 onPressed: saving
                     ? null
@@ -400,7 +410,7 @@ class _HealthRecordEditorState extends State<HealthRecordEditor> {
                       const TextInputType.numberWithOptions(decimal: true),
                   decoration:
                       InputDecoration(labelText: t('体重（kg）', 'Weight (kg)'))),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.item),
             TextField(
                 controller: notes,
                 enabled: !saving,
@@ -415,28 +425,32 @@ class _HealthRecordEditorState extends State<HealthRecordEditor> {
                 'Image attachments ${photos.length}/${widget.limit}')),
             Text(t('健康附件计入家庭共享空间，与档案照片和回忆录照片共用额度。',
                 'Health attachments count toward the same household storage as pet profile and memory photos.')),
-            Wrap(spacing: 8, runSpacing: 8, children: [
-              for (final entry in photos.indexed)
-                SizedBox(
-                    width: 88,
-                    height: 88,
-                    child: Stack(children: [
-                      Positioned.fill(
-                          child: ClipRRect(
-                              borderRadius: BorderRadius.circular(14),
-                              child: MemoryPhoto(data: entry.$2))),
-                      Align(
-                          alignment: Alignment.topRight,
-                          child: IconButton(
-                              onPressed: saving
-                                  ? null
-                                  : () =>
-                                      setState(() => photos.removeAt(entry.$1)),
-                              style: IconButton.styleFrom(
-                                  backgroundColor: Colors.white),
-                              icon: const Icon(Icons.close, size: 16)))
-                    ]))
-            ]),
+            Wrap(
+                spacing: AppSpacing.inline,
+                runSpacing: AppSpacing.inline,
+                children: [
+                  for (final entry in photos.indexed)
+                    SizedBox(
+                        width: 88,
+                        height: 88,
+                        child: Stack(children: [
+                          Positioned.fill(
+                              child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(14),
+                                  child: MemoryPhoto(data: entry.$2))),
+                          Align(
+                              alignment: Alignment.topRight,
+                              child: IconButton(
+                                  onPressed: saving
+                                      ? null
+                                      : () => setState(
+                                          () => photos.removeAt(entry.$1)),
+                                  style: IconButton.styleFrom(
+                                      backgroundColor: Colors.white),
+                                  icon: const Icon(Icons.close, size: 16)))
+                        ]))
+                ]),
+            const SizedBox(height: AppSpacing.item),
             OutlinedButton.icon(
                 onPressed: saving || picking || photos.length >= widget.limit
                     ? null
@@ -513,7 +527,7 @@ class _HealthRecordDetailState extends State<HealthRecordDetail> {
       body: Center(
           child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 760),
-              child: ListView(padding: const EdgeInsets.all(24), children: [
+              child: ListView(padding: AppSpacing.pageInsets, children: [
                 if (busy) const LinearProgressIndicator(),
                 if (error != null) ...[
                   Text(error!),
@@ -524,10 +538,10 @@ class _HealthRecordDetailState extends State<HealthRecordDetail> {
                 if (record != null) ...[
                   Icon(healthKinds[record!['kind']]!.$3,
                       size: 48, color: const Color(0xff7a8f69)),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpacing.content),
                   Text(record!['title'] as String,
                       style: Theme.of(context).textTheme.headlineMedium),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AppSpacing.item),
                   Text(
                       '${record!['happenedOn']} · ${t(healthKinds[record!['kind']]!.$1, healthKinds[record!['kind']]!.$2)}'),
                   if (record!['weightKg'] != null)
@@ -535,9 +549,9 @@ class _HealthRecordDetailState extends State<HealthRecordDetail> {
                         padding: const EdgeInsets.symmetric(vertical: 20),
                         child: Text('${record!['weightKg']} kg',
                             style: Theme.of(context).textTheme.headlineLarge)),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: AppSpacing.content),
                   SelectableText(record!['notes'] as String),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: AppSpacing.section),
                   for (final p in record!['photos'] as List)
                     Padding(
                         padding: const EdgeInsets.only(bottom: 12),
@@ -549,7 +563,7 @@ class _HealthRecordDetailState extends State<HealthRecordDetail> {
                       'Created: ${record!['createdAt']}')),
                   Text(t('文件夹：${record!['folder']}',
                       'Folder: ${record!['folder']}')),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: AppSpacing.section),
                   FilledButton.icon(
                       onPressed: busy
                           ? null
@@ -604,10 +618,10 @@ class _HealthTrendPageState extends State<HealthTrendPage> {
   @override
   Widget build(BuildContext context) => Scaffold(
       appBar: AppBar(title: Text(t('长期体重趋势', 'Weight history'))),
-      body: ListView(padding: const EdgeInsets.all(24), children: [
+      body: ListView(padding: AppSpacing.pageInsets, children: [
         Text(t('每一次变化，都有迹可循。', 'A record of every little change.'),
             style: Theme.of(context).textTheme.headlineSmall),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.item),
         Text(t('按月展示平均体重与范围，缺少记录的月份不推算。',
             'Monthly mean and range. Missing months are not estimated.')),
         if (error != null) ...[

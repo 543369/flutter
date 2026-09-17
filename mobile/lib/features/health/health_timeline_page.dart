@@ -1,3 +1,4 @@
+import '../../core/theme/app_spacing.dart';
 import 'dart:io';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
@@ -132,9 +133,9 @@ class _HealthTimelinePageState extends State<HealthTimelinePage> {
         body: Center(
             child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 760),
-                child: ListView(padding: const EdgeInsets.all(24), children: [
+                child: ListView(padding: AppSpacing.pageInsets, children: [
                   Container(
-                      padding: const EdgeInsets.all(24),
+                      padding: AppSpacing.dialogInsets,
                       decoration: BoxDecoration(
                           color: const Color(0xffe5eee2),
                           borderRadius: BorderRadius.circular(26)),
@@ -142,17 +143,17 @@ class _HealthTimelinePageState extends State<HealthTimelinePage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Icon(Icons.timeline, size: 36),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: AppSpacing.item),
                             Text(
                                 t('就诊前，准备清楚。\n寄养时，交接安心。',
                                     'Ready for the vet.\nPrepared for a stay.'),
                                 style:
                                     Theme.of(context).textTheme.headlineSmall),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: AppSpacing.item),
                             Text(t('按发生日期从早到晚整理记录。不包含个人账号、手机号和附件图片；附件仅显示数量。',
                                 'Records are ordered from oldest to newest. Account details, phone numbers and attachment images are excluded; attachment counts are included.')),
                           ])),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: AppSpacing.content),
                   SegmentedButton<String>(
                       segments: [
                         ButtonSegment(
@@ -170,7 +171,7 @@ class _HealthTimelinePageState extends State<HealthTimelinePage> {
                       onSelectionChanged: exporting
                           ? null
                           : (v) => setState(() => purpose = v.first)),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: AppSpacing.item),
                   OutlinedButton.icon(
                       onPressed: loading || exporting ? null : chooseRange,
                       icon: const Icon(Icons.date_range),
@@ -187,8 +188,8 @@ class _HealthTimelinePageState extends State<HealthTimelinePage> {
                   if (range != null)
                     Text(t('仅包含所选日期范围，不等于完整健康史。',
                         'This date range may not include the full health history.')),
-                  const SizedBox(height: 12),
-                  Wrap(spacing: 12, runSpacing: 8, children: [
+                  const SizedBox(height: AppSpacing.item),
+                  Wrap(spacing: 12, runSpacing: AppSpacing.inline, children: [
                     FilledButton.icon(
                         onPressed: loading || exporting || items.isEmpty
                             ? null
@@ -212,13 +213,13 @@ class _HealthTimelinePageState extends State<HealthTimelinePage> {
                         onPressed: loading || exporting ? null : load,
                         child: Text(t('重试', 'Retry')))
                   ],
-                  const SizedBox(height: 22),
+                  const SizedBox(height: AppSpacing.section),
                   Text(
                       '${snapshot?['pet']?['name'] ?? ''} · ${items.length} ${t('条记录', 'records')}',
                       style: Theme.of(context).textTheme.titleLarge),
                   if (!loading && snapshot != null && items.isEmpty)
                     Padding(
-                        padding: const EdgeInsets.all(24),
+                        padding: AppSpacing.dialogInsets,
                         child: Text(t(
                             '这个范围内还没有记录。', 'No records in this date range.'))),
                   for (final item in items)
@@ -230,8 +231,11 @@ class _HealthTimelinePageState extends State<HealthTimelinePage> {
                             title: Text(
                                 '${item['happenedOn']} · ${healthExportKinds[item['kind']]}'),
                             subtitle: Text(item['title'] as String),
-                            childrenPadding:
-                                const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                            childrenPadding: const EdgeInsets.fromLTRB(
+                                AppSpacing.content,
+                                0,
+                                AppSpacing.content,
+                                AppSpacing.content),
                             expandedCrossAxisAlignment:
                                 CrossAxisAlignment.start,
                             children: [
@@ -240,7 +244,7 @@ class _HealthTimelinePageState extends State<HealthTimelinePage> {
                               SelectableText((item['notes'] as String).isEmpty
                                   ? t('未填写说明', 'No notes')
                                   : item['notes'] as String),
-                              const SizedBox(height: 10),
+                              const SizedBox(height: AppSpacing.inline),
                               Text(t('附件 ${item['attachmentCount']} 张（文件不包含图片）',
                                   '${item['attachmentCount']} attachments (images excluded from export)')),
                             ])),

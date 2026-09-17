@@ -1,3 +1,4 @@
+import '../../core/theme/app_spacing.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../app/home_shell.dart';
@@ -111,11 +112,11 @@ class _PetMemoriesPageState extends State<PetMemoriesPage> {
         child: RefreshIndicator(
             onRefresh: load,
             child: ListView(
-                padding: const EdgeInsets.all(24),
+                padding: AppSpacing.dialogInsets,
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: [
                   Container(
-                      padding: const EdgeInsets.all(22),
+                      padding: const EdgeInsets.all(AppSpacing.section),
                       decoration: BoxDecoration(
                           color: const Color(0xffffeadf),
                           borderRadius: BorderRadius.circular(26)),
@@ -124,26 +125,26 @@ class _PetMemoriesPageState extends State<PetMemoriesPage> {
                           children: [
                             const Icon(Icons.auto_stories_outlined,
                                 color: Color(0xffbb6046), size: 32),
-                            const SizedBox(height: 14),
+                            const SizedBox(height: AppSpacing.item),
                             Text(
                                 t('和${pet?['name'] ?? '你'}的故事',
                                     'Our story with ${pet?['name'] ?? 'you'}'),
                                 style:
                                     Theme.of(context).textTheme.headlineMedium),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: AppSpacing.inline),
                             Text(t('一张照片，一件小事，都是值得珍藏的日子。',
                                 'A photo, a small moment, a day worth remembering.')),
-                            const SizedBox(height: 18),
+                            const SizedBox(height: AppSpacing.content),
                             FilledButton.icon(
                                 key: const ValueKey('create-memory'),
                                 onPressed: create,
                                 icon: const Icon(Icons.add_rounded),
                                 label: Text(t('写一篇回忆', 'Write a memory'))),
                           ])),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: AppSpacing.section),
                   Text(t('珍藏的 $total 个瞬间', '$total moments to keep'),
                       style: Theme.of(context).textTheme.titleLarge),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpacing.content),
                   if (loading && items.isEmpty)
                     const Center(child: CircularProgressIndicator()),
                   if (error != null) ...[
@@ -177,7 +178,7 @@ class _PetMemoriesPageState extends State<PetMemoriesPage> {
                                               data:
                                                   item['coverData'] as String)),
                                     Padding(
-                                        padding: const EdgeInsets.all(20),
+                                        padding: AppSpacing.cardInsets,
                                         child: Column(
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
@@ -186,17 +187,20 @@ class _PetMemoriesPageState extends State<PetMemoriesPage> {
                                                   style: const TextStyle(
                                                       color: Color(0xffa05e46),
                                                       fontSize: 12)),
-                                              const SizedBox(height: 8),
+                                              const SizedBox(
+                                                  height: AppSpacing.inline),
                                               Text(item['title'] as String,
                                                   style: Theme.of(context)
                                                       .textTheme
                                                       .titleLarge),
-                                              const SizedBox(height: 8),
+                                              const SizedBox(
+                                                  height: AppSpacing.inline),
                                               Text(item['story'] as String,
                                                   maxLines: 3,
                                                   overflow:
                                                       TextOverflow.ellipsis),
-                                              const SizedBox(height: 14),
+                                              const SizedBox(
+                                                  height: AppSpacing.item),
                                               Row(children: [
                                                 Expanded(
                                                     child: Text(
@@ -214,10 +218,12 @@ class _PetMemoriesPageState extends State<PetMemoriesPage> {
                                                       Icons
                                                           .photo_library_outlined,
                                                       size: 16),
-                                                  const SizedBox(width: 4),
+                                                  const SizedBox(
+                                                      width: AppSpacing.tight),
                                                   Text('${item['photoCount']}')
                                                 ],
-                                                const SizedBox(width: 12),
+                                                const SizedBox(
+                                                    width: AppSpacing.item),
                                                 const Icon(
                                                     Icons.arrow_forward_rounded,
                                                     size: 18)
@@ -337,6 +343,7 @@ class _MemoryEditorState extends State<MemoryEditor> {
                   labelText: t('给回忆起个名字', 'Title'),
                   hintText: t('第一次一起去海边', 'Our first trip to the beach')),
               onChanged: (_) => setState(() {})),
+          const SizedBox(height: AppSpacing.item),
           OutlinedButton.icon(
               onPressed: saving
                   ? null
@@ -352,7 +359,7 @@ class _MemoryEditorState extends State<MemoryEditor> {
                     },
               icon: const Icon(Icons.calendar_today_outlined),
               label: Text(_day(date))),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.content),
           TextField(
               key: const ValueKey('memory-story'),
               controller: story,
@@ -365,39 +372,43 @@ class _MemoryEditorState extends State<MemoryEditor> {
                   hintText: t('发生了什么？那一刻的心情如何？',
                       'What happened? How did that moment feel?')),
               onChanged: (_) => setState(() {})),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.inline),
           Text(t('照片 · ${photos.length}/6', 'Photos · ${photos.length}/6'),
               style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 10),
-          Wrap(spacing: 8, runSpacing: 8, children: [
-            for (final entry in photos.indexed)
-              SizedBox(
-                  width: 84,
-                  height: 84,
-                  child: Stack(fit: StackFit.expand, children: [
-                    ClipRRect(
-                        borderRadius: BorderRadius.circular(14),
-                        child: MemoryPhoto(data: entry.$2)),
-                    Align(
-                        alignment: Alignment.topRight,
-                        child: IconButton.filledTonal(
-                            tooltip: t('移除照片', 'Remove photo'),
-                            constraints: const BoxConstraints.tightFor(
-                                width: 30, height: 30),
-                            padding: EdgeInsets.zero,
-                            icon: const Icon(Icons.close_rounded, size: 17),
-                            onPressed: saving
-                                ? null
-                                : () =>
-                                    setState(() => photos.removeAt(entry.$1))))
-                  ])),
-          ]),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.inline),
+          Wrap(
+              spacing: AppSpacing.inline,
+              runSpacing: AppSpacing.inline,
+              children: [
+                for (final entry in photos.indexed)
+                  SizedBox(
+                      width: 84,
+                      height: 84,
+                      child: Stack(fit: StackFit.expand, children: [
+                        ClipRRect(
+                            borderRadius: BorderRadius.circular(14),
+                            child: MemoryPhoto(data: entry.$2)),
+                        Align(
+                            alignment: Alignment.topRight,
+                            child: IconButton.filledTonal(
+                                tooltip: t('移除照片', 'Remove photo'),
+                                constraints: const BoxConstraints.tightFor(
+                                    width: 30, height: 30),
+                                padding: EdgeInsets.zero,
+                                icon: const Icon(Icons.close_rounded, size: 17),
+                                onPressed: saving
+                                    ? null
+                                    : () => setState(
+                                        () => photos.removeAt(entry.$1))))
+                      ])),
+              ]),
+          const SizedBox(height: AppSpacing.item),
+          const SizedBox(height: AppSpacing.item),
           OutlinedButton.icon(
               onPressed: saving || picking || photos.length >= 6 ? null : pick,
               icon: const Icon(Icons.add_photo_alternate_outlined),
               label: Text(t('添加照片', 'Add photo'))),
-          const SizedBox(height: 10),
+          const SizedBox(height: AppSpacing.inline),
           Text(t('只有你的家庭成员可以查看和编辑这些回忆。',
               'Only your household can view and edit these memories.')),
         ],
@@ -490,7 +501,7 @@ class _MemoryDetailPageState extends State<MemoryDetailPage> {
             child: Center(
                 child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 760),
-          child: ListView(padding: const EdgeInsets.all(24), children: [
+          child: ListView(padding: AppSpacing.pageInsets, children: [
             if (loading) const LinearProgressIndicator(),
             if (error != null) ...[
               Text(error!),
@@ -499,19 +510,19 @@ class _MemoryDetailPageState extends State<MemoryDetailPage> {
             if (memory != null) ...[
               Text(memory!['happenedOn'] as String,
                   style: const TextStyle(color: Color(0xffb15f44))),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.item),
               Text(memory!['title'] as String,
                   style: Theme.of(context).textTheme.headlineLarge),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.item),
               Text(t('由 ${memory!['author'] ?? '家人'} 记录',
                   'Recorded by ${memory!['author'] ?? 'a family member'}')),
-              const SizedBox(height: 26),
+              const SizedBox(height: AppSpacing.section),
               SelectableText(memory!['story'] as String,
                   style: Theme.of(context)
                       .textTheme
                       .bodyLarge
                       ?.copyWith(height: 1.8)),
-              const SizedBox(height: 24),
+              const SizedBox(height: AppSpacing.section),
               for (final photo in memory!['photos'] as List)
                 Padding(
                     padding: const EdgeInsets.only(bottom: 16),
@@ -534,12 +545,12 @@ class _MemoryDetailPageState extends State<MemoryDetailPage> {
                             borderRadius: BorderRadius.circular(20),
                             child:
                                 AspectRatio(aspectRatio: 1.2, child: MemoryPhoto(data: photo as String))))),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.item),
               Text(
                   t('创建于 ${widget.home.dateLabel(DateTime.parse(memory!['createdAt'] as String).toLocal())}',
                       'Created ${widget.home.dateLabel(DateTime.parse(memory!['createdAt'] as String).toLocal())}'),
                   style: Theme.of(context).textTheme.bodySmall),
-              const SizedBox(height: 24),
+              const SizedBox(height: AppSpacing.section),
               TextButton.icon(
                   onPressed: loading ? null : delete,
                   icon: const Icon(Icons.delete_outline_rounded),

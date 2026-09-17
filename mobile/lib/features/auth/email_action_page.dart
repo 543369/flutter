@@ -1,3 +1,4 @@
+import '../../core/theme/app_spacing.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../core/network/care_api.dart';
@@ -86,7 +87,7 @@ class _EmailActionPageState extends State<EmailActionPage> {
       appBar: AppBar(
           title: Text(t(widget.recovery ? '忘记密码' : '验证邮箱',
               widget.recovery ? 'Forgot password' : 'Verify email'))),
-      body: ListView(padding: const EdgeInsets.all(24), children: [
+      body: ListView(padding: AppSpacing.pageInsets, children: [
         if (widget.recovery)
           TextField(
               controller: email,
