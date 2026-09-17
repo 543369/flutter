@@ -1,3 +1,4 @@
+import 'care_day.dart';
 import '../../core/theme/app_spacing.dart';
 import 'package:flutter/material.dart';
 import '../../app/home_shell.dart';
@@ -32,7 +33,11 @@ extension CareView on CareHomeState {
 
   String _time(Map<String, dynamic> task) {
     final date = DateTime.parse(task['dueAt'] as String).toLocal();
-    return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    final clock =
+        '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    return careOnDay(task['dueAt'] as String, DateTime.now())
+        ? clock
+        : '${date.month}/${date.day} $clock';
   }
 
   Widget _petSelector(Map<String, dynamic>? pet, String name) =>
@@ -188,7 +193,11 @@ extension CareView on CareHomeState {
             const SizedBox(width: AppSpacing.item),
             Expanded(
                 child: Text(
-                    t('接下来，陪${task['petName']}',
+                    t(
+                        DateTime.parse(task['dueAt'] as String)
+                                .isBefore(DateTime.now())
+                            ? '已到时，陪${task['petName']}'
+                            : '接下来，陪${task['petName']}',
                         'Next up with ${task['petName']}'),
                     style: const TextStyle(
                         color: Color(0xff34231e),
@@ -222,9 +231,13 @@ extension CareView on CareHomeState {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(_time(task),
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                       color: Color(0xff34231e),
-                                      fontSize: 48,
+                                      fontSize: careOnDay(
+                                              task['dueAt'] as String,
+                                              DateTime.now())
+                                          ? 48
+                                          : 30,
                                       height: .95,
                                       fontWeight: FontWeight.w700)),
                               const SizedBox(height: AppSpacing.inline),
@@ -266,11 +279,17 @@ extension CareView on CareHomeState {
           SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
-                  onPressed: busy ? null : () => changeCompletion(task, true),
-                  icon: const Icon(Icons.check_circle_rounded, size: 22),
-                  label: Text(CareKind.of(task) == CareKind.feeding
-                      ? t('喂好了', 'Mark as done')
-                      : t('完成照护', 'Mark as done')))),
+                  onPressed: busy || submittingTasks.contains(task['id'])
+                      ? null
+                      : () => changeCompletion(task, true),
+                  icon: submittingTasks.contains(task['id'])
+                      ? const Icon(Icons.hourglass_top_rounded, size: 22)
+                      : const Icon(Icons.check_circle_rounded, size: 22),
+                  label: Text(submittingTasks.contains(task['id'])
+                      ? t('正在保存…', 'Saving…')
+                      : CareKind.of(task) == CareKind.feeding
+                          ? t('喂好了', 'Mark as done')
+                          : t('完成照护', 'Mark as done')))),
         ]),
       );
 
@@ -401,7 +420,7 @@ extension CareView on CareHomeState {
                         fontSize: 20,
                         fontWeight: FontWeight.w700))),
             TextButton.icon(
-                onPressed: () => updateUi(() => careFilter = 'history'),
+                onPressed: () => openCareArchive(events: true),
                 icon: const Icon(Icons.history_rounded, size: 20),
                 label: Text(t('记录', 'History'))),
           ]),
@@ -539,7 +558,13 @@ extension CareView on CareHomeState {
     final pet = selectedPet;
     final petId = pet?['id'];
     final petName = pet?['name'];
-    final petTasks = tasks.where((task) => task['petId'] == petId).toList();
+    final allTasks = {for (final t in tasks) t['id']: t};
+    for (final raw in data?['reminderTasks'] as List? ?? []) {
+      final reminder = Map<String, dynamic>.from(raw as Map);
+      allTasks.putIfAbsent(reminder['id'], () => reminder);
+    }
+    final petTasks =
+        allTasks.values.where((task) => task['petId'] == petId).toList();
     final petHistory = history
         .where(
           (event) =>
@@ -547,17 +572,60 @@ extension CareView on CareHomeState {
               (event['petId'] == null && event['petName'] == petName),
         )
         .toList();
-    final pending = petTasks.where((v) => v['completed'] != true).toList()
+    final pending = petTasks
+        .where((v) =>
+            actionableCare(v) &&
+            !DateTime.parse(v['dueAt'] as String).toLocal().isAfter(DateTime(
+                    DateTime.now().year,
+                    DateTime.now().month,
+                    DateTime.now().day + 1)
+                .subtract(const Duration(microseconds: 1))))
+        .toList()
       ..sort(
         (a, b) => DateTime.parse(
           a['dueAt'] as String,
         ).compareTo(DateTime.parse(b['dueAt'] as String)),
       );
-    final completed = petTasks.where((v) => v['completed'] == true).toList();
+    final overdue = pending
+        .where((task) =>
+            DateTime.parse(task['dueAt'] as String).isBefore(DateTime.now()))
+        .toList();
+    final laterToday = pending
+        .where((task) =>
+            !DateTime.parse(task['dueAt'] as String).isBefore(DateTime.now()))
+        .toList();
+    final todayHistory = petHistory
+        .where((e) => careOnDay(e['at'] as String, DateTime.now()))
+        .toList();
+    final todayStates = <dynamic, dynamic>{};
+    for (final event in todayHistory) {
+      todayStates.putIfAbsent(event['taskId'], () => event['action']);
+    }
+    final completed = petTasks
+        .where((v) =>
+            v['completed'] == true && todayStates[v['id']] == 'COMPLETED')
+        .toList();
+    final otherPending = tasks
+        .where((v) =>
+            v['petId'] != petId &&
+            actionableCare(v) &&
+            DateTime.parse(v['dueAt'] as String).isBefore(DateTime.now()))
+        .toList();
+    final futureCount = petTasks
+        .where((v) =>
+            actionableCare(v) &&
+            careDay(DateTime.parse(v['dueAt'] as String).toLocal())
+                .isAfter(careDay(DateTime.now())))
+        .length;
     return [
       GentleSwitch(
         child: KeyedSubtree(key: ValueKey(petId), child: _hero(pending.length)),
       ),
+      if (data?['tasksTruncated'] == true)
+        TextButton(
+            onPressed: () => openCareArchive(),
+            child: Text(
+                t('当前展示部分近期安排，查看全部', 'Showing a subset. Browse all plans'))),
       if (error != null)
         Padding(
           padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
@@ -579,9 +647,53 @@ extension CareView on CareHomeState {
             key: ValueKey('$petId-$careFilter-${pending.firstOrNull?['id']}'),
             children: [
               if (careFilter == 'pending') ...[
-                if (pending.isEmpty) _emptyNext() else _nextCare(pending.first),
-                if (pending.length > 1) _taskRow(pending[1]),
-                _todayHistory(petHistory, completed.length),
+                if (otherPending.isNotEmpty)
+                  Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.page),
+                      child: TextButton.icon(
+                          icon: const Icon(Icons.pets_outlined, size: 18),
+                          label: Text(t('其他宠物有 ${otherPending.length} 项到时未完成',
+                              '${otherPending.length} due for other pets')),
+                          onPressed: () => updateUi(() => selectedPetId =
+                              otherPending.first['petId'] as String))),
+                if (pending.isEmpty && data?['tasksTruncated'] == true)
+                  TextButton(
+                      onPressed: () => openCareArchive(),
+                      child: Text(t('查看完整待办', 'Browse all pending care')))
+                else if (pending.isEmpty)
+                  _emptyNext()
+                else ...[
+                  _nextCare(pending.first),
+                  for (final task in (overdue.isNotEmpty ? overdue : laterToday)
+                      .skip(1)
+                      .take(2))
+                    _taskRow(task),
+                  if (overdue.isNotEmpty && laterToday.isNotEmpty) ...[
+                    Padding(
+                        padding: const EdgeInsets.fromLTRB(AppSpacing.page,
+                            AppSpacing.section, AppSpacing.page, 0),
+                        child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(t('今天接下来', 'Later today'),
+                                style:
+                                    Theme.of(context).textTheme.titleMedium))),
+                    for (final task in laterToday.take(2)) _taskRow(task),
+                  ],
+                  if (overdue.length > 3 ||
+                      laterToday.length > (overdue.isEmpty ? 3 : 2))
+                    TextButton(
+                        onPressed: openSchedules,
+                        child: Text(t('查看今天的全部待办', 'View all pending care'))),
+                ],
+                if (futureCount > 0)
+                  Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.page),
+                      child: TextButton(
+                          onPressed: openSchedules,
+                          child: Text(t('查看后续安排', 'View upcoming plans')))),
+                _todayHistory(todayHistory, completed.length),
               ] else
                 _alternateView(completed, petHistory),
             ],

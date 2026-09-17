@@ -5,6 +5,7 @@ import '../core/network/care_api.dart';
 import '../features/auth/auth_panel.dart';
 import '../features/care/reminder_service.dart';
 import '../features/care/care_view.dart';
+import '../features/care/care_pages.dart';
 import '../features/pets/pet_module.dart';
 import '../features/family/family_module.dart';
 import '../core/widgets/brand_motion.dart';
@@ -30,6 +31,10 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
 
   Timer? refreshTimer;
   bool syncing = false;
+  final submittingTasks = <String>{};
+  final taskWrites = <String, Completer<void>>{};
+  String? pendingNotification;
+  bool pendingNotificationTap = false;
   Completer<void>? syncDone;
   String? reminderError;
   String careFilter = 'pending';
@@ -84,20 +89,54 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
       error = 'connection';
     }
     try {
-      await reminders.initialize(() {
-        if (mounted) {
-          updateUi(() {
-            tab = 0;
-            careFilter = 'pending';
-          });
-          refreshQuietly();
-        }
+      await reminders.initialize((taskId) {
+        pendingNotification = taskId;
+        pendingNotificationTap = true;
+        if (!loading) openNotificationTask();
       });
       if (data != null || widget.api.token == null) await syncReminders();
     } catch (_) {
       reminderError = 'unavailable';
     }
-    if (mounted) updateUi(() => loading = false);
+    if (mounted) {
+      updateUi(() => loading = false);
+      if (pendingNotificationTap) {
+        WidgetsBinding.instance
+            .addPostFrameCallback((_) => openNotificationTask());
+      }
+    }
+  }
+
+  Future<void> openNotificationTask() async {
+    final id = pendingNotification;
+    pendingNotification = null;
+    pendingNotificationTap = false;
+    if (!mounted) return;
+    if (id == null) {
+      updateUi(() {
+        tab = 0;
+        careFilter = 'pending';
+      });
+      await refreshQuietly();
+      return;
+    }
+    try {
+      final task = Map<String, dynamic>.from(
+          await widget.api.request('GET', '/tasks/$id') as Map);
+      if (!mounted) return;
+      updateUi(() {
+        tab = 0;
+        selectedPetId = task['petId'] as String;
+        final current = tasks.where((t) => t['id'] != id).toList()..add(task);
+        data?['tasks'] = current;
+      });
+      await openTaskDetails(task);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(message(e))));
+      }
+    }
   }
 
   @override
@@ -116,7 +155,13 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
   Future<void> syncReminders() async {
     if (!mounted) return;
     try {
-      await reminders.sync(widget.api.token == null ? [] : tasks, chinese: zh);
+      await reminders.sync(
+          widget.api.token == null
+              ? []
+              : (data?['reminderTasks'] as List? ?? tasks)
+                  .map((t) => Map<String, dynamic>.from(t as Map))
+                  .toList(),
+          chinese: zh);
       reminderError = null;
     } catch (_) {
       reminderError = 'unavailable';
@@ -124,7 +169,12 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
   }
 
   Future<void> refreshQuietly() async {
-    if (!mounted || loading || busy || syncing || widget.api.token == null) {
+    if (!mounted ||
+        loading ||
+        busy ||
+        syncing ||
+        submittingTasks.isNotEmpty ||
+        widget.api.token == null) {
       return;
     }
     syncing = true;
@@ -171,14 +221,10 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
       await syncDone?.future;
       if (!mounted) return;
       if (!reminders.ready) {
-        await reminders.initialize(() {
-          if (mounted) {
-            updateUi(() {
-              tab = 0;
-              careFilter = 'pending';
-            });
-            refreshQuietly();
-          }
+        await reminders.initialize((taskId) {
+          pendingNotification = taskId;
+          pendingNotificationTap = true;
+          openNotificationTask();
         });
       }
       final granted = await reminders.setEnabled(value);
@@ -261,10 +307,13 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
   Future<void> perform(Future<void> Function() action) async {
     if (busy) return;
     updateUi(() => busy = true);
+    await Future.wait(taskWrites.values.map((c) => c.future));
     await syncDone?.future;
     if (!mounted) return;
+    bool saved = false;
     try {
       await action();
+      saved = true;
       final next =
           widget.api.token == null ? null : await widget.api.dashboard();
       if (mounted) {
@@ -291,8 +340,11 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
         }
       }
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(message(e))));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(saved
+                ? t('操作已保存，但列表更新失败，请下拉刷新。',
+                    'Saved, but the list could not refresh. Pull to retry.')
+                : message(e))));
       }
     } finally {
       if (mounted) updateUi(() => busy = false);

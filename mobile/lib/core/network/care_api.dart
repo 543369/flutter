@@ -66,6 +66,7 @@ class CareApi {
   Future<void> clearSession() async {
     await storage.delete(key: 'session');
     token = null;
+    _petPhotos.clear();
   }
 
   Future<void> register(String email, String password, String name) async {
@@ -99,8 +100,27 @@ class CareApi {
     await saveSession(result['token'] as String);
   }
 
-  Future<Map<String, dynamic>> dashboard() async =>
-      Map<String, dynamic>.from(await request('GET', '/dashboard') as Map);
+  final _petPhotos = <String, Map<String, dynamic>>{};
+  Future<Map<String, dynamic>> dashboard() async {
+    final result = Map<String, dynamic>.from(
+        await request('GET', '/dashboard?compact=true') as Map);
+    final pets = (result['pets'] as List).cast<Map>();
+    final ids = pets.map((p) => p['id']).toSet();
+    _petPhotos.removeWhere((key, _) => !ids.contains(key));
+    for (final pet in pets) {
+      final id = pet['id'] as String;
+      final cached = _petPhotos[id];
+      if (cached == null || cached['version'] != pet['photoVersion']) {
+        final photos = Map<String, dynamic>.from(
+            await request('GET', '/pets/$id/photos') as Map);
+        _petPhotos[id] = {...photos, 'version': pet['photoVersion']};
+      }
+      pet['photoData'] = _petPhotos[id]!['photoData'];
+      pet['photos'] = _petPhotos[id]!['photos'];
+    }
+    return result;
+  }
+
   Future<void> deleteAccount() async {
     await request('DELETE', '/account');
     await clearSession();

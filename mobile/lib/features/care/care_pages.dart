@@ -16,10 +16,13 @@ extension CarePages on CareHomeState {
   Map<String, dynamic>? planFor(Map<String, dynamic> task) =>
       plans.where((plan) => plan['id'] == task['planId']).firstOrNull;
 
-  String eventAction(Map<String, dynamic> event) =>
-      event['action'] == 'REOPENED'
-          ? t('已撤销完成', 'Completion undone')
-          : t('已完成照护', 'Care completed');
+  String eventAction(Map<String, dynamic> event) => switch (event['action']) {
+        'REOPENED' => t('已撤销完成', 'Completion undone'),
+        'SKIPPED' => t('已跳过', 'Skipped'),
+        'CANCELLED' => t('已取消', 'Cancelled'),
+        'RESCHEDULED' => t('已调整时间', 'Rescheduled'),
+        _ => t('已完成照护', 'Care completed'),
+      };
 
   Future<void> _openCarePage(
       String title, List<Widget> Function(VoidCallback refresh) content) async {
@@ -53,7 +56,8 @@ extension CarePages on CareHomeState {
           bottom: AppSpacing.item),
       child: Text(title, style: Theme.of(context).textTheme.titleLarge));
 
-  Widget _scheduleCard(Map<String, dynamic> task) => Card(
+  Widget _scheduleCard(Map<String, dynamic> task, {VoidCallback? onOpen}) =>
+      Card(
         child: ListTile(
           contentPadding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.content, vertical: AppSpacing.inline),
@@ -64,7 +68,7 @@ extension CarePages on CareHomeState {
               '${dateLabel(DateTime.parse(task['dueAt'] as String).toLocal())}\n'
               '${task['petName']} · ${frequencyLabel(planFor(task))}'),
           trailing: const Icon(Icons.chevron_right_rounded),
-          onTap: () => openTaskDetails(task),
+          onTap: onOpen ?? () => openTaskDetails(task),
         ),
       );
 
@@ -104,6 +108,9 @@ extension CarePages on CareHomeState {
           icon: const Icon(Icons.add_rounded),
           label: Text(t('新建安排', 'New plan')),
         ),
+        TextButton(
+            onPressed: () => openCareArchive(),
+            child: Text(t('查看全部日期的安排', 'Browse all dates'))),
         const SizedBox(height: AppSpacing.section),
         SegmentedButton<String>(
           showSelectedIcon: false,
@@ -154,6 +161,73 @@ extension CarePages on CareHomeState {
     });
   }
 
+  Future<void> openCareArchive({bool events = false}) async {
+    final petId = selectedPet?['id'];
+    final entries = <Map<String, dynamic>>[];
+    bool more = true, fetching = false;
+    String? failure;
+    String cursor = '';
+    Future<void> load(VoidCallback refresh, {bool reset = false}) async {
+      if (fetching) return;
+      fetching = true;
+      refresh();
+      try {
+        final result = await widget.api.request('GET',
+            '/${events ? 'care-history' : 'tasks'}?petId=$petId&cursor=${Uri.encodeQueryComponent(reset ? "" : cursor)}');
+        if (reset) entries.clear();
+        final incoming = (result['items'] as List)
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList();
+        final ids = incoming.map((e) => e['id']).toSet();
+        entries.removeWhere((e) => ids.contains(e['id']));
+        entries.addAll(incoming);
+        cursor = result['nextCursor'] as String? ?? '';
+        more = result['hasMore'] == true;
+        failure = null;
+        if (!events && mounted) {
+          updateUi(() {
+            final loadedIds = entries.map((e) => e['id']).toSet();
+            data?['tasks'] = [
+              ...tasks.where((t) => !loadedIds.contains(t['id'])),
+              ...entries
+            ];
+          });
+        }
+      } catch (e) {
+        failure = message(e);
+      } finally {
+        fetching = false;
+        refresh();
+      }
+    }
+
+    await load(() {});
+    if (!mounted) return;
+    await _openCarePage(
+        t(events ? '全部照护记录' : '全部照护安排',
+            events ? 'All care history' : 'All care plans'),
+        (refresh) => [
+              for (final entry in entries)
+                events
+                    ? _historyLink(entry)
+                    : _scheduleCard(
+                        tasks
+                                .where((t) => t['id'] == entry['id'])
+                                .firstOrNull ??
+                            entry, onOpen: () async {
+                        await openTaskDetails(entry);
+                        if (mounted) await load(refresh, reset: true);
+                      }),
+              if (failure != null) Text(failure!),
+              if (more)
+                TextButton(
+                    onPressed: fetching ? null : () => load(refresh),
+                    child: Text(t(fetching ? '正在加载' : '加载更多',
+                        fetching ? 'Loading' : 'Load more'))),
+              if (entries.isEmpty && !more) Text(t('暂无记录', 'No records yet')),
+            ]);
+  }
+
   Future<void> assignCare(Map<String, dynamic> task) async {
     final selected = await showDialog<String>(
         context: context,
@@ -177,6 +251,63 @@ extension CarePages on CareHomeState {
     }
   }
 
+  Future<void> adjustCareTime(Map<String, dynamic> task,
+      {bool futurePlan = false}) async {
+    if (futurePlan &&
+        !await confirm(
+            t('调整后续重复时间？', 'Change future recurring care?'),
+            t('保留已完成和已逾期事项；尚未到时的旧安排将取消，并从你选择的时间重新生成。',
+                'Completed and overdue care stays. Future pending occurrences are replaced starting at your chosen time.'))) {
+      return;
+    }
+    if (!mounted) return;
+    final now = DateTime.now();
+    final old = DateTime.parse(task['dueAt'] as String).toLocal();
+    final day = await showDatePicker(
+        context: context,
+        initialDate: old.isBefore(now) ? now : old,
+        firstDate: DateTime(now.year, now.month, now.day),
+        lastDate: futurePlan
+            ? now.add(const Duration(days: 29))
+            : DateTime(2037, 12, 31));
+    if (day == null || !mounted) return;
+    final time = await showTimePicker(
+        context: context, initialTime: TimeOfDay.fromDateTime(old));
+    if (time == null || !mounted) return;
+    final due = DateTime(day.year, day.month, day.day, time.hour, time.minute);
+    if (!due.isAfter(DateTime.now())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(t('请选择未来时间', 'Choose a future time'))));
+      return;
+    }
+    await perform(() async {
+      await widget.api.request(
+          'PATCH',
+          futurePlan
+              ? '/plans/${task['planId']}/future'
+              : '/tasks/${task['id']}/time',
+          {
+            'dueAt': due.toUtc().toIso8601String(),
+            if (futurePlan) 'frequency': planFor(task)?['frequency'],
+            if (futurePlan) 'zoneId': planFor(task)?['zoneId'],
+          });
+    });
+  }
+
+  Future<void> dismissCare(Map<String, dynamic> task, String action) async {
+    if (!await confirm(
+        t(action == 'SKIPPED' ? '跳过本次照护？' : '取消本次安排？',
+            'Remove this occurrence?'),
+        t('仅影响本次，保留记录，不计为完成。重复计划的后续安排不变。',
+            'Only this occurrence changes. History is kept; it does not count as completed.'))) {
+      return;
+    }
+    await perform(() async {
+      await widget.api
+          .request('POST', '/tasks/${task['id']}/dismiss', {'action': action});
+    });
+  }
+
   Future<void> openTaskDetails(Map<String, dynamic> original) =>
       _openCarePage(t('安排详情', 'Plan details'), (_) {
         final task =
@@ -193,6 +324,8 @@ extension CarePages on CareHomeState {
         final events =
             history.where((event) => event['taskId'] == task['id']).toList();
         final completed = task['completed'] == true;
+        final cancelled = task['cancelled'] == true;
+        final taskBusy = busy || submittingTasks.contains(task['id']);
         return [
           CareKind.of(task).picture(size: 148),
           const SizedBox(height: AppSpacing.content),
@@ -211,36 +344,75 @@ extension CarePages on CareHomeState {
                 dateLabel(DateTime.parse(task['dueAt'] as String).toLocal())),
             _detailField(t('照护类型', 'Care type'), CareKind.of(task).label(zh)),
             _detailField(t('重复', 'Repeat'), frequencyLabel(plan)),
-            _detailField(t('状态', 'Status'),
-                completed ? t('已完成', 'Completed') : t('待照护', 'Pending')),
+            _detailField(
+                t('状态', 'Status'),
+                cancelled
+                    ? t('已取消或跳过', 'Cancelled or skipped')
+                    : completed
+                        ? t('已完成', 'Completed')
+                        : t('待照护', 'Pending')),
           ]),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            spacing: AppSpacing.item,
-            children: [
-              OutlinedButton.icon(
-                  onPressed: busy ? null : () => assignCare(task),
-                  icon: const Icon(Icons.person_add_alt_outlined),
-                  label: Text(t('指定照护人', 'Assign caregiver'))),
-              FilledButton.icon(
-                onPressed:
-                    busy ? null : () => changeCompletion(task, !completed),
-                icon: Icon(completed
-                    ? Icons.undo_rounded
-                    : Icons.check_circle_rounded),
-                label: Text(completed
-                    ? t('撤销完成', 'Undo completion')
-                    : t('标记完成', 'Mark as done')),
-              ),
-              if (plan != null) ...[
+          if (task['lastEvent'] is Map)
+            Text(
+                '${task['lastEvent']['actor'] ?? ''} · ${dateLabel(DateTime.parse(task['lastEvent']['at'] as String).toLocal())}'),
+          if (!cancelled)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              spacing: AppSpacing.item,
+              children: [
                 OutlinedButton.icon(
-                  onPressed: () => openPlanDetails(plan),
-                  icon: const Icon(Icons.repeat_rounded),
-                  label: Text(t('查看重复计划', 'View recurring plan')),
+                    onPressed: taskBusy ? null : () => assignCare(task),
+                    icon: const Icon(Icons.person_add_alt_outlined),
+                    label: Text(t('指定照护人', 'Assign caregiver'))),
+                FilledButton.icon(
+                  onPressed: taskBusy
+                      ? null
+                      : () => changeCompletion(task, !completed),
+                  icon: Icon(completed
+                      ? Icons.undo_rounded
+                      : Icons.check_circle_rounded),
+                  label: Text(submittingTasks.contains(task['id'])
+                      ? t('正在保存…', 'Saving…')
+                      : completed
+                          ? t('撤销完成', 'Undo completion')
+                          : t('标记完成', 'Mark as done')),
                 ),
+                if (!completed) ...[
+                  OutlinedButton.icon(
+                      onPressed: taskBusy ? null : () => adjustCareTime(task),
+                      icon: const Icon(Icons.schedule),
+                      label: Text(t('修改本次时间', 'Reschedule this occurrence'))),
+                  if (plan != null && plan['active'] == true)
+                    TextButton(
+                        onPressed: taskBusy
+                            ? null
+                            : () => adjustCareTime(task, futurePlan: true),
+                        child: Text(
+                            t('调整后续重复时间', 'Change future recurring time'))),
+                  Row(children: [
+                    Expanded(
+                        child: TextButton(
+                            onPressed: taskBusy
+                                ? null
+                                : () => dismissCare(task, 'SKIPPED'),
+                            child: Text(t('跳过本次', 'Skip once')))),
+                    Expanded(
+                        child: TextButton(
+                            onPressed: taskBusy
+                                ? null
+                                : () => dismissCare(task, 'CANCELLED'),
+                            child: Text(t('取消本次', 'Cancel once')))),
+                  ]),
+                ],
+                if (plan != null) ...[
+                  OutlinedButton.icon(
+                    onPressed: () => openPlanDetails(plan),
+                    icon: const Icon(Icons.repeat_rounded),
+                    label: Text(t('查看重复计划', 'View recurring plan')),
+                  ),
+                ],
               ],
-            ],
-          ),
+            ),
           _sectionTitle(t('相关照护记录', 'Related care history')),
           if (events.isEmpty)
             Text(t('完成照护后，会在这里记录时间和照护人。',

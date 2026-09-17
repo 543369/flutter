@@ -16,7 +16,7 @@ class FakeReminders extends ReminderService {
   }
 
   @override
-  Future<void> initialize(VoidCallback onTap) async {
+  Future<void> initialize(ValueChanged<String?> onTap) async {
     ready = true;
   }
 
@@ -73,6 +73,12 @@ class FakeApi extends CareApi {
       failNextSave = false;
       throw const ApiError(503, 'TEST_UNAVAILABLE');
     }
+    if (method == 'GET' && path.startsWith('/care-history?')) {
+      return {'items': events, 'hasMore': false};
+    }
+    if (method == 'GET' && path.startsWith('/tasks?')) {
+      return {'items': items, 'hasMore': false};
+    }
     if (path == '/pets' && method == 'POST') {
       final pet = {
         ...body!,
@@ -120,7 +126,7 @@ class FakeApi extends CareApi {
         'petName': task['petName'],
         'careType': task['careType'],
       });
-      return body;
+      return {...task, 'lastEvent': events.first};
     }
     throw StateError('Unexpected request: $method $path');
   }
@@ -206,7 +212,7 @@ void main() {
     final reminders = FakeReminders();
     await tester.pumpWidget(PetCareApp(api: api, reminders: reminders));
     await tester.pumpAndSettle();
-    await tester.drag(find.byType(ListView), const Offset(0, -220));
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -220));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Mark as done'));
     await tester.pumpAndSettle();
@@ -215,10 +221,13 @@ void main() {
     await tester.ensureVisible(find.text('History'));
     await tester.tap(find.text('History'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Mochi · Alex'), findsOneWidget);
-    await tester.tap(find.byTooltip('Back to today'));
+    expect(find.textContaining('Alex'), findsOneWidget);
+    await tester.tap(find.byTooltip('Back'));
     await tester.pumpAndSettle();
-    await tester.drag(find.byType(ListView), const Offset(0, -160));
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -160));
+    await tester.pumpAndSettle();
+    ScaffoldMessenger.of(tester.element(find.byType(Scaffold).first))
+        .clearSnackBars();
     await tester.pumpAndSettle();
     await tapVisible(tester, find.text('1 completed'));
     await tester.ensureVisible(find.byType(Checkbox));
@@ -238,7 +247,7 @@ void main() {
       pendingTask('dog-care', 'Walk Doubao', petId: 'dog', petName: 'Doubao'),
     ];
     await showCare(tester, api);
-    await tester.tap(find.byTooltip('Switch pet'));
+    await tester.tap(find.byTooltip('Switch pet').hitTestable().first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Doubao').last);
     await tester.pumpAndSettle();
@@ -313,7 +322,7 @@ void main() {
     await tapVisible(tester, find.text('Mark as done'));
     expect(find.text('Completed'), findsOneWidget);
     expect(find.text('Undo completion'), findsOneWidget);
-    await tapVisible(tester, find.text('Care completed'));
+    await tapVisible(tester, find.widgetWithText(ListTile, 'Care completed'));
     expect(find.text('Record details'), findsOneWidget);
     expect(find.text('Alex'), findsOneWidget);
     await tester.tap(find.text('View linked plan'));
@@ -363,7 +372,8 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
     await tapVisible(tester, find.text('History'));
-    await tapVisible(tester, find.text('Breakfast record'));
+    await tapVisible(
+        tester, find.widgetWithText(ListTile, 'Completion undone'));
     expect(find.text('Record details'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
@@ -376,7 +386,7 @@ void main() {
       final reminders = FakeReminders()..grantPermission = granted;
       await showCare(tester, api, reminders);
       final calls = api.dashboardCalls;
-      await tester.tap(find.byTooltip('Reminder settings'));
+      await tester.tap(find.byTooltip('Reminder settings').hitTestable().first);
       await tester.pumpAndSettle();
       expect(find.text('Reminder settings'), findsOneWidget);
       expect(api.dashboardCalls, calls);

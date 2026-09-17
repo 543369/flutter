@@ -30,7 +30,7 @@ class ReminderService {
   String? _signature;
 
   Future<String> deviceZone() => FlutterTimezone.getLocalTimezone();
-  Future<void> initialize(VoidCallback onTap) async {
+  Future<void> initialize(ValueChanged<String?> onTap) async {
     tzdata.initializeTimeZones();
     await plugin.initialize(
         const InitializationSettings(
@@ -44,11 +44,14 @@ class ReminderService {
               requestBadgePermission: false,
               requestSoundPermission: false),
         ),
-        onDidReceiveNotificationResponse: (_) => onTap());
+        onDidReceiveNotificationResponse: (response) =>
+            onTap(response.payload));
     enabled = await storage.read(key: 'care_reminders') == 'true';
     ready = true;
     final launch = await plugin.getNotificationAppLaunchDetails();
-    if (launch?.didNotificationLaunchApp == true) onTap();
+    if (launch?.didNotificationLaunchApp == true) {
+      onTap(launch?.notificationResponse?.payload);
+    }
   }
 
   Future<bool> allowed() async {

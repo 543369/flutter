@@ -56,7 +56,7 @@ void main() {
         storage, (call) async => call.method == 'read' ? 'true' : null);
     try {
       final service = ReminderService();
-      await service.initialize(() {});
+      await service.initialize((_) {});
       final due = DateTime.now().add(const Duration(hours: 1));
       final items = [task('1', due)];
       await service.sync(items, chinese: false);
