@@ -227,13 +227,13 @@ class _BenefitsPageState extends State<BenefitsPage> {
                     const SizedBox(height: AppSpacing.content),
                     Text(t('选择回忆录模板', 'Choose a book template')),
                     const SizedBox(height: AppSpacing.inline),
-                    Wrap(
-                        spacing: AppSpacing.inline,
-                        runSpacing: AppSpacing.inline,
-                        children: [
-                          for (final style in MemoryBookTemplate.values)
-                            SizedBox(
-                                width: 100,
+                    Row(children: [
+                      for (final style in MemoryBookTemplate.values) ...[
+                        if (style != MemoryBookTemplate.values.first)
+                          const SizedBox(width: AppSpacing.inline),
+                        Expanded(
+                            child: Semantics(
+                                selected: bookTemplate == style,
                                 child: InkWell(
                                     key: ValueKey(
                                         'memory-template-${style.name}'),
@@ -243,7 +243,8 @@ class _BenefitsPageState extends State<BenefitsPage> {
                                             () => bookTemplate = style),
                                     borderRadius: BorderRadius.circular(14),
                                     child: Container(
-                                        padding: const EdgeInsets.all(10),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 4, vertical: 10),
                                         decoration: BoxDecoration(
                                             color: switch (style) {
                                               MemoryBookTemplate.warm =>
@@ -257,9 +258,9 @@ class _BenefitsPageState extends State<BenefitsPage> {
                                                 BorderRadius.circular(14),
                                             border: Border.all(
                                                 color: bookTemplate == style
-                                                    ? const Color(0xff76503a)
+                                                    ? const Color(0xffa88b77)
                                                     : Colors.transparent,
-                                                width: 2)),
+                                                width: 1)),
                                         child: Column(children: [
                                           Icon(
                                               style == MemoryBookTemplate.warm
@@ -270,9 +271,8 @@ class _BenefitsPageState extends State<BenefitsPage> {
                                                       ? Icons.grid_view_rounded
                                                       : Icons
                                                           .chrome_reader_mode_outlined,
-                                              size: 34),
-                                          const SizedBox(
-                                              height: AppSpacing.inline),
+                                              size: 24),
+                                          const SizedBox(height: 4),
                                           Text(
                                               switch (style) {
                                                 MemoryBookTemplate.warm =>
@@ -282,12 +282,12 @@ class _BenefitsPageState extends State<BenefitsPage> {
                                                 MemoryBookTemplate.editorial =>
                                                   t('简约杂志', 'Editorial')
                                               },
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
                                               textAlign: TextAlign.center),
-                                          if (bookTemplate == style)
-                                            const Icon(Icons.check_circle,
-                                                size: 16),
-                                        ]))))
-                        ]),
+                                        ])))))
+                      ]
+                    ]),
                     const SizedBox(height: AppSpacing.inline),
                     Text(t('相框式大图 · 双栏照片 · 杂志大图。生成后可预览，再保存。',
                         'Framed photos · Two-column photos · Large editorial photos. Preview the PDF before saving.')),
