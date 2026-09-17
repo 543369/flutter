@@ -1,4 +1,5 @@
 import '../../core/theme/app_spacing.dart';
+import '../../core/images/photo_cache.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as image_lib;
@@ -74,7 +75,8 @@ extension PetModule on CareHomeState {
     if (photo is String && photo.isNotEmpty) {
       try {
         return CircleAvatar(
-            radius: 27, backgroundImage: MemoryImage(base64Decode(photo)));
+            radius: 27,
+            backgroundImage: MemoryImage(PhotoCache.shared.decode(photo)));
       } catch (_) {}
     }
     return CircleAvatar(

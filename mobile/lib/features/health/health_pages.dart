@@ -3,6 +3,8 @@ import '../care/task_form_dialog.dart';
 import '../care/care_kind.dart';
 import '../../core/theme/app_spacing.dart';
 import 'health_timeline_page.dart';
+import '../care/care_actions.dart';
+import '../care/care_pages.dart';
 import 'package:flutter/material.dart';
 import '../../app/home_shell.dart';
 import '../../core/widgets/profile_dialog.dart';
@@ -514,6 +516,30 @@ class _HealthRecordDetailState extends State<HealthRecordDetail> {
     }
   }
 
+  Future<void> scheduleReminder() async {
+    final due = await widget.home
+        .chooseCareTime(DateTime.now().add(const Duration(days: 1)));
+    if (due == null || !mounted) return;
+    setState(() {
+      busy = true;
+      error = null;
+    });
+    try {
+      final saved = await widget.home.mutateCare('health:${widget.id}',
+          '$path/reminder', {'dueAt': due.toUtc().toIso8601String()},
+          method: 'POST');
+      if (!saved) return;
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(t('照护提醒已保存', 'Care reminder saved'))));
+      await load();
+    } catch (e) {
+      if (mounted) setState(() => error = widget.home.message(e));
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
   Future<void> remove() async {
     if (!await widget.home.confirm(t('删除健康记录？', 'Delete health record?'),
             t('记录和附件将一同删除。', 'This also deletes its attachments.')) ||
@@ -572,6 +598,48 @@ class _HealthRecordDetailState extends State<HealthRecordDetail> {
                             aspectRatio: 1.25,
                             child: MemoryPhoto(
                                 data: p as String, fit: BoxFit.contain))),
+                  if (widget.home.can('CARE')) ...[
+                    OutlinedButton.icon(
+                        onPressed: busy ? null : scheduleReminder,
+                        icon: const Icon(Icons.notifications_outlined),
+                        label: Text(t('设置下次照护提醒', 'Set next care reminder'))),
+                    Text(t('按医嘱选择时间；已有待办时更新同一提醒。',
+                        'Choose the time from your care instructions. An existing pending reminder is updated.')),
+                    for (final reminder
+                        in record!['careReminders'] as List? ?? [])
+                      ListTile(
+                          title: Text(widget.home.dateLabel(
+                              DateTime.parse(reminder['dueAt'] as String)
+                                  .toLocal())),
+                          subtitle: Text(reminder['completed'] == true
+                              ? t('已完成', 'Completed')
+                              : reminder['cancelled'] == true
+                                  ? t('已取消', 'Cancelled')
+                                  : t('待照护', 'Pending')),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: busy
+                              ? null
+                              : () async {
+                                  try {
+                                    final result = await widget.home.widget.api
+                                        .request(
+                                            'GET', '/tasks/${reminder['id']}');
+                                    if (!mounted) return;
+                                    widget.home.mergeCare(
+                                        Map<String, dynamic>.from(
+                                            result as Map));
+                                    await widget.home.openTaskDetails(
+                                        Map<String, dynamic>.from(
+                                            result['task'] as Map));
+                                    if (mounted) await load();
+                                  } catch (e) {
+                                    if (mounted) {
+                                      setState(
+                                          () => error = widget.home.message(e));
+                                    }
+                                  }
+                                }),
+                  ],
                   Text(t('创建时间：${record!['createdAt']}',
                       'Created: ${record!['createdAt']}')),
                   Text(t('文件夹：${record!['folder']}',

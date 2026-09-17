@@ -32,7 +32,7 @@ class DashboardController extends ApiSupport {
   var pets = db.query("SELECT id,name,species,"+(compact ? "NULL" : "photo_data")+",biography,birth_date,created_at,(SELECT COUNT(*) FROM pet_memories m WHERE m.pet_id=pets.id) AS memory_count, photo_revision AS photo_version FROM pets WHERE household_id = ? ORDER BY name,id", (r,n) -> {
    Map<String,Object> row = new LinkedHashMap<>();
    row.put("id",r.getString(1)); row.put("name",r.getString(2)); row.put("species",r.getString(3));
-   row.put("photoData",r.getString(4)); row.put("photos",photoGallery.getOrDefault(r.getString(1),List.of())); row.put("biography",r.getString(5));
+   if(!compact){row.put("photoData",r.getString(4)); row.put("photos",photoGallery.getOrDefault(r.getString(1),List.of()));} row.put("photoRevision",r.getLong(8)); row.put("biography",r.getString(5));
    row.put("birthDate",r.getDate(6)==null?null:r.getDate(6).toLocalDate().toString());
    row.put("createdAt",r.getTimestamp(7)==null?null:r.getTimestamp(7).toInstant().toString()); row.put("memoryCount",r.getInt(8)); row.put("photoVersion",r.getString(9)); return row;
   }, home);

@@ -25,10 +25,22 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
   // Keep pushed care pages in sync with mutations and background dashboard updates.
   final careChanges = ValueNotifier<int>(0);
   void updateUi(VoidCallback action) {
+    final hadData = data != null;
     setState(action);
+    if (hadData && data == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
+      });
+    }
     careChanges.value++;
   }
 
+  final pendingTaskIds = <String>{};
+  final detailTaskIds = <String, int>{};
+  String? pendingNotification;
+  bool routingNotification = false;
+  DateTime? lastSyncedAt;
+  bool taskBusy(String id) => busy || pendingTaskIds.contains(id);
   Timer? refreshTimer;
   bool syncing = false;
   final submittingTasks = <String>{};
@@ -37,7 +49,6 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
   bool pendingNotificationTap = false;
   Completer<void>? syncDone;
   String? reminderError;
-  String careFilter = 'pending';
   String? selectedPetId;
   bool loading = true, busy = false;
   String? error;
@@ -66,6 +77,7 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
     restore();
     refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
+        updateUi(() {});
         refreshQuietly();
       }
     });
@@ -149,7 +161,10 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) refreshQuietly();
+    if (state == AppLifecycleState.resumed) {
+      updateUi(() {});
+      refreshQuietly();
+    }
   }
 
   Future<void> syncReminders() async {
@@ -180,10 +195,11 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
     syncing = true;
     syncDone = Completer<void>();
     try {
-      final next = await widget.api.dashboard();
+      final next = await loadDashboard();
       if (mounted) {
         updateUi(() {
           data = next;
+          lastSyncedAt = DateTime.now();
           accessExpired = false;
           error = null;
         });
@@ -210,12 +226,15 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
     } finally {
       syncing = false;
       syncDone?.complete();
-      if (mounted) updateUi(() {});
+      if (mounted) {
+        updateUi(() {});
+        routeNotification();
+      }
     }
   }
 
   Future<void> toggleReminders(bool value) async {
-    if (busy) return;
+    if (busy || pendingTaskIds.isNotEmpty) return;
     updateUi(() => busy = true);
     try {
       await syncDone?.future;
@@ -287,6 +306,10 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
         return t('设备身份失效，请检查后端环境。',
             'Device session expired. Check the server environment.');
       }
+      if (e.code == 'TASK_NOT_PENDING') {
+        return t('此安排状态已变化，请刷新后重试。',
+            'This task has changed. Refresh and try again.');
+      }
       if (e.status == 409) {
         return t('仅没有宠物的独立家庭可加入其他家庭。',
             'Only an empty, single-member household can join another.');
@@ -305,7 +328,7 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
   }
 
   Future<void> perform(Future<void> Function() action) async {
-    if (busy) return;
+    if (busy || pendingTaskIds.isNotEmpty) return;
     updateUi(() => busy = true);
     await Future.wait(taskWrites.values.map((c) => c.future));
     await syncDone?.future;
@@ -319,6 +342,7 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
       if (mounted) {
         updateUi(() {
           data = next;
+          lastSyncedAt = DateTime.now();
           accessExpired = false;
           error = null;
         });
@@ -528,9 +552,21 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
                     onPressed: busy ? null : () => perform(widget.api.logout),
                     child: Text(t('退出登录', 'Sign out'))),
               ])))
-      : AuthPanel(
-          api: widget.api,
-          onAuthenticated: () async {
-            await perform(() async {});
-          });
+      : widget.api.token != null && error != null
+          ? Center(
+              child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Text(t('暂时无法同步家庭数据', 'Unable to sync household data')),
+                    const SizedBox(height: 12),
+                    Text(t('检查网络后重试。', 'Check your connection and retry.')),
+                    FilledButton(
+                        onPressed: busy ? null : () => perform(() async {}),
+                        child: Text(t('重试', 'Retry'))),
+                  ])))
+          : AuthPanel(
+              api: widget.api,
+              onAuthenticated: () async {
+                await perform(() async {});
+              });
 }

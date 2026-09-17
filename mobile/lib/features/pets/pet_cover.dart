@@ -1,4 +1,4 @@
-import 'dart:convert';
+import '../../core/images/photo_cache.dart';
 import 'package:flutter/material.dart';
 import 'pet_profile.dart';
 
@@ -25,7 +25,7 @@ class PetCover extends StatelessWidget {
     final value = petPhotos(pet).firstOrNull;
     if (value == null || value.isEmpty) return fallback();
     try {
-      return Image.memory(base64Decode(value),
+      return Image.memory(PhotoCache.shared.decode(value),
           fit: BoxFit.cover,
           gaplessPlayback: true,
           errorBuilder: (_, __, ___) => fallback());

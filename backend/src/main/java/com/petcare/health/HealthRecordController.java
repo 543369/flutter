@@ -55,7 +55,7 @@ public class HealthRecordController extends ApiSupport {
  public Map<String,Object> get(Authentication auth,@PathVariable String petId,@PathVariable String recordId) {
   pet(auth,petId);var rows=db.query("SELECT * FROM health_records WHERE id=? AND pet_id=?",this::row,recordId,petId);
   if(rows.isEmpty())throw new ResponseStatusException(HttpStatus.NOT_FOUND);
-  var result=rows.getFirst();result.put("photos",db.queryForList("SELECT photo_data FROM health_attachments WHERE record_id=? ORDER BY position_index",String.class,recordId));return result;
+  var result=rows.getFirst();result.put("photos",db.queryForList("SELECT photo_data FROM health_attachments WHERE record_id=? ORDER BY position_index",String.class,recordId));result.put("careReminders",db.queryForList("SELECT id,due_at AS dueAt,completed,cancelled,skipped FROM care_tasks WHERE health_record_id=? ORDER BY due_at DESC LIMIT 10",recordId));return result;
  }
  private void photos(String home,String id,List<String> photos) {
   int old=db.queryForObject("SELECT COUNT(*) FROM health_attachments WHERE record_id=?",Integer.class,id);
@@ -82,6 +82,27 @@ public class HealthRecordController extends ApiSupport {
  }
  @DeleteMapping("/{recordId}") @ResponseStatus(HttpStatus.NO_CONTENT) @Transactional
  public void delete(Authentication auth,@PathVariable String petId,@PathVariable String recordId){pet(auth,petId);require(db.update("DELETE FROM health_records WHERE id=? AND pet_id=?",recordId,petId));}
+ public record Reminder(@NotNull java.time.Instant dueAt) {}
+ @PostMapping("/{recordId}/reminder") @Transactional
+ public Map<String,Object> reminder(Authentication auth,@PathVariable String petId,@PathVariable String recordId,@Valid @RequestBody Reminder input) {
+  String home=pet(auth,petId);permission(auth,"CARE");
+  var records=db.queryForList("SELECT title,kind FROM health_records WHERE id=? AND pet_id=?",recordId,petId);
+  if(records.isEmpty())throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+  if(!input.dueAt().isAfter(java.time.Instant.now())||input.dueAt().isAfter(java.time.Instant.parse("2037-12-31T23:59:59Z")))throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+  var pending=db.queryForList("SELECT id FROM care_tasks WHERE health_record_id=? AND completed=FALSE AND cancelled=FALSE AND skipped=FALSE ORDER BY due_at,id LIMIT 1",String.class,recordId);
+  String task=pending.isEmpty()?id():pending.getFirst();
+  if(pending.isEmpty()) {
+   String kind=(String)records.getFirst().get("kind");if(!Set.of("VACCINE","DEWORMING").contains(kind))kind="CUSTOM";
+   db.update("INSERT INTO care_tasks(id,pet_id,title,due_at,care_type,health_record_id) VALUES (?,?,?,?,?,?)",task,petId,records.getFirst().get("title"),java.sql.Timestamp.from(input.dueAt()),kind,recordId);
+  }else {
+   var old=db.queryForObject("SELECT due_at FROM care_tasks WHERE id=?",java.sql.Timestamp.class,task);
+   if(!old.toInstant().equals(input.dueAt())) {
+    db.update("UPDATE care_tasks SET due_at=? WHERE id=?",java.sql.Timestamp.from(input.dueAt()),task);
+    db.update("INSERT INTO care_events(id,task_id,actor_id,action,happened_at) VALUES (?,?,?,?,CURRENT_TIMESTAMP(6))",id(),task,auth.getName(),"RESCHEDULED");
+   }
+  }
+  return new com.petcare.care.CareQueries(db).mutation(home,task);
+ }
  public record Batch(@NotEmpty @Size(max=100) List<@NotBlank String> ids,@NotNull @Size(max=60) String folder){}
  @PostMapping("/organize") @Transactional
  public Map<String,Integer> organize(Authentication auth,@PathVariable String petId,@Valid @RequestBody Batch input){

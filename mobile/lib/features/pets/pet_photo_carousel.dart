@@ -1,4 +1,4 @@
-import 'dart:convert';
+import '../../core/images/photo_cache.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'pet_cover.dart';
@@ -142,7 +142,7 @@ class _FullPhoto extends StatelessWidget {
   Widget build(BuildContext context) {
     const fallback = Icon(Icons.broken_image_outlined, color: Colors.white);
     try {
-      return Image.memory(base64Decode(data),
+      return Image.memory(PhotoCache.shared.decode(data),
           fit: BoxFit.contain, errorBuilder: (_, __, ___) => fallback);
     } catch (_) {
       return fallback;

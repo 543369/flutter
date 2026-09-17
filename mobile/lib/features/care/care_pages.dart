@@ -2,9 +2,13 @@ import '../../core/theme/app_spacing.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import '../../app/home_shell.dart';
+import '../../core/network/care_api.dart';
 import 'care_actions.dart';
 import 'care_view.dart';
 import 'care_kind.dart';
+import '../health/health_pages.dart';
+import 'care_history_page.dart';
+import 'care_schedule_page.dart';
 
 extension CarePages on CareHomeState {
   String frequencyLabel(Map<String, dynamic>? plan) =>
@@ -27,6 +31,7 @@ extension CarePages on CareHomeState {
 
   Future<void> _openCarePage(
       String title, List<Widget> Function(VoidCallback refresh) content) async {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
     await Navigator.of(context).push(MaterialPageRoute<void>(
         builder: (_) => _CarePage(home: this, title: title, content: content)));
   }
@@ -335,6 +340,15 @@ extension CarePages on CareHomeState {
           ...events.map(_historyLink),
         ];
       });
+    } finally {
+      final count = (detailTaskIds[id] ?? 1) - 1;
+      if (count == 0) {
+        detailTaskIds.remove(id);
+      } else {
+        detailTaskIds[id] = count;
+      }
+    }
+  }
 
   Widget _historyLink(Map<String, dynamic> event) => Card(
       color: const Color(0xffe3f0fb),
@@ -364,12 +378,29 @@ extension CarePages on CareHomeState {
                 event['actor'] as String? ?? t('家庭成员', 'Family member')),
             _detailField(t('操作', 'Action'), eventAction(event)),
           ]),
-          if (task != null)
-            OutlinedButton.icon(
-              onPressed: () => openTaskDetails(task),
-              icon: const Icon(Icons.event_note_rounded),
-              label: Text(t('查看关联安排', 'View linked plan')),
-            ),
+          OutlinedButton.icon(
+            onPressed: () async {
+              if (task != null) {
+                await openTaskDetails(task);
+                return;
+              }
+              try {
+                final result = await widget.api
+                    .request('GET', '/tasks/${event['taskId']}');
+                if (!mounted) return;
+                mergeCare(Map<String, dynamic>.from(result as Map));
+                await openTaskDetails(
+                    Map<String, dynamic>.from(result['task'] as Map));
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context)
+                      .showSnackBar(SnackBar(content: Text(message(e))));
+                }
+              }
+            },
+            icon: const Icon(Icons.event_note_rounded),
+            label: Text(t('查看关联安排', 'View linked plan')),
+          ),
         ];
       });
 

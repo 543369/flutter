@@ -23,3 +23,11 @@
 照护闭环 HTTP 回归通过：日/周重复生成、多人并发完成去重、撤销、停止计划后保留历史、取消事项拒绝操作、跨家庭隔离、退出成员匿名化。原有 28 项检查仍通过。后端已增加每小时计划补充；本机 iOS 仍缺平台组件，原生送达未验收。
 
 2026-09-08：按 auth/account/pets/care/family/dashboard/shared 拆分后端，Flutter 按 app/core/features 拆分。V3 迁移与认证 HTTP 回归通过，旧设备升级保留资料、退出撤销和账号删除均验证。原 28 项与照护回归继续通过。
+
+## 2026-09-17 日常照护分轮优化
+
+- Flutter 完整测试：48 项通过。
+- 后端隔离 MySQL 测试：22 项通过，含 V13 全量迁移、发生项去重、局部响应、健康提醒与游标分页。
+- `scripts/care_rounds_smoke_test.py` 与 `scripts/care_smoke_test.py` 在独立 18091 测试端口通过，测试账号已自动清理。
+- `tool/care_rounds_visual_qa_test.dart`：393×852 首页、详情、操作区、安排列表、历史列表渲染通过并人工查看。
+- 原开发库的 V13 升级被 12 条既有孤立任务阻止；未删除业务记录。诊断、数据库状态及真机验收范围见[分轮说明](care-iterations.md#验证与迁移)。

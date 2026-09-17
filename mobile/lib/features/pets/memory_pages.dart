@@ -19,7 +19,7 @@ class MemoryPhoto extends StatelessWidget {
         color: Color(0xfff4ece4),
         child: Center(child: Icon(Icons.image_not_supported_outlined)));
     try {
-      return Image.memory(base64Decode(data),
+      return Image.memory(PhotoCache.shared.decode(data),
           fit: fit, errorBuilder: (_, __, ___) => fallback());
     } catch (_) {
       return fallback();

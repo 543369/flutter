@@ -12,6 +12,7 @@ List<Map<String, dynamic>> upcomingReminders(
       .where((task) =>
           task['completed'] != true &&
           task['cancelled'] != true &&
+          task['skipped'] != true &&
           DateTime.parse(task['dueAt'] as String).isAfter(now))
       .toList();
   upcoming.sort((a, b) {
@@ -28,6 +29,7 @@ class ReminderService {
   bool enabled = false;
   bool ready = false;
   String? _signature;
+  Future<void> _syncQueue = Future.value();
 
   Future<String> deviceZone() => FlutterTimezone.getLocalTimezone();
   Future<void> initialize(ValueChanged<String?> onTap) async {
@@ -110,7 +112,14 @@ class ReminderService {
     return enabled;
   }
 
-  Future<void> sync(List<Map<String, dynamic>> tasks,
+  Future<void> sync(List<Map<String, dynamic>> tasks, {required bool chinese}) {
+    final snapshot = tasks.map((v) => Map<String, dynamic>.from(v)).toList();
+    final work = _syncQueue.then((_) => _sync(snapshot, chinese: chinese));
+    _syncQueue = work.catchError((Object _) {});
+    return work;
+  }
+
+  Future<void> _sync(List<Map<String, dynamic>> tasks,
       {required bool chinese}) async {
     if (!ready) throw StateError('Notifications not initialized');
     if (enabled && !await allowed()) {

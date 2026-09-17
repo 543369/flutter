@@ -7,6 +7,8 @@ import 'package:petcare/reminders.dart';
 
 class FakeReminders extends ReminderService {
   List<Map<String, dynamic>> synced = [];
+  ValueChanged<String?>? onNotification;
+  String? launchTask;
   bool grantPermission = true;
   int permissionRequests = 0;
   @override
@@ -19,6 +21,8 @@ class FakeReminders extends ReminderService {
   @override
   Future<void> initialize(ValueChanged<String?> onTap) async {
     ready = true;
+    onNotification = onTap;
+    if (launchTask != null) onTap(launchTask);
   }
 
   @override
@@ -113,14 +117,32 @@ class FakeApi extends CareApi {
       return {'id': 'new-task'};
     }
     if (method == 'PATCH' && path.startsWith('/tasks/')) {
-      final id = path.substring('/tasks/'.length);
+      final id = path.split('/')[2];
       final task = items.firstWhere((task) => task['id'] == id);
-      task['completed'] = body!['completed'];
+      final action = path.endsWith('/schedule')
+          ? 'RESCHEDULED'
+          : path.endsWith('/disposition')
+              ? body!['action']
+              : path.endsWith('/assignment')
+                  ? 'ASSIGNED'
+                  : body!['completed'] == true
+                      ? 'COMPLETED'
+                      : 'REOPENED';
+      if (path.endsWith('/schedule')) {
+        task['dueAt'] = body!['dueAt'];
+      } else if (path.endsWith('/disposition')) {
+        task['cancelled'] = action == 'CANCELLED';
+        task['skipped'] = action == 'SKIPPED';
+      } else if (path.endsWith('/assignment')) {
+        task['assignedTo'] = body!['memberId'];
+      } else {
+        task['completed'] = body!['completed'];
+      }
       events.insert(0, {
         'id': 'event-${events.length}',
         'taskId': id,
         'petId': task['petId'],
-        'action': body['completed'] == true ? 'COMPLETED' : 'REOPENED',
+        'action': action,
         'at': DateTime.now().toUtc().toIso8601String(),
         'actor': 'Alex',
         'title': task['title'],
@@ -236,6 +258,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Confirm'));
     await tester.pumpAndSettle();
+    await tester.pageBack();
+    await tester.pumpAndSettle();
     expect(find.text('1 tasks to do'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
@@ -259,8 +283,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(
         tester
-            .widget<AppSelect<String>>(
-                find.byType(AppSelect<String>).first)
+            .widget<AppSelect<String>>(find.byType(AppSelect<String>).first)
             .initialValue,
         'dog');
     await tester.enterText(find.byType(TextField), 'Brush Doubao');

@@ -53,6 +53,23 @@ class HealthFamilyApi extends FakeApi {
       });
       return {'id': 'health-1'};
     }
+    if (path == '/pets/pet/health/health-1/reminder' && method == 'POST') {
+      final task = <String, dynamic>{
+        'id': 'health-task',
+        'petId': 'pet',
+        'petName': 'Mochi',
+        'title': health.single['title'],
+        'dueAt': body!['dueAt'],
+        'completed': false,
+        'cancelled': false,
+        'careType': 'VACCINE',
+        'healthRecordId': 'health-1'
+      };
+      items.removeWhere((v) => v['id'] == 'health-task');
+      items.add(task);
+      health.single['careReminders'] = [task];
+      return {'task': task, 'events': []};
+    }
     if (path == '/pets/pet/health/health-1') return health.single;
     if (path == '/family/members') {
       return {'items': members, 'canManage': true, 'advanced': advanced};
@@ -76,7 +93,14 @@ class HealthFamilyApi extends FakeApi {
         'members': [
           {'name': 'Alex', 'assigned': 1, 'completed': 1}
         ],
-        'missedTasks': [{'id': 'missed', 'petName': 'Mochi', 'title': 'Evening meal', 'dueAt': '2026-09-15T00:00:00Z'}],
+        'missedTasks': [
+          {
+            'id': 'missed',
+            'petName': 'Mochi',
+            'title': 'Evening meal',
+            'dueAt': '2026-09-15T00:00:00Z'
+          }
+        ],
         'trends': []
       };
     }
@@ -108,6 +132,43 @@ void main() {
     await tapVisible(tester, find.text('Annual vaccination'));
     expect(find.text('Health record details'), findsOneWidget);
     expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+  testWidgets('health record schedules linked care without reloading dashboard',
+      (tester) async {
+    final api = HealthFamilyApi();
+    api.health.add({
+      'id': 'health-1',
+      'kind': 'VACCINE',
+      'title': 'Annual vaccine',
+      'notes': 'Vet instructions',
+      'happenedOn': '2026-09-15',
+      'photos': [],
+      'folder': '',
+      'createdAt': '2026-09-15T01:00:00Z',
+      'careReminders': []
+    });
+    await showCare(tester, api);
+    await tester.tap(find.text('Pets'));
+    await tester.pumpAndSettle();
+    await tapVisible(tester, find.byKey(const ValueKey('pet-card-pet')));
+    await tapVisible(tester, find.text('Health records'));
+    await tapVisible(tester, find.text('Annual vaccine'));
+    final calls = api.dashboardCalls;
+    await tapVisible(tester, find.text('Set next care reminder'));
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    expect(api.items.single['healthRecordId'], 'health-1');
+    expect(api.dashboardCalls, calls);
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pumpAndSettle();
+    await tapVisible(tester, find.widgetWithText(ListTile, 'Pending'));
+    expect(find.text('Plan details'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('View health record'), 200,
+        scrollable: find.byType(Scrollable).last);
+    expect(find.text('View health record'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
   testWidgets('weekly report and temporary role permissions can be configured',

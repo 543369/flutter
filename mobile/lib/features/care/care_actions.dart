@@ -22,7 +22,8 @@ extension CareActions on CareHomeState {
             transitionDuration: MediaQuery.disableAnimationsOf(context)
                 ? Duration.zero
                 : const Duration(milliseconds: 320),
-            pageBuilder: (context, animation, secondary) => TaskFormDialog(home: this),
+            pageBuilder: (context, animation, secondary) =>
+                TaskFormDialog(home: this),
             transitionBuilder: (context, animation, secondary, child) =>
                 ClipPath(
                     clipper: _CareRevealClipper(revealOrigin,

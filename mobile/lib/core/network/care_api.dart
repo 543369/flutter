@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../images/photo_cache.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -10,6 +11,8 @@ class CareApi {
     mOptions: MacOsOptions(useDataProtectionKeyChain: kReleaseMode),
   );
   String? token;
+  String? _photoSession;
+  final _petPhotos = <String, Map<String, dynamic>>{};
   static const baseUrl = String.fromEnvironment('API_BASE_URL',
       defaultValue: 'http://127.0.0.1:18080');
 

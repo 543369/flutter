@@ -48,7 +48,14 @@ void main() {
       if (call.method == 'initialize') return true;
       if (call.method == 'areNotificationsEnabled') return true;
       if (call.method == 'getNotificationAppLaunchDetails') {
-        return {'notificationLaunchedApp': false};
+        return {
+          'notificationLaunchedApp': true,
+          'notificationResponse': {
+            'notificationId': 1,
+            'notificationResponseType': 0,
+            'payload': 'task-1'
+          }
+        };
       }
       return null;
     });

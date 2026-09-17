@@ -74,3 +74,7 @@
 - `scripts/health_free_smoke_test.py`：专用测试 API 需关闭体验并设基础额度为 150 字节，验证免费附件数、空间超额回滚、高级权益与释放容量。
 - `mobile/test/health_family_test.dart`：健康记录保存重试与详情、周报和临时权限编辑。
 - `mobile/tool/health_family_visual_qa_test.dart`：新增页面中文截图检查。
+
+## 健康提醒联动（2026-09-17）
+
+健康记录详情新增“设置下次照护提醒”，用户自行选择时间；同记录已有待办时更新同一提醒，减少重复创建。照护详情可查看关联健康记录，完成提醒不会自动新增健康事实。完整接口、权限与迁移说明见[日常照护分轮优化](care-iterations.md)。

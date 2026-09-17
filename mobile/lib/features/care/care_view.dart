@@ -5,6 +5,7 @@ import '../../app/home_shell.dart';
 import 'care_actions.dart';
 import 'care_pages.dart';
 import 'care_kind.dart';
+import 'care_snapshot.dart';
 import '../pets/pet_photo_carousel.dart';
 import '../../core/widgets/brand_motion.dart';
 
@@ -40,53 +41,59 @@ extension CareView on CareHomeState {
         : '${date.month}/${date.day} $clock';
   }
 
-  Widget _petSelector(Map<String, dynamic>? pet, String name) =>
-      PopupMenuButton<String>(
-        clipBehavior: Clip.antiAlias,
-        tooltip: t('切换宠物', 'Switch pet'),
-        initialValue: pet?['id'] as String?,
-        onSelected: (id) => updateUi(() {
-          selectedPetId = id;
-          careFilter = 'pending';
-        }),
-        itemBuilder: (_) => pets
-            .map((item) => PopupMenuItem<String>(
-                  value: item['id'] as String,
-                  child: Row(children: [
-                    Icon(item['species'] == 'cat'
-                        ? Icons.cruelty_free_rounded
-                        : Icons.pets_rounded),
-                    const SizedBox(width: AppSpacing.inline),
-                    Text(item['name'] as String),
-                  ]),
-                ))
-            .toList(),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Text(name,
-              style: const TextStyle(
-                  color: Color(0xff34231e),
-                  fontSize: 21,
-                  fontWeight: FontWeight.w700)),
-          const SizedBox(width: AppSpacing.inline),
-          Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                  color: const Color(0xfffff1ba).withValues(alpha: .9),
-                  borderRadius: BorderRadius.circular(11)),
-              child: const Icon(Icons.keyboard_arrow_down_rounded,
-                  size: 21, color: Color(0xff34231e))),
-        ]),
-      );
+  Widget _petSelector(Map<String, dynamic>? pet, String name) => pet == null
+      ? TextButton.icon(
+          onPressed: busy ? null : addTask,
+          icon: const Icon(Icons.add),
+          label: Text(name))
+      : PopupMenuButton<String>(
+          clipBehavior: Clip.antiAlias,
+          tooltip: t('切换宠物', 'Switch pet'),
+          initialValue: pet['id'] as String?,
+          onSelected: (id) => updateUi(() {
+            selectedPetId = id;
+          }),
+          itemBuilder: (_) => pets
+              .map((item) => PopupMenuItem<String>(
+                    value: item['id'] as String,
+                    child: Row(children: [
+                      Icon(item['species'] == 'cat'
+                          ? Icons.cruelty_free_rounded
+                          : Icons.pets_rounded),
+                      const SizedBox(width: AppSpacing.inline),
+                      Text(item['name'] as String),
+                    ]),
+                  ))
+              .toList(),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Flexible(
+                child: Text(name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        color: Color(0xff34231e),
+                        fontSize: 21,
+                        fontWeight: FontWeight.w700))),
+            const SizedBox(width: AppSpacing.inline),
+            Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                    color: const Color(0xfffff1ba).withValues(alpha: .9),
+                    borderRadius: BorderRadius.circular(11)),
+                child: const Icon(Icons.keyboard_arrow_down_rounded,
+                    size: 21, color: Color(0xff34231e))),
+          ]),
+        );
 
   Widget _hero(int remaining) {
     final pet = selectedPet;
-    final name = pet?['name'] as String? ?? t('豆包', 'Doubao');
+    final name = pet?['name'] as String? ?? t('添加宠物', 'Add a pet');
     final now = DateTime.now();
     return ClipPath(
       clipper: const _HeroWaveClipper(),
       child: SizedBox(
-        height: 392,
+        height: 332,
         child: PetPhotoCarousel(
             pet: pet ?? {'species': 'dog'},
             indicatorBottom: 12,
@@ -117,7 +124,8 @@ extension CareView on CareHomeState {
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('${_weekday()} · ${now.month}月${now.day}日',
+                      Text(
+                          '${_weekday()} · ${t('${now.month}月${now.day}日', '${now.month}/${now.day}')}',
                           style: const TextStyle(
                               color: Color(0xff76645a),
                               fontSize: 15,
@@ -126,7 +134,7 @@ extension CareView on CareHomeState {
                       Text(t('今天，\n也要好好陪你。', 'Today,\nwe are here for you.'),
                           style: const TextStyle(
                               color: Color(0xff34231e),
-                              fontSize: 32,
+                              fontSize: 28,
                               height: 1.16,
                               fontWeight: FontWeight.w800)),
                     ]),
@@ -134,6 +142,7 @@ extension CareView on CareHomeState {
               Positioned(
                 left: 28,
                 bottom: 58,
+                right: 180,
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -289,7 +298,10 @@ extension CareView on CareHomeState {
             _sun(),
             const SizedBox(width: AppSpacing.item),
             Expanded(
-                child: Text(t('今天都照顾好啦', 'All cared for today'),
+                child: Text(
+                    pets.isEmpty
+                        ? t('先认识你的宠物', 'Meet your pet')
+                        : t('今天都照顾好啦', 'All cared for today'),
                     style: const TextStyle(
                         fontSize: 18, fontWeight: FontWeight.w700))),
             TextButton(
@@ -441,7 +453,7 @@ extension CareView on CareHomeState {
           Align(
             alignment: Alignment.centerLeft,
             child: TextButton(
-                onPressed: () => updateUi(() => careFilter = 'completed'),
+                onPressed: () => openSchedules(initialFilter: 'completed'),
                 child: Text(
                     t('已完成 $completedCount 件', '$completedCount completed'))),
           ),
