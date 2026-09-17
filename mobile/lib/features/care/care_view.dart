@@ -255,20 +255,8 @@ extension CareView on CareHomeState {
                       Flexible(
                         child: SizedBox(
                           height: 120,
-                          child: ShaderMask(
-                            blendMode: BlendMode.dstIn,
-                            shaderCallback: (bounds) => const RadialGradient(
-                              colors: [
-                                Colors.white,
-                                Colors.white,
-                                Colors.transparent
-                              ],
-                              stops: [0, .65, 1],
-                              radius: .72,
-                            ).createShader(bounds),
-                            child: Image.asset(CareKind.of(task).asset,
-                                fit: BoxFit.contain),
-                          ),
+                          child: Image.asset(CareKind.of(task).asset,
+                              fit: BoxFit.contain),
                         ),
                       ),
                     ]),

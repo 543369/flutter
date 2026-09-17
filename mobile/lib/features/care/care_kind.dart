@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 
 enum CareKind {
-  feeding('FEEDING', '喂食', 'Feeding', 'petcare_food_bowl.png'),
-  deworming('DEWORMING', '驱虫', 'Deworming', 'care_deworming.jpg'),
-  vaccine('VACCINE', '疫苗', 'Vaccination', 'care_vaccine.jpg'),
-  walk('WALK', '散步', 'Walking', 'care_walk.jpg'),
-  grooming('GROOMING', '洗护', 'Grooming', 'care_grooming.jpg'),
-  custom('CUSTOM', '自定义', 'Custom', 'care_custom.jpg');
+  feeding('FEEDING', '喂食', 'Feeding', 'care_feeding_transparent.png'),
+  deworming('DEWORMING', '驱虫', 'Deworming', 'care_deworming_transparent.png'),
+  vaccine('VACCINE', '疫苗', 'Vaccination', 'care_vaccine_transparent.png'),
+  walk('WALK', '散步', 'Walking', 'care_walk_transparent.png'),
+  grooming('GROOMING', '洗护', 'Grooming', 'care_grooming_transparent.png'),
+  custom('CUSTOM', '自定义', 'Custom', 'care_custom_transparent.png');
 
   const CareKind(this.code, this.chinese, this.english, this.file);
   final String code, chinese, english, file;

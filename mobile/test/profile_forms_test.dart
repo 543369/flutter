@@ -50,7 +50,7 @@ void main() {
             w is Image &&
             w.image is AssetImage &&
             (w.image as AssetImage).assetName ==
-                'assets/images/care_vaccine.jpg'),
+                'assets/images/care_vaccine_transparent.png'),
         findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
