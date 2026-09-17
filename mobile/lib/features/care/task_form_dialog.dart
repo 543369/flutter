@@ -5,16 +5,26 @@ import '../../core/widgets/profile_dialog.dart';
 import 'care_kind.dart';
 
 class TaskFormDialog extends StatefulWidget {
-  const TaskFormDialog({super.key, required this.home});
+  const TaskFormDialog(
+      {super.key,
+      required this.home,
+      this.petId,
+      this.initialTitle,
+      this.initialKind,
+      this.requireDate = false});
+  final String? petId, initialTitle;
+  final CareKind? initialKind;
+  final bool requireDate;
   final CareHomeState home;
   @override
   State<TaskFormDialog> createState() => _TaskFormDialogState();
 }
 
 class _TaskFormDialogState extends State<TaskFormDialog> {
-  final title = TextEditingController();
-  late String petId = widget.home.selectedPet!['id'] as String;
-  CareKind kind = CareKind.custom;
+  late final title = TextEditingController(text: widget.initialTitle);
+  late String petId = widget.petId ?? widget.home.selectedPet!['id'] as String;
+  late CareKind kind = widget.initialKind ?? CareKind.custom;
+  bool dateChosen = false;
   String frequency = 'NONE';
   DateTime due = DateTime.now().add(const Duration(hours: 1));
   bool saving = false;
@@ -28,7 +38,16 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
   }
 
   Future<void> save() async {
-    if (title.text.trim().isEmpty || saving) return;
+    if (title.text.trim().isEmpty ||
+        saving ||
+        (widget.requireDate && !dateChosen)) {
+      return;
+    }
+    if (widget.requireDate && !due.isAfter(DateTime.now())) {
+      setState(() => error =
+          t('下次提醒请选择未来时间。', 'Choose a future time for the next reminder.'));
+      return;
+    }
     if (frequency != 'NONE' &&
         (due.isBefore(DateTime.now()) ||
             due.isAfter(DateTime.now().add(const Duration(days: 29))))) {
@@ -65,25 +84,34 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
     final date = await showDatePicker(
         context: context,
         initialDate: due,
-        firstDate: DateTime(2020),
+        firstDate: widget.requireDate
+            ? DateTime(
+                DateTime.now().year, DateTime.now().month, DateTime.now().day)
+            : DateTime(2020),
         lastDate: DateTime(2037, 12, 31));
     if (date == null || !mounted) return;
     final time = await showTimePicker(
         context: context, initialTime: TimeOfDay.fromDateTime(due));
     if (time != null && mounted) {
-      setState(() => due =
-          DateTime(date.year, date.month, date.day, time.hour, time.minute));
+      setState(() {
+        dateChosen = true;
+        due = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) => ProfileDialog(
         title: t('安排照护', 'Plan care'),
-        subtitle:
-            t('选一种照护，也可以写下专属安排。', 'Choose a care type or make it your own.'),
+        subtitle: widget.requireDate
+            ? t('请自行确认下次照护日期，不会自动推算医疗周期。',
+                'Choose the next date yourself; no medical interval is assumed.')
+            : t('选一种照护，也可以写下专属安排。', 'Choose a care type or make it your own.'),
         saving: saving,
         error: error,
-        onSave: title.text.trim().isEmpty ? null : save,
+        onSave: title.text.trim().isEmpty || (widget.requireDate && !dateChosen)
+            ? null
+            : save,
         saveLabel: t('保存', 'Save'),
         cancelLabel: t('取消', 'Cancel'),
         children: [

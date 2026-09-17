@@ -1,3 +1,5 @@
+import '../care/task_form_dialog.dart';
+import '../care/care_kind.dart';
 import '../../core/theme/app_spacing.dart';
 import 'health_timeline_page.dart';
 import 'package:flutter/material.dart';
@@ -28,7 +30,7 @@ class HealthRecordsPage extends StatefulWidget {
 class _HealthRecordsPageState extends State<HealthRecordsPage> {
   final items = <Map<String, dynamic>>[];
   final selected = <String>{};
-  String kind = '', error = '';
+  String kind = '', loadedKind = '', error = '';
   bool loading = false, more = false, advanced = false;
   int limit = 2;
   String t(String z, String e) => widget.home.t(z, e);
@@ -44,25 +46,31 @@ class _HealthRecordsPageState extends State<HealthRecordsPage> {
     setState(() {
       loading = true;
       error = '';
-      if (reset) {
-        items.clear();
-        selected.clear();
-      }
     });
     try {
-      final result = await widget.home.widget.api
-          .request('GET', '$path?offset=${items.length}&kind=$kind');
+      final result = await widget.home.widget.api.request(
+          'GET', '$path?offset=${reset ? 0 : items.length}&kind=$kind');
       if (mounted) {
         setState(() {
+          if (reset) {
+            items.clear();
+            selected.clear();
+          }
           items.addAll((result['items'] as List)
               .map((e) => Map<String, dynamic>.from(e as Map)));
+          loadedKind = kind;
           more = result['hasMore'] as bool;
           advanced = result['advanced'] as bool;
           limit = result['attachmentLimit'] as int;
         });
       }
     } catch (e) {
-      if (mounted) setState(() => error = widget.home.message(e));
+      if (mounted) {
+        setState(() {
+          kind = loadedKind;
+          error = widget.home.message(e);
+        });
+      }
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -150,40 +158,22 @@ class _HealthRecordsPageState extends State<HealthRecordsPage> {
               child: ListView(
                   padding: const EdgeInsets.fromLTRB(24, 12, 24, 100),
                   children: [
-                    Container(
-                        padding: AppSpacing.dialogInsets,
-                        decoration: BoxDecoration(
-                            color: const Color(0xffe6eee2),
-                            borderRadius: BorderRadius.circular(28)),
-                        child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Icon(Icons.favorite_outline,
-                                  size: 32, color: Color(0xff657e5f)),
-                              const SizedBox(height: AppSpacing.item),
-                              Text(
-                                  t('把每一次照顾，\n好好记下来。',
-                                      'Every detail of care,\nin one place.'),
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .headlineSmall),
-                              const SizedBox(height: AppSpacing.inline),
-                              Text(t('基础记录免费 · 疫苗、驱虫、用药、过敏、体重与就诊',
-                                  'Free basic records · Vaccines, medication, weight and more')),
-                              const SizedBox(height: AppSpacing.item),
-                              OutlinedButton.icon(
-                                  onPressed: advanced
-                                      ? () => Navigator.push<void>(
-                                          context,
-                                          MaterialPageRoute(
-                                              builder: (_) => HealthTrendPage(
-                                                  home: widget.home,
-                                                  petId: widget.petId)))
-                                      : null,
-                                  icon: const Icon(Icons.show_chart),
-                                  label: Text(t('长期体重趋势 · 高级权益',
-                                      'Long-term weight trends · Advanced'))),
-                            ])),
+                    Row(children: [
+                      Expanded(
+                          child: Text(t('最近健康记录', 'Recent health records'),
+                              style: Theme.of(context).textTheme.titleLarge)),
+                      TextButton.icon(
+                          onPressed: advanced
+                              ? () => Navigator.push<void>(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (_) => HealthTrendPage(
+                                          home: widget.home,
+                                          petId: widget.petId)))
+                              : null,
+                          icon: const Icon(Icons.show_chart, size: 18),
+                          label: Text(t('体重趋势', 'Weight trend'))),
+                    ]),
                     const SizedBox(height: AppSpacing.section),
                     Wrap(
                         spacing: AppSpacing.inline,
@@ -344,7 +334,34 @@ class _HealthRecordEditorState extends State<HealthRecordEditor> {
             'weightKg': kind == 'WEIGHT' ? kg : null,
             'photos': photos
           });
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) {
+        if (widget.record == null && widget.home.can('CARE')) {
+          final followTitle = title.text.trim();
+          final followKind =
+              CareKind.values.where((k) => k.code == kind).firstOrNull ??
+                  CareKind.custom;
+          ScaffoldMessenger.of(widget.home.context).showSnackBar(SnackBar(
+            content: Text(t('健康记录已保存', 'Health record saved')),
+            action: SnackBarAction(
+                label: t('设置下次提醒', 'Plan next care'),
+                onPressed: () async {
+                  if (!widget.home.mounted) return;
+                  final saved = await showDialog<String>(
+                      context: widget.home.context,
+                      builder: (_) => TaskFormDialog(
+                          home: widget.home,
+                          petId: widget.petId,
+                          initialTitle: followTitle,
+                          initialKind: followKind,
+                          requireDate: true));
+                  if (saved != null && widget.home.mounted) {
+                    await widget.home.perform(() async {});
+                  }
+                }),
+          ));
+        }
+        Navigator.pop(context, true);
+      }
     } catch (e) {
       if (mounted) {
         setState(() {
