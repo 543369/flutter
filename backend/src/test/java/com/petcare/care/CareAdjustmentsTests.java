@@ -28,7 +28,7 @@ class CareAdjustmentsTests {
   controller.dismiss(auth(a),task,new CareController.Dismissal("SKIPPED"));
   controller.dismiss(auth(a),task,new CareController.Dismissal("SKIPPED"));
   plans.materialize(h);
-  var row=controller.getTask(auth(a),task);
+  var row=controller.get(auth(a),task);
   assertEquals(true,row.get("cancelled")); assertEquals(false,row.get("completed"));
   assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM care_events WHERE task_id=? AND action='SKIPPED'",Integer.class,task));
   assertThrows(ResponseStatusException.class,()->controller.complete(auth(a),task,new CareController.Completion(true)));
@@ -40,9 +40,9 @@ class CareAdjustmentsTests {
   var moved=controller.reschedule(auth(a),task,new CareController.Adjustment(Instant.now().plusSeconds(7200)));
   assertNotEquals(task,moved.get("id")); assertNull(moved.get("planId"));
   plans.materialize(h);
-  assertEquals(true,controller.getTask(auth(a),task).get("cancelled"));
+  assertEquals(true,controller.get(auth(a),task).get("cancelled"));
   String outsider=account(home());
-  assertEquals(404,assertThrows(ResponseStatusException.class,()->controller.getTask(auth(outsider),(String)moved.get("id"))).getStatusCode().value());
+  assertEquals(404,assertThrows(ResponseStatusException.class,()->controller.get(auth(outsider),(String)moved.get("id"))).getStatusCode().value());
   assertEquals(404,assertThrows(ResponseStatusException.class,()->controller.dismiss(auth(outsider),task,new CareController.Dismissal("CANCELLED"))).getStatusCode().value());
  }
  @Test void completionIsIdempotentAndReturnsActorForNotification(){
@@ -60,7 +60,7 @@ class CareAdjustmentsTests {
   controller.complete(auth(a),made.get("id"),new CareController.Completion(true));
   var replacement=controller.adjustPlan(auth(a),made.get("planId"),new CareController.PlanAdjustment(Instant.now().plusSeconds(7200),"WEEKLY","UTC"));
   assertNotEquals(made.get("planId"),replacement.get("planId"));
-  assertEquals(true,controller.getTask(auth(a),made.get("id")).get("completed"));
+  assertEquals(true,controller.get(auth(a),made.get("id")).get("completed"));
   assertEquals(false,db.queryForObject("SELECT active FROM care_plans WHERE id=?",Boolean.class,made.get("planId")));
  }
  @Test void completionRefillsTheSixtyFirstReminder() {

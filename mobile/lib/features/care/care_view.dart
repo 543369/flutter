@@ -5,7 +5,6 @@ import '../../app/home_shell.dart';
 import 'care_actions.dart';
 import 'care_pages.dart';
 import 'care_kind.dart';
-import 'care_snapshot.dart';
 import '../pets/pet_photo_carousel.dart';
 import '../../core/widgets/brand_motion.dart';
 

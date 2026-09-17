@@ -84,6 +84,14 @@ class FakeApi extends CareApi {
     if (method == 'GET' && path.startsWith('/tasks?')) {
       return {'items': items, 'hasMore': false};
     }
+    if (method == 'GET' && path.startsWith('/tasks/')) {
+      final task = items.firstWhere((item) => item['id'] == path.split('/')[2]);
+      return {
+        'task': task,
+        'events':
+            events.where((event) => event['taskId'] == task['id']).toList()
+      };
+    }
     if (path == '/pets' && method == 'POST') {
       final pet = {
         ...body!,
@@ -253,10 +261,12 @@ void main() {
         .clearSnackBars();
     await tester.pumpAndSettle();
     await tapVisible(tester, find.text('1 completed'));
-    await tester.ensureVisible(find.byType(Checkbox));
-    await tester.tap(find.byType(Checkbox));
+    await tapVisible(tester, find.text('Evening meal'));
+    await tapVisible(tester, find.text('Undo completion'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Confirm'));
+    await tester.pumpAndSettle();
+    await tester.pageBack();
     await tester.pumpAndSettle();
     await tester.pageBack();
     await tester.pumpAndSettle();

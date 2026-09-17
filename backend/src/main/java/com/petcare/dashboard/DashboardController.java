@@ -32,16 +32,16 @@ class DashboardController extends ApiSupport {
   var pets = db.query("SELECT id,name,species,"+(compact ? "NULL" : "photo_data")+",biography,birth_date,created_at,(SELECT COUNT(*) FROM pet_memories m WHERE m.pet_id=pets.id) AS memory_count, photo_revision AS photo_version FROM pets WHERE household_id = ? ORDER BY name,id", (r,n) -> {
    Map<String,Object> row = new LinkedHashMap<>();
    row.put("id",r.getString(1)); row.put("name",r.getString(2)); row.put("species",r.getString(3));
-   if(!compact){row.put("photoData",r.getString(4)); row.put("photos",photoGallery.getOrDefault(r.getString(1),List.of()));} row.put("photoRevision",r.getLong(8)); row.put("biography",r.getString(5));
+   if(!compact){row.put("photoData",r.getString(4)); row.put("photos",photoGallery.getOrDefault(r.getString(1),List.of()));} row.put("photoRevision",r.getLong(9)); row.put("biography",r.getString(5));
    row.put("birthDate",r.getDate(6)==null?null:r.getDate(6).toLocalDate().toString());
    row.put("createdAt",r.getTimestamp(7)==null?null:r.getTimestamp(7).toInstant().toString()); row.put("memoryCount",r.getInt(8)); row.put("photoVersion",r.getString(9)); return row;
   }, home);
   plans.materialize(home);
-  var tasks = db.query("SELECT t.id,t.pet_id,t.title,t.due_at,t.completed,p.name,t.plan_id,t.care_type,t.assigned_to FROM care_tasks t JOIN pets p ON p.id=t.pet_id WHERE p.household_id=? AND t.cancelled=FALSE ORDER BY t.completed,t.due_at,t.id"+(compact ? " LIMIT 301" : ""), (r,n) -> {
+  var tasks = db.query("SELECT t.id,t.pet_id,t.title,t.due_at,t.completed,p.name,t.plan_id,t.care_type,t.assigned_to,t.skipped,t.health_record_id,(SELECT MAX(e.happened_at) FROM care_events e WHERE e.task_id=t.id AND e.action='COMPLETED') completed_at FROM care_tasks t JOIN pets p ON p.id=t.pet_id WHERE p.household_id=? AND t.cancelled=FALSE AND t.skipped=FALSE ORDER BY t.completed,t.due_at,t.id"+(compact ? " LIMIT 301" : ""), (r,n) -> {
    Map<String,Object> row = new LinkedHashMap<>();
    row.put("id",r.getString(1)); row.put("petId",r.getString(2)); row.put("title",r.getString(3));
    row.put("dueAt",r.getTimestamp(4).toInstant().toString()); row.put("completed",r.getBoolean(5));
-   row.put("petName",r.getString(6)); row.put("planId",r.getString(7)); row.put("careType",r.getString(8)); row.put("assignedTo",r.getString(9)); return row;
+   row.put("petName",r.getString(6)); row.put("planId",r.getString(7)); row.put("careType",r.getString(8)); row.put("assignedTo",r.getString(9)); row.put("skipped",r.getBoolean(10)); row.put("healthRecordId",r.getString(11)); row.put("completedAt",r.getTimestamp(12)==null?null:r.getTimestamp(12).toInstant().toString()); return row;
   }, home);
   var history = db.query("SELECT e.id,e.task_id,e.action,e.happened_at,a.display_name,t.title,p.name,p.id,t.care_type FROM care_events e JOIN care_tasks t ON t.id=e.task_id JOIN pets p ON p.id=t.pet_id LEFT JOIN accounts a ON a.id=e.actor_id WHERE p.household_id=? ORDER BY e.happened_at DESC,e.id DESC LIMIT "+(compact ? 30 : 100), (r,n) -> {
    Map<String,Object> row = new LinkedHashMap<>();

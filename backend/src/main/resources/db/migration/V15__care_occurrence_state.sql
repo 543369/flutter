@@ -8,4 +8,3 @@ ALTER TABLE care_tasks DROP INDEX unique_plan_occurrence,
  ADD UNIQUE KEY unique_plan_occurrence (plan_id, occurrence_at),
  ADD INDEX idx_task_pet_due (pet_id, due_at, id);
 ALTER TABLE care_events ADD INDEX idx_event_task_time (task_id, happened_at, id);
-ALTER TABLE pets ADD COLUMN photo_revision BIGINT NOT NULL DEFAULT 0;

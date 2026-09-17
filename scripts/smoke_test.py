@@ -52,15 +52,17 @@ def main():
         call("PATCH", "/tasks/" + task, b, {"completed": True})
         code_c = call("POST", "/invites", c)["code"]
         call("POST", "/join", a, {"code": code_c}, 409)
-        call("DELETE", "/account", a, expected=204)
-        tokens.remove(a)
-        call("GET", "/dashboard", a, expected=401)
-        assert call("GET", "/dashboard", b)["members"] == 1
-        call("DELETE", "/pets/" + pet, b, expected=204)
-        assert call("GET", "/dashboard", b)["tasks"] == []
+        # The last administrator must remain while another household member exists.
+        call("DELETE", "/account", a, expected=409)
+        call("DELETE", "/account", b, expected=204)
+        tokens.remove(b)
+        call("GET", "/dashboard", b, expected=401)
+        assert call("GET", "/dashboard", a)["members"] == 1
+        call("DELETE", "/pets/" + pet, a, expected=204)
+        assert call("GET", "/dashboard", a)["tasks"] == []
         print(f"PASS: {checks} HTTP checks; isolation, validation, sharing, invitation reuse, deletion, cascades.")
     finally:
-        for token in tokens:
+        for token in reversed(tokens):
             call("DELETE", "/account", token, expected=204)
 
 if __name__ == "__main__":

@@ -118,8 +118,7 @@ void main() {
     await tapVisible(tester, find.byKey(const ValueKey('pet-card-pet')));
     await tapVisible(tester, find.text('Health records'));
     expect(
-        find.text('No health records yet. Add the first one.'),
-        findsOneWidget);
+        find.text('No health records yet. Add the first one.'), findsOneWidget);
     await tester.tap(find.text('Add record'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).first, 'Annual vaccination');
@@ -136,6 +135,10 @@ void main() {
   });
   testWidgets('health record schedules linked care without reloading dashboard',
       (tester) async {
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     final api = HealthFamilyApi();
     api.health.add({
       'id': 'health-1',

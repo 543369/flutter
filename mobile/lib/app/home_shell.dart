@@ -37,10 +37,8 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
 
   final pendingTaskIds = <String>{};
   final detailTaskIds = <String, int>{};
-  String? pendingNotification;
-  bool routingNotification = false;
   DateTime? lastSyncedAt;
-  bool taskBusy(String id) => busy || pendingTaskIds.contains(id);
+  bool taskBusy(String id) => busy || submittingTasks.contains(id);
   Timer? refreshTimer;
   bool syncing = false;
   final submittingTasks = <String>{};
@@ -54,6 +52,7 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
   String? error;
   bool accessExpired = false;
   int tab = 0;
+  String careFilter = 'pending';
   Map<String, dynamic>? data;
   bool get zh => Localizations.localeOf(context).languageCode == 'zh';
   String t(String cn, String en) => zh ? cn : en;
@@ -133,15 +132,15 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
       return;
     }
     try {
-      final task = Map<String, dynamic>.from(
+      final result = Map<String, dynamic>.from(
           await widget.api.request('GET', '/tasks/$id') as Map);
+      final task = Map<String, dynamic>.from(result['task'] as Map);
       if (!mounted) return;
       updateUi(() {
         tab = 0;
         selectedPetId = task['petId'] as String;
-        final current = tasks.where((t) => t['id'] != id).toList()..add(task);
-        data?['tasks'] = current;
       });
+      mergeCare(result);
       await openTaskDetails(task);
     } catch (e) {
       if (mounted) {
@@ -180,6 +179,67 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
       reminderError = null;
     } catch (_) {
       reminderError = 'unavailable';
+    }
+  }
+
+  Future<Map<String, dynamic>> loadDashboard() async {
+    final next = await widget.api.dashboard();
+    final loaded = (next['tasks'] as List).cast<Map>();
+    final ids = loaded.map((task) => task['id']).toSet();
+    next['tasks'] = [
+      ...loaded,
+      ...tasks.where((task) =>
+          detailTaskIds.containsKey(task['id']) && !ids.contains(task['id']))
+    ];
+    return next;
+  }
+
+  void mergeCare(Map<String, dynamic> result) {
+    final task = Map<String, dynamic>.from(result['task'] as Map);
+    final events = (result['events'] as List).cast<Map>();
+    final eventIds = events.map((event) => event['id']).toSet();
+    updateUi(() {
+      data?['tasks'] = [
+        ...tasks.where((item) => item['id'] != task['id']),
+        task
+      ];
+      data?['history'] = [
+        ...events,
+        ...(data?['history'] as List? ?? [])
+            .where((event) => !eventIds.contains(event['id']))
+      ];
+      if (result['reminderTasks'] is List) {
+        data?['reminderTasks'] = result['reminderTasks'];
+      } else if (data?['reminderTasks'] is List) {
+        data!['reminderTasks'] = [
+          ...(data!['reminderTasks'] as List)
+              .where((item) => item['id'] != task['id']),
+          task
+        ];
+      }
+    });
+  }
+
+  Future<bool> mutateCare(String key, String path, Map<String, dynamic> body,
+      {String method = 'PATCH'}) async {
+    if (busy || submittingTasks.contains(key)) return false;
+    final previous = taskWrites.values.map((write) => write.future).toList();
+    final write = Completer<void>();
+    taskWrites[key] = write;
+    updateUi(() => submittingTasks.add(key));
+    try {
+      await syncDone?.future;
+      await Future.wait(previous);
+      if (!mounted) return false;
+      final result = await widget.api.request(method, path, body);
+      if (!mounted) return false;
+      mergeCare(Map<String, dynamic>.from(result as Map));
+      await syncReminders();
+      return true;
+    } finally {
+      taskWrites.remove(key);
+      write.complete();
+      if (mounted) updateUi(() => submittingTasks.remove(key));
     }
   }
 
@@ -228,7 +288,7 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
       syncDone?.complete();
       if (mounted) {
         updateUi(() {});
-        routeNotification();
+        if (pendingNotificationTap) openNotificationTask();
       }
     }
   }

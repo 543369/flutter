@@ -15,6 +15,21 @@ class DashboardReadTests {
  @Autowired DashboardController dashboard;
  @Autowired CareReadController reads;
  String id(){return UUID.randomUUID().toString();}
+ @Test void dashboardRetainsHealthLinksAndExcludesSkippedTasks(){
+  String h=id(),a=id(),p=id(),record=id(),task=id(),skipped=id();
+  db.update("INSERT INTO households(id) VALUES (?)",h);
+  db.update("INSERT INTO accounts(id,household_id,token_hash,display_name,family_role) VALUES (?,?,?,?,?)",a,h,id(),"Tester","ADMIN");
+  db.update("INSERT INTO pets(id,household_id,name,species) VALUES (?,?,?,?)",p,h,"Pet","cat");
+  db.update("INSERT INTO health_records(id,pet_id,kind,title,notes,happened_on) VALUES (?,?,?,?,'',CURRENT_DATE)",record,p,"VACCINE","Follow up");
+  db.update("INSERT INTO care_tasks(id,pet_id,title,due_at,health_record_id) VALUES (?,?,?,?,?)",task,p,"Care",Timestamp.from(Instant.now()),record);
+  db.update("INSERT INTO care_tasks(id,pet_id,title,due_at,skipped) VALUES (?,?,?,?,TRUE)",skipped,p,"Skipped",Timestamp.from(Instant.now()));
+  var auth=new UsernamePasswordAuthenticationToken(a,"unused");
+  for(boolean compact:List.of(true,false)) {
+   var tasks=(List<Map<String,Object>>)dashboard.dashboard(auth,compact).get("tasks");
+   assertEquals(1,tasks.size());assertEquals(record,tasks.getFirst().get("healthRecordId"));
+  }
+  assertEquals(1,((List<?>)reads.tasks(auth,p,null).get("items")).size());
+ }
  @Test void compactBoundsPayloadAndPaginationRetainsAllTasks(){
   String h=id(),a=id(),p=id();
   db.update("INSERT INTO households(id) VALUES (?)",h);
@@ -27,6 +42,10 @@ class DashboardReadTests {
   assertEquals(true,compact.get("tasksTruncated"));
   var pet=(Map<?,?>)((List<?>)compact.get("pets")).getFirst();
   assertNull(pet.get("photoData"));assertNotNull(pet.get("photoVersion"));
+  assertEquals(0L,pet.get("photoRevision"));
+  db.update("UPDATE pets SET photo_revision=7 WHERE id=?",p);
+  var updatedPet=(Map<?,?>)((List<?>)dashboard.dashboard(auth,true).get("pets")).getFirst();
+  assertEquals(7L,updatedPet.get("photoRevision"));
   assertEquals(305,((List<?>)dashboard.dashboard(auth,false).get("tasks")).size());
   assertEquals(4,((List<?>)compact.get("reminderTasks")).size());
   Set<Object> ids=new HashSet<>();

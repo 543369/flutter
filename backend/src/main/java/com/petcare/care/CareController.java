@@ -57,6 +57,7 @@ class CareController extends ApiSupport {
    db.update("INSERT INTO care_events(id,task_id,actor_id,action,happened_at) VALUES (?,?,?,?,?)",id(),taskId,auth.getName(),input.completed()?"COMPLETED":"REOPENED",Timestamp.from(Instant.now()));
   }
   var result=task(home,taskId);
+  result.putAll(queries.mutation(home,taskId));
   result.put("reminderTasks",CareReminders.list(db,home));
   return result;
  }
@@ -73,10 +74,6 @@ class CareController extends ApiSupport {
   },taskId);
   if(!events.isEmpty()) row.put("lastEvent",events.getFirst());
   return row;
- }
- @GetMapping("/tasks/{taskId}") @Transactional
- Map<String,Object> getTask(Authentication auth,@PathVariable String taskId) {
-  return task(permission(auth,"READ"),taskId);
  }
  record Adjustment(@NotNull Instant dueAt) {}
  @PatchMapping("/tasks/{taskId}/time") @Transactional
@@ -129,8 +126,13 @@ class CareController extends ApiSupport {
   return queries.mutation(home,taskId);
  }
  @GetMapping("/tasks/{taskId}") @Transactional
- Map<String,Object> get(Authentication auth,@PathVariable String taskId) {return queries.mutation(permission(auth,"READ"),taskId);}
- @GetMapping("/tasks") @Transactional
+ Map<String,Object> get(Authentication auth,@PathVariable String taskId) {
+  String home=permission(auth,"READ");
+  var result=task(home,taskId);
+  result.putAll(queries.mutation(home,taskId));
+  return result;
+ }
+ @GetMapping(value="/tasks", params="state") @Transactional
  Map<String,Object> list(Authentication auth,@RequestParam String petId,@RequestParam(defaultValue="pending") String state,@RequestParam(defaultValue="0") int offset) {return queries.tasks(permission(auth,"READ"),petId,state,offset);}
  @GetMapping("/care/history") @Transactional
  Map<String,Object> history(Authentication auth,@RequestParam(required=false) String petId,@RequestParam(required=false) String cursor) {return queries.history(permission(auth,"READ"),petId,cursor);}

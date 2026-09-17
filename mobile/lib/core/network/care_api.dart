@@ -12,7 +12,6 @@ class CareApi {
   );
   String? token;
   String? _photoSession;
-  final _petPhotos = <String, Map<String, dynamic>>{};
   static const baseUrl = String.fromEnvironment('API_BASE_URL',
       defaultValue: 'http://127.0.0.1:18080');
 
@@ -70,6 +69,7 @@ class CareApi {
     await storage.delete(key: 'session');
     token = null;
     _petPhotos.clear();
+    PhotoCache.shared.clear();
   }
 
   Future<void> register(String email, String password, String name) async {
@@ -105,18 +105,26 @@ class CareApi {
 
   final _petPhotos = <String, Map<String, dynamic>>{};
   Future<Map<String, dynamic>> dashboard() async {
+    if (_photoSession != token) {
+      _photoSession = token;
+      _petPhotos.clear();
+      PhotoCache.shared.clear();
+    }
     final result = Map<String, dynamic>.from(
         await request('GET', '/dashboard?compact=true') as Map);
-    final pets = (result['pets'] as List).cast<Map>();
+    final pets = (result['pets'] as List)
+        .map((pet) => Map<String, dynamic>.from(pet as Map))
+        .toList();
+    result['pets'] = pets;
     final ids = pets.map((p) => p['id']).toSet();
     _petPhotos.removeWhere((key, _) => !ids.contains(key));
     for (final pet in pets) {
       final id = pet['id'] as String;
       final cached = _petPhotos[id];
-      if (cached == null || cached['version'] != pet['photoVersion']) {
+      if (cached == null || cached['version'] != pet['photoRevision']) {
         final photos = Map<String, dynamic>.from(
             await request('GET', '/pets/$id/photos') as Map);
-        _petPhotos[id] = {...photos, 'version': pet['photoVersion']};
+        _petPhotos[id] = {...photos, 'version': pet['photoRevision']};
       }
       pet['photoData'] = _petPhotos[id]!['photoData'];
       pet['photos'] = _petPhotos[id]!['photos'];

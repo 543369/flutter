@@ -24,7 +24,7 @@ void main() {
     final api = FakeApi()..items = [pendingTask('care', 'Evening meal')];
     await showCare(tester, api);
     await tapVisible(tester, find.text('All plans'));
-    await tester.tap(find.text('New plan'));
+    await tester.tap(find.byType(FloatingActionButton));
     await tester.pumpAndSettle();
     for (final code in ['FEEDING', 'DEWORMING', 'VACCINE']) {
       await tapVisible(tester, find.byKey(ValueKey('care-type-$code')));
@@ -127,8 +127,9 @@ void main() {
     await tester.pumpAndSettle();
     await tapVisible(tester, find.text('Mochi'));
     expect(find.text('Pet profile'), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('Not recorded (older profile)'),
-        200, scrollable: find.byType(Scrollable).first);
+    await tester.scrollUntilVisible(
+        find.text('Not recorded (older profile)'), 200,
+        scrollable: find.byType(Scrollable).first);
     expect(find.text('Not recorded (older profile)'), findsOneWidget);
     await tester.tap(find.byTooltip('Edit profile'));
     await tester.pumpAndSettle();

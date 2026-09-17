@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:petcare/app/home_shell.dart';
@@ -13,16 +14,63 @@ class LegacyLaunchReminders extends FakeReminders {
   }
 }
 
+class PendingMutationApi extends FakeApi {
+  final response = Completer<Map<String, dynamic>>();
+  int writes = 0;
+  @override
+  Future<dynamic> request(String method, String path,
+      [Map<String, dynamic>? body]) async {
+    writes++;
+    return response.future;
+  }
+}
+
 void main() {
   testWidgets('legacy notification cold launch consumes a null payload safely',
       (tester) async {
     await showCare(tester, FakeApi(), LegacyLaunchReminders());
-    final home = tester.state<CareHomeState>(find.byType(CareHome));
+    final home =
+        tester.state<CareHomeState>(find.byType(CareHome, skipOffstage: false));
     expect(home.pendingNotificationTap, false);
     expect(home.tab, 0);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
+  testWidgets('notification opens the task from the API envelope',
+      (tester) async {
+    final api = FakeApi()..items = [pendingTask('one', 'Food')];
+    final reminders = FakeReminders();
+    await showCare(tester, api, reminders);
+    reminders.onNotification!('one');
+    await tester.pumpAndSettle();
+    expect(find.text('Plan details'), findsOneWidget);
+    final home =
+        tester.state<CareHomeState>(find.byType(CareHome, skipOffstage: false));
+    expect(home.detailTaskIds['one'], 1);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(home.detailTaskIds, isEmpty);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('duplicate care writes are blocked and failure releases state',
+      (tester) async {
+    final api = PendingMutationApi();
+    await showCare(tester, api);
+    final home =
+        tester.state<CareHomeState>(find.byType(CareHome, skipOffstage: false));
+    final write = home.mutateCare('health:one', '/reminder', {});
+    final failure = expectLater(write, throwsStateError);
+    expect(await home.mutateCare('health:one', '/reminder', {}), false);
+    await tester.pump();
+    expect(api.writes, 1);
+    api.response.completeError(StateError('failed'));
+    await failure;
+    expect(home.submittingTasks, isEmpty);
+    expect(home.taskWrites, isEmpty);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   test('local calendar day excludes yesterday and tomorrow', () {
     final day = DateTime(2026, 9, 17, 12);
     expect(
@@ -39,7 +87,8 @@ void main() {
       (tester) async {
     final api = FakeApi()..items = [pendingTask('one', 'Food')];
     await showCare(tester, api);
-    final home = tester.state<CareHomeState>(find.byType(CareHome));
+    final home =
+        tester.state<CareHomeState>(find.byType(CareHome, skipOffstage: false));
     final before = api.dashboardCalls;
     await home.changeCompletion(home.tasks.single, true);
     await tester.pumpAndSettle();
@@ -54,7 +103,8 @@ void main() {
       (tester) async {
     final api = FakeApi()..items = [pendingTask('one', 'Food')];
     await showCare(tester, api);
-    final home = tester.state<CareHomeState>(find.byType(CareHome));
+    final home =
+        tester.state<CareHomeState>(find.byType(CareHome, skipOffstage: false));
     api.failNextSave = true;
     await home.changeCompletion(home.tasks.single, true);
     await tester.pumpAndSettle();

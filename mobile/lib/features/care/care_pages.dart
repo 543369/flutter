@@ -2,13 +2,11 @@ import '../../core/theme/app_spacing.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import '../../app/home_shell.dart';
-import '../../core/network/care_api.dart';
 import 'care_actions.dart';
 import 'care_view.dart';
 import 'care_kind.dart';
 import '../health/health_pages.dart';
 import 'care_history_page.dart';
-import 'care_schedule_page.dart';
 
 extension CarePages on CareHomeState {
   String frequencyLabel(Map<String, dynamic>? plan) =>
@@ -78,8 +76,35 @@ extension CarePages on CareHomeState {
         ),
       );
 
-  Future<void> openSchedules() => Navigator.of(context).push<void>(
-      MaterialPageRoute(builder: (_) => _SchedulesPage(home: this)));
+  Future<void> openSchedules({String initialFilter = 'pending'}) =>
+      Navigator.of(context).push<void>(MaterialPageRoute(
+          builder: (_) =>
+              _SchedulesPage(home: this, initialFilter: initialFilter)));
+
+  Future<void> openCareHistory() =>
+      Navigator.of(context).push<void>(MaterialPageRoute(
+          builder: (_) => CareHistoryPage(
+              home: this, petId: selectedPet?['id'] as String?)));
+
+  Future<DateTime?> chooseCareTime(DateTime initial) async {
+    final now = DateTime.now();
+    final day = await showDatePicker(
+        context: context,
+        initialDate: initial.isBefore(now) ? now : initial,
+        firstDate: DateTime(now.year, now.month, now.day),
+        lastDate: DateTime(2037, 12, 31));
+    if (day == null || !mounted) return null;
+    final time = await showTimePicker(
+        context: context, initialTime: TimeOfDay.fromDateTime(initial));
+    if (time == null || !mounted) return null;
+    final due = DateTime(day.year, day.month, day.day, time.hour, time.minute);
+    if (!due.isAfter(DateTime.now())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(t('请选择未来时间', 'Choose a future time'))));
+      return null;
+    }
+    return due;
+  }
 
   Future<void> openCareArchive({bool events = false}) async {
     final petId = selectedPet?['id'];
@@ -228,8 +253,11 @@ extension CarePages on CareHomeState {
     });
   }
 
-  Future<void> openTaskDetails(Map<String, dynamic> original) =>
-      _openCarePage(t('安排详情', 'Plan details'), (_) {
+  Future<void> openTaskDetails(Map<String, dynamic> original) async {
+    final id = original['id'] as String;
+    detailTaskIds[id] = (detailTaskIds[id] ?? 0) + 1;
+    try {
+      await _openCarePage(t('安排详情', 'Plan details'), (_) {
         final task =
             tasks.where((item) => item['id'] == original['id']).firstOrNull;
         if (task == null) {
@@ -333,6 +361,27 @@ extension CarePages on CareHomeState {
                 ],
               ],
             ),
+          if (task['healthRecordId'] != null)
+            TextButton(
+                onPressed: () async {
+                  try {
+                    final metadata = await widget.api.request(
+                        'GET', '/pets/${task['petId']}/health?offset=0');
+                    if (!mounted) return;
+                    await Navigator.of(context).push(MaterialPageRoute<void>(
+                        builder: (_) => HealthRecordDetail(
+                            home: this,
+                            petId: task['petId'] as String,
+                            id: task['healthRecordId'] as String,
+                            limit: metadata['attachmentLimit'] as int)));
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context)
+                          .showSnackBar(SnackBar(content: Text(message(e))));
+                    }
+                  }
+                },
+                child: Text(t('查看健康记录', 'View health record'))),
           _sectionTitle(t('相关照护记录', 'Related care history')),
           if (events.isEmpty)
             Text(t('完成照护后，会在这里记录时间和照护人。',
@@ -510,15 +559,19 @@ class _CarePageState extends State<_CarePage> {
 }
 
 class _SchedulesPage extends StatefulWidget {
-  const _SchedulesPage({required this.home});
+  const _SchedulesPage({required this.home, required this.initialFilter});
   final CareHomeState home;
+  final String initialFilter;
   @override
   State<_SchedulesPage> createState() => _SchedulesPageState();
 }
 
 class _SchedulesPageState extends State<_SchedulesPage>
     with SingleTickerProviderStateMixin {
-  late final TabController tabs = TabController(length: 3, vsync: this);
+  late final TabController tabs = TabController(
+      length: 3,
+      initialIndex: widget.initialFilter == 'completed' ? 1 : 0,
+      vsync: this);
   final createKey = GlobalKey();
   bool creating = false;
 
