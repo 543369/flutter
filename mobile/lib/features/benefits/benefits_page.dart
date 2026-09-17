@@ -1,3 +1,4 @@
+import '../../core/widgets/app_select.dart';
 import '../../core/theme/app_spacing.dart';
 import '../family/household_management_pages.dart';
 import 'dart:typed_data';
@@ -210,11 +211,7 @@ class _BenefitsPageState extends State<BenefitsPage> {
                         'Export stories, dates and photos as a PDF to keep.')),
                     const SizedBox(height: AppSpacing.content),
                     if (pets.isNotEmpty)
-                      DropdownButtonFormField<String>(
-                          borderRadius: BorderRadius.circular(16),
-                          dropdownColor: Theme.of(context).colorScheme.surface,
-                          elevation: 3,
-                          icon: const Icon(Icons.expand_more_rounded, size: 20),
+                      AppSelect<String>(
                           key: const ValueKey('benefit-pet'),
                           initialValue: selected?['id'] as String?,
                           decoration: InputDecoration(
@@ -317,6 +314,7 @@ class _BenefitsPageState extends State<BenefitsPage> {
                                   : exportBook,
                           icon: const Icon(Icons.picture_as_pdf_outlined),
                           label: Text(t('导出回忆录', 'Export memory book'))),
+                    const SizedBox(height: AppSpacing.inline),
                     if (selected != null)
                       TextButton(
                           onPressed: exporting
@@ -350,6 +348,7 @@ class _BenefitsPageState extends State<BenefitsPage> {
                     const SizedBox(height: AppSpacing.item),
                     Text(t('新增高级权益：长期体重趋势、健康附件扩容、批量归档、历史周报与多宠趋势、临时照护和自定义权限。',
                         'Advanced benefits also include weight history, larger health attachments, batch folders, historical reports, multi-pet trends and temporary access.')),
+                    const SizedBox(height: AppSpacing.inline),
                     TextButton(
                         onPressed: () => Navigator.push<void>(
                             context,
@@ -358,6 +357,7 @@ class _BenefitsPageState extends State<BenefitsPage> {
                                     FamilyWeeklyPage(home: widget.home))),
                         child:
                             Text(t('家庭周报与多宠统计', 'Weekly report & pet trends'))),
+                    const SizedBox(height: AppSpacing.inline),
                     TextButton(
                         onPressed: () => Navigator.push<void>(
                             context,
@@ -446,11 +446,7 @@ class _AnnualReportPageState extends State<AnnualReportPage> {
             child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 760),
                 child: ListView(padding: AppSpacing.pageInsets, children: [
-                  DropdownButtonFormField<int>(
-                      borderRadius: BorderRadius.circular(16),
-                      dropdownColor: Theme.of(context).colorScheme.surface,
-                      elevation: 3,
-                      icon: const Icon(Icons.expand_more_rounded, size: 20),
+                  AppSelect<int>(
                       initialValue: year,
                       decoration: InputDecoration(labelText: t('年份', 'Year')),
                       items: List.generate(

@@ -1,3 +1,4 @@
+import '../../core/widgets/app_select.dart';
 import '../../core/theme/app_spacing.dart';
 import 'package:flutter/material.dart';
 import '../../app/home_shell.dart';
@@ -172,11 +173,7 @@ class _PetFormDialogState extends State<PetFormDialog> {
                   hintText: t('小伙伴叫什么？', 'What is their name?')),
               onChanged: (_) => setState(() {})),
           const SizedBox(height: AppSpacing.inline),
-          DropdownButtonFormField<String>(
-              borderRadius: BorderRadius.circular(16),
-              dropdownColor: Theme.of(context).colorScheme.surface,
-              elevation: 3,
-              icon: const Icon(Icons.expand_more_rounded, size: 20),
+          AppSelect<String>(
               initialValue: species,
               decoration: InputDecoration(
                   labelText: t('种类', 'Species'),

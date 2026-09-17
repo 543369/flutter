@@ -1,3 +1,4 @@
+import '../../core/widgets/app_select.dart';
 import '../care/task_form_dialog.dart';
 import '../care/care_kind.dart';
 import '../../core/theme/app_spacing.dart';
@@ -383,12 +384,7 @@ class _HealthRecordEditorState extends State<HealthRecordEditor> {
           error: error,
           onSave: title.text.trim().isEmpty ? null : save,
           children: [
-            DropdownButtonFormField<String>(
-                borderRadius: BorderRadius.circular(16),
-                dropdownColor: Theme.of(context).colorScheme.surface,
-                elevation: 3,
-                icon: const Icon(Icons.expand_more_rounded, size: 20),
-                isExpanded: true,
+            AppSelect<String>(
                 initialValue: kind,
                 decoration: InputDecoration(labelText: t('记录类型', 'Type')),
                 items: healthKinds.entries

@@ -515,6 +515,7 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
                 TextButton(
                     onPressed: busy ? null : () => perform(() async {}),
                     child: Text(t('检查权限', 'Check access'))),
+                const SizedBox(height: AppSpacing.inline),
                 OutlinedButton(
                     onPressed: busy
                         ? null
@@ -522,6 +523,7 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
                               await widget.api.request('POST', '/family/leave');
                             }),
                     child: Text(t('退出当前家庭', 'Leave household'))),
+                const SizedBox(height: AppSpacing.inline),
                 TextButton(
                     onPressed: busy ? null : () => perform(widget.api.logout),
                     child: Text(t('退出登录', 'Sign out'))),

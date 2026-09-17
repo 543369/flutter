@@ -1,3 +1,4 @@
+import '../../core/widgets/app_select.dart';
 import '../../core/theme/app_spacing.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -276,12 +277,7 @@ class _RoleEditorState extends State<_RoleEditor> {
           error: error,
           onSave: save,
           children: [
-            DropdownButtonFormField<String>(
-                borderRadius: BorderRadius.circular(16),
-                dropdownColor: Theme.of(context).colorScheme.surface,
-                elevation: 3,
-                icon: const Icon(Icons.expand_more_rounded, size: 20),
-                isExpanded: true,
+            AppSelect<String>(
                 initialValue: role,
                 decoration: InputDecoration(labelText: t('角色', 'Role')),
                 items: roleNames.entries

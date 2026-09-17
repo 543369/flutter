@@ -1,3 +1,4 @@
+import 'package:petcare/core/widgets/app_select.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:petcare/api.dart';
@@ -93,7 +94,7 @@ void main() {
     await tapVisible(tester, find.byKey(const ValueKey('pet-card-pet')));
     await tapVisible(tester, find.text('Health records'));
     expect(
-        find.text('Free basic records · Vaccines, medication, weight and more'),
+        find.text('No health records yet. Add the first one.'),
         findsOneWidget);
     await tester.tap(find.text('Add record'));
     await tester.pumpAndSettle();
@@ -121,7 +122,7 @@ void main() {
     await tester.pumpAndSettle();
     await tapVisible(tester, find.text('People and permissions'));
     await tapVisible(tester, find.text('Robin'));
-    await tester.tap(find.byType(DropdownButtonFormField<String>));
+    await tester.tap(find.byType(AppSelect<String>));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Temporary caregiver').last);
     await tester.pumpAndSettle();

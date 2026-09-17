@@ -1,3 +1,4 @@
+import 'package:petcare/core/widgets/app_select.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:petcare/api.dart';
@@ -258,9 +259,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(
         tester
-            .widget<DropdownButton<String>>(
-                find.byType(DropdownButton<String>).first)
-            .value,
+            .widget<AppSelect<String>>(
+                find.byType(AppSelect<String>).first)
+            .initialValue,
         'dog');
     await tester.enterText(find.byType(TextField), 'Brush Doubao');
     await tester.pumpAndSettle();

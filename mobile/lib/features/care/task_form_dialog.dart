@@ -1,3 +1,4 @@
+import '../../core/widgets/app_select.dart';
 import '../../core/theme/app_spacing.dart';
 import 'package:flutter/material.dart';
 import '../../app/home_shell.dart';
@@ -115,14 +116,9 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
         saveLabel: t('保存', 'Save'),
         cancelLabel: t('取消', 'Cancel'),
         children: [
-          DropdownButtonFormField<String>(
-            borderRadius: BorderRadius.circular(16),
-            dropdownColor: Theme.of(context).colorScheme.surface,
-            elevation: 3,
-            icon: const Icon(Icons.expand_more_rounded, size: 20),
+          AppSelect<String>(
             key: const ValueKey('task-pet'),
             initialValue: petId,
-            isExpanded: true,
             decoration: InputDecoration(
                 labelText: t('照护谁', 'Pet'),
                 prefixIcon: const Icon(Icons.pets_outlined)),
@@ -200,11 +196,7 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
                   hintText: t('例如：晚饭后遛狗', 'e.g. Evening walk')),
               onChanged: (_) => setState(() {})),
           const SizedBox(height: AppSpacing.inline),
-          DropdownButtonFormField<String>(
-            borderRadius: BorderRadius.circular(16),
-            dropdownColor: Theme.of(context).colorScheme.surface,
-            elevation: 3,
-            icon: const Icon(Icons.expand_more_rounded, size: 20),
+          AppSelect<String>(
             initialValue: frequency,
             decoration: InputDecoration(
                 labelText: t('重复', 'Repeat'),

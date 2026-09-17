@@ -95,22 +95,27 @@ class _EmailActionPageState extends State<EmailActionPage> {
               keyboardType: TextInputType.emailAddress,
               decoration:
                   InputDecoration(labelText: t('注册邮箱', 'Account email'))),
+        const SizedBox(height: AppSpacing.content),
         Text(t('将邮件中的完整验证码粘贴到下方。',
             'Paste the complete code from the email below.')),
+        const SizedBox(height: AppSpacing.inline),
         OutlinedButton(
             onPressed: busy ? null : () => act(true),
             child: Text(t('发送验证码', 'Send code'))),
+        const SizedBox(height: AppSpacing.content),
         TextField(
             controller: code,
             enabled: !busy,
             autocorrect: false,
             decoration: InputDecoration(labelText: t('邮箱验证码', 'Email code'))),
         if (widget.recovery) ...[
+          const SizedBox(height: AppSpacing.content),
           TextField(
               controller: password,
               enabled: !busy,
               obscureText: true,
               decoration: InputDecoration(labelText: t('新密码', 'New password'))),
+          const SizedBox(height: AppSpacing.content),
           TextField(
               controller: confirmation,
               enabled: !busy,
@@ -118,7 +123,9 @@ class _EmailActionPageState extends State<EmailActionPage> {
               decoration:
                   InputDecoration(labelText: t('确认新密码', 'Confirm password'))),
         ],
+        const SizedBox(height: AppSpacing.content),
         if (message != null) Text(message!),
+        const SizedBox(height: AppSpacing.inline),
         FilledButton(
             onPressed: busy ? null : () => act(false),
             child: Text(t('确认', 'Confirm'))),

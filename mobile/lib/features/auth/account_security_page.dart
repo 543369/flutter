@@ -208,6 +208,7 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
                   const SizedBox(height: AppSpacing.item),
                   Text(t('修改后保留本次登录，其他会话将退出。',
                       'This session stays signed in. All other sessions will be signed out.')),
+                  const SizedBox(height: AppSpacing.inline),
                   FilledButton(
                       onPressed: busy ? null : changePassword,
                       child: Text(t('修改密码', 'Change password'))),

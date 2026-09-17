@@ -230,6 +230,7 @@ class _AuthPanelState extends State<AuthPanel> {
                             : registering
                                 ? t('注册并登录', 'Create account')
                                 : t('登录', 'Sign in'))),
+                    const SizedBox(height: AppSpacing.inline),
                     if (!widget.binding && !registering)
                       TextButton(
                           onPressed: busy
@@ -241,9 +242,12 @@ class _AuthPanelState extends State<AuthPanel> {
                                           api: widget.api, recovery: true))),
                           child: Text(t('忘记密码？', 'Forgot password?'))),
                     if (!widget.binding && Platform.isIOS)
-                      OutlinedButton(
-                          onPressed: busy ? null : apple,
-                          child: Text(t('通过 Apple 登录', 'Sign in with Apple'))),
+                      Padding(
+                          padding: const EdgeInsets.symmetric(vertical: AppSpacing.inline),
+                          child: OutlinedButton(
+                              onPressed: busy ? null : apple,
+                              child: Text(
+                                  t('通过 Apple 登录', 'Sign in with Apple')))),
                     if (!widget.binding)
                       TextButton(
                           onPressed: busy
