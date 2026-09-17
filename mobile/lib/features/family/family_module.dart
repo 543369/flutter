@@ -4,7 +4,6 @@ import 'personal_profile_page.dart';
 import 'package:flutter/material.dart';
 import '../../app/home_shell.dart';
 import '../auth/account_security_page.dart';
-import '../pets/pet_cover.dart';
 import '../benefits/benefits_page.dart';
 import '../care/care_view.dart';
 import '../care/care_pages.dart';
@@ -134,95 +133,20 @@ extension FamilyModule on CareHomeState {
         0, (sum, pet) => sum + (pet['memoryCount'] as int? ?? 0));
     return [
       Container(
-          padding: AppSpacing.dialogInsets,
-          decoration: BoxDecoration(
-              color: const Color(0xffe4eef6),
-              borderRadius: BorderRadius.circular(28)),
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              const Icon(Icons.favorite_rounded,
-                  color: Color(0xffcf6947), size: 19),
-              const SizedBox(width: AppSpacing.inline),
-              Text(t('我们的小家', 'OUR LITTLE HOME'),
-                  style: const TextStyle(fontSize: 12, letterSpacing: 1.5))
-            ]),
-            const SizedBox(height: AppSpacing.content),
-            Text(t('一起照顾，\n一起珍藏。', 'Care together.\nKeep the memories.'),
-                style: Theme.of(context).textTheme.headlineLarge),
-            const SizedBox(height: AppSpacing.item),
-            Text(t('有人惦记，有人陪伴，就是家的样子。',
-                'A little care from everyone makes a home.')),
-            if (pets.isNotEmpty) ...[
-              const SizedBox(height: AppSpacing.content),
-              Wrap(
-                  spacing: AppSpacing.inline,
-                  runSpacing: AppSpacing.inline,
-                  children: pets
-                      .take(5)
-                      .map((pet) => SizedBox(
-                          width: 52,
-                          height: 52,
-                          child: ClipRRect(
-                              borderRadius: BorderRadius.circular(18),
-                              child: PetCover(pet: pet))))
-                      .toList()),
-            ],
-            const SizedBox(height: AppSpacing.section),
-            Container(
-                padding:
-                    const EdgeInsets.symmetric(vertical: AppSpacing.content),
-                decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: .8),
-                    borderRadius: BorderRadius.circular(20)),
-                child: Row(children: [
-                  familyStat('${data?['members'] ?? 1}', t('位家人', 'Members')),
-                  familyStat('${pets.length}', t('位小伙伴', 'Pets')),
-                  familyStat('$memories', t('篇回忆', 'Memories'))
-                ])),
-          ])),
-      const SizedBox(height: AppSpacing.content),
-      Card(
-          color: const Color(0xffffefcc),
-          child: ListTile(
-            key: const ValueKey('household-benefits'),
-            contentPadding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.content, vertical: AppSpacing.inline),
-            leading: const Icon(Icons.auto_awesome_outlined,
-                color: Color(0xffa15e40)),
-            title: Text(t('家庭权益', 'Household benefits')),
-            subtitle: Text(t('照片空间 · 回忆录导出 · 年度成长报告',
-                'Photo storage · Memory books · Annual reports')),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
-                builder: (_) => BenefitsPage(home: this))),
-          )),
-      const SizedBox(height: AppSpacing.item),
-      Card(
-          color: const Color(0xffe8eee0),
-          child: ListTile(
-              leading: const Icon(Icons.insights_outlined),
-              title: Text(t('家庭周报与多宠统计', 'Weekly report & pet trends')),
-              subtitle: Text(t(
-                  '完成率、遗漏与成员分工', 'Completion, missed care and contributions')),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.push<void>(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => FamilyWeeklyPage(home: this))))),
-      Card(
-          color: const Color(0xffffefdf),
-          child: ListTile(
-              leading: const Icon(Icons.admin_panel_settings_outlined),
-              title: Text(t('家人与照护权限', 'People and permissions')),
-              subtitle:
-                  Text(t('角色、临时照护与到期时间', 'Roles, temporary care and expiry')),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.push<void>(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => HouseholdMembersPage(home: this))))),
-      const SizedBox(height: AppSpacing.item),
+        padding: AppSpacing.cardInsets,
+        decoration: BoxDecoration(
+            color: const Color(0xffe4eef6),
+            borderRadius: BorderRadius.circular(22)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(t('我们的小家', 'Our home'),
+              style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: AppSpacing.inline),
+          Text(t(
+              '${data?['members'] ?? 1} 位家人 · ${pets.length} 位小伙伴 · $memories 篇回忆',
+              '${data?['members'] ?? 1} people · ${pets.length} pets · $memories memories')),
+        ]),
+      ),
+      const SizedBox(height: AppSpacing.section),
       Text(t('一起陪伴的人', 'The people who care'),
           style: Theme.of(context).textTheme.titleLarge),
       const SizedBox(height: AppSpacing.item),
@@ -286,6 +210,47 @@ extension FamilyModule on CareHomeState {
             busy ? null : join),
       ])),
       const SizedBox(height: AppSpacing.section),
+      Card(
+          color: const Color(0xffffefcc),
+          child: ListTile(
+            key: const ValueKey('household-benefits'),
+            contentPadding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.content, vertical: AppSpacing.inline),
+            leading: const Icon(Icons.auto_awesome_outlined,
+                color: Color(0xffa15e40)),
+            title: Text(t('家庭权益', 'Household benefits')),
+            subtitle: Text(t('照片空间 · 回忆录导出 · 年度成长报告',
+                'Photo storage · Memory books · Annual reports')),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                builder: (_) => BenefitsPage(home: this))),
+          )),
+      const SizedBox(height: AppSpacing.item),
+      Card(
+          color: const Color(0xffe8eee0),
+          child: ListTile(
+              leading: const Icon(Icons.insights_outlined),
+              title: Text(t('家庭周报与多宠统计', 'Weekly report & pet trends')),
+              subtitle: Text(t(
+                  '完成率、遗漏与成员分工', 'Completion, missed care and contributions')),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push<void>(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => FamilyWeeklyPage(home: this))))),
+      Card(
+          color: const Color(0xffffefdf),
+          child: ListTile(
+              leading: const Icon(Icons.admin_panel_settings_outlined),
+              title: Text(t('家人与照护权限', 'People and permissions')),
+              subtitle:
+                  Text(t('角色、临时照护与到期时间', 'Roles, temporary care and expiry')),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push<void>(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => HouseholdMembersPage(home: this))))),
+      const SizedBox(height: AppSpacing.item),
       Row(children: [
         Expanded(
             child: Text(t('家里的近况', 'Around the home'),
