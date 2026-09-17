@@ -84,7 +84,7 @@ class PreviewApi extends CareApi {
           'petId': 'doubao',
           'petName': '豆包',
           'title': '换水',
-          'careType': 'CUSTOM',
+          'careType': 'WATER',
           'completed': true,
           'dueAt': _at(8, 25),
           'planId': 'daily-water',

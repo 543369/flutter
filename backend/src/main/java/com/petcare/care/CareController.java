@@ -22,7 +22,7 @@ class CareController extends ApiSupport {
  private final CarePlans plans;
  CareController(JdbcTemplate db, CarePlans plans) { super(db); this.plans=plans; }
  record TaskInput(@NotBlank String petId, @NotBlank @Size(max=120) String title, @NotNull Instant dueAt, @Pattern(regexp="NONE|DAILY|WEEKLY") String frequency, @Size(max=80) String zoneId,
-                  @Pattern(regexp="FEEDING|DEWORMING|VACCINE|WALK|GROOMING|CUSTOM") String careType) {}
+                  @Pattern(regexp="FEEDING|WATER|DEWORMING|VACCINE|WALK|GROOMING|CUSTOM") String careType) {}
  record Completion(@NotNull Boolean completed) {}
  @PostMapping("/tasks") @ResponseStatus(HttpStatus.CREATED) @Transactional
  Map<String,String> addTask(Authentication auth, @Valid @RequestBody TaskInput input) {
