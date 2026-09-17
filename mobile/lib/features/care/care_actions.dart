@@ -1,19 +1,33 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../app/home_shell.dart';
 import '../pets/pet_module.dart';
 import 'task_form_dialog.dart';
 
 extension CareActions on CareHomeState {
-  Future<void> addTask() async {
+  Future<void> addTask({Offset? revealOrigin}) async {
     if (pets.isEmpty) {
       await addPet();
       return;
     }
-    final petId = await showDialog<String>(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => TaskFormDialog(home: this));
+    final petId = revealOrigin == null
+        ? await showDialog<String>(
+            context: context,
+            barrierDismissible: false,
+            builder: (_) => TaskFormDialog(home: this))
+        : await showGeneralDialog<String>(
+            context: context,
+            barrierDismissible: false,
+            transitionDuration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 320),
+            pageBuilder: (context, animation, secondary) => TaskFormDialog(home: this),
+            transitionBuilder: (context, animation, secondary, child) =>
+                ClipPath(
+                    clipper: _CareRevealClipper(revealOrigin,
+                        Curves.easeInOutCubic.transform(animation.value)),
+                    child: child));
     if (petId != null && mounted) {
       updateUi(() => selectedPetId = petId);
       await perform(() async {});
@@ -102,4 +116,22 @@ extension CareActions on CareHomeState {
       if (mounted) updateUi(() => submittingTasks.remove(id));
     }
   }
+}
+
+class _CareRevealClipper extends CustomClipper<Path> {
+  const _CareRevealClipper(this.origin, this.progress);
+  final Offset origin;
+  final double progress;
+  @override
+  Path getClip(Size size) {
+    final dx = math.max(origin.dx.abs(), (size.width - origin.dx).abs());
+    final dy = math.max(origin.dy.abs(), (size.height - origin.dy).abs());
+    return Path()
+      ..addOval(Rect.fromCircle(
+          center: origin, radius: math.sqrt(dx * dx + dy * dy) * progress));
+  }
+
+  @override
+  bool shouldReclip(_CareRevealClipper old) =>
+      old.origin != origin || old.progress != progress;
 }

@@ -1,5 +1,6 @@
 import '../../core/theme/app_spacing.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import '../../app/home_shell.dart';
 import 'care_actions.dart';
 import 'care_view.dart';
@@ -72,94 +73,8 @@ extension CarePages on CareHomeState {
         ),
       );
 
-  Future<void> openSchedules() {
-    String filter = 'pending';
-    return _openCarePage(t('全部安排', 'All plans'), (refresh) {
-      final petId = selectedPet?['id'];
-      final petTasks = tasks.where((task) => task['petId'] == petId).toList()
-        ..sort((a, b) => DateTime.parse(a['dueAt'] as String)
-            .compareTo(DateTime.parse(b['dueAt'] as String)));
-      final petPlans = plans.where((plan) => plan['petId'] == petId).toList();
-      final visible = petTasks
-          .where(
-              (task) => (task['completed'] == true) == (filter == 'completed'))
-          .toList();
-      return [
-        Text(t('${selectedPet?['name'] ?? '宠物'}的照护安排',
-            'Care for ${selectedPet?['name'] ?? 'your pet'}')),
-        const SizedBox(height: AppSpacing.content),
-        FilledButton.icon(
-          key: const ValueKey('create-schedule'),
-          onPressed: busy
-              ? null
-              : () async {
-                  final existing = tasks.map((task) => task['id']).toSet();
-                  await addTask();
-                  final created = tasks
-                      .where((task) => !existing.contains(task['id']))
-                      .firstOrNull;
-                  if (created != null) {
-                    if (filter != 'recurring' || created['planId'] == null) {
-                      filter = 'pending';
-                    }
-                    refresh();
-                  }
-                },
-          icon: const Icon(Icons.add_rounded),
-          label: Text(t('新建安排', 'New plan')),
-        ),
-        TextButton(
-            onPressed: () => openCareArchive(),
-            child: Text(t('查看全部日期的安排', 'Browse all dates'))),
-        const SizedBox(height: AppSpacing.section),
-        SegmentedButton<String>(
-          showSelectedIcon: false,
-          segments: [
-            ButtonSegment(value: 'pending', label: Text(t('待照护', 'Pending'))),
-            ButtonSegment(
-                value: 'completed', label: Text(t('已完成', 'Completed'))),
-            ButtonSegment(
-                value: 'recurring', label: Text(t('重复计划', 'Recurring'))),
-          ],
-          selected: {filter},
-          onSelectionChanged: (values) {
-            filter = values.first;
-            refresh();
-          },
-        ),
-        const SizedBox(height: AppSpacing.section),
-        if (filter == 'recurring') ...[
-          if (petPlans.isEmpty)
-            empty(
-                t('还没有重复计划', 'No recurring plans'),
-                t('点击新建安排，选择每天或每周。',
-                    'Create a plan and choose daily or weekly.'),
-                Icons.repeat_rounded),
-          for (final plan in petPlans)
-            Card(
-              child: ListTile(
-                leading: CareKind.of(plan).picture(size: 52),
-                title: Text(plan['title'] as String),
-                subtitle: Text(
-                    '${frequencyLabel(plan)} · ${plan['active'] == true ? t('进行中', 'Active') : t('已停止', 'Stopped')}'),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => openPlanDetails(plan),
-              ),
-            ),
-        ] else ...[
-          if (visible.isEmpty)
-            empty(
-                filter == 'completed'
-                    ? t('还没有已完成安排', 'No completed plans')
-                    : t('还没有待照护安排', 'No pending plans'),
-                t('随时可以通过上方按钮新建安排。',
-                    'Use the button above to plan care anytime.'),
-                Icons.event_available_rounded),
-          ...visible.map(_scheduleCard),
-        ],
-      ];
-    });
-  }
+  Future<void> openSchedules() => Navigator.of(context).push<void>(
+      MaterialPageRoute(builder: (_) => _SchedulesPage(home: this)));
 
   Future<void> openCareArchive({bool events = false}) async {
     final petId = selectedPet?['id'];
@@ -561,4 +476,186 @@ class _CarePageState extends State<_CarePage> {
           ),
         ),
       );
+}
+
+class _SchedulesPage extends StatefulWidget {
+  const _SchedulesPage({required this.home});
+  final CareHomeState home;
+  @override
+  State<_SchedulesPage> createState() => _SchedulesPageState();
+}
+
+class _SchedulesPageState extends State<_SchedulesPage>
+    with SingleTickerProviderStateMixin {
+  late final TabController tabs = TabController(length: 3, vsync: this);
+  final createKey = GlobalKey();
+  bool creating = false;
+
+  @override
+  void dispose() {
+    tabs.dispose();
+    super.dispose();
+  }
+
+  Future<void> create() async {
+    if (creating) return;
+    final box = createKey.currentContext!.findRenderObject()! as RenderBox;
+    final origin = box.localToGlobal(box.size.center(Offset.zero));
+    final existing = widget.home.tasks.map((task) => task['id']).toSet();
+    setState(() => creating = true);
+    try {
+      await widget.home.addTask(revealOrigin: origin);
+      if (!mounted) return;
+      final created = widget.home.tasks
+          .where((task) => !existing.contains(task['id']))
+          .firstOrNull;
+      if (created != null) {
+        tabs.animateTo(created['planId'] == null ? 0 : 2,
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 260));
+      }
+    } finally {
+      if (mounted) setState(() => creating = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final home = widget.home;
+    final reduced = MediaQuery.disableAnimationsOf(context);
+    return ListenableBuilder(
+        listenable: home.careChanges,
+        builder: (context, _) {
+          final petId = home.selectedPet?['id'];
+          final tasks = home.tasks
+              .where(
+                  (task) => task['petId'] == petId && task['cancelled'] != true)
+              .toList()
+            ..sort((a, b) => DateTime.parse(a['dueAt'] as String)
+                .compareTo(DateTime.parse(b['dueAt'] as String)));
+          final plans =
+              home.plans.where((plan) => plan['petId'] == petId).toList();
+          Widget page(int index) {
+            final visible = tasks
+                .where((task) => (task['completed'] == true) == (index == 1))
+                .toList();
+            return ListView(
+              key: PageStorageKey('schedules-$petId-$index'),
+              padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.page, AppSpacing.section, AppSpacing.page, 104),
+              children: index == 2
+                  ? [
+                      if (plans.isEmpty)
+                        home.empty(
+                            home.t('还没有重复计划', 'No recurring plans'),
+                            home.t('点击右下角新建安排，选择每天或每周。',
+                                'Use New plan and choose daily or weekly.'),
+                            Icons.repeat_rounded),
+                      for (final plan in plans)
+                        Card(
+                            child: ListTile(
+                          leading: CareKind.of(plan).picture(size: 52),
+                          title: Text(plan['title'] as String),
+                          subtitle: Text(
+                              '${home.frequencyLabel(plan)} · ${plan['active'] == true ? home.t('进行中', 'Active') : home.t('已停止', 'Stopped')}'),
+                          trailing: const Icon(Icons.chevron_right_rounded),
+                          onTap: () => home.openPlanDetails(plan),
+                        )),
+                    ]
+                  : [
+                      if (visible.isEmpty)
+                        home.empty(
+                            index == 1
+                                ? home.t('还没有已完成安排', 'No completed plans')
+                                : home.t('还没有待照护安排', 'No pending plans'),
+                            home.t('点击右下角按钮新建安排。',
+                                'Use the floating button to plan care.'),
+                            Icons.event_available_rounded),
+                      ...visible.map(home._scheduleCard),
+                    ],
+            );
+          }
+
+          return Scaffold(
+            appBar: AppBar(title: Text(home.t('全部安排', 'All plans'))),
+            floatingActionButton: FloatingActionButton(
+              key: createKey,
+              heroTag: null,
+              onPressed: home.busy || creating ? null : create,
+              shape: const CircleBorder(),
+              tooltip: home.t('新建安排', 'New plan'),
+              child: const Icon(Icons.add_rounded,
+                  key: ValueKey('create-schedule')),
+            ),
+            body: SafeArea(
+                child: Center(
+                    child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 760),
+              child: Column(children: [
+                Padding(
+                    padding: const EdgeInsets.fromLTRB(AppSpacing.page,
+                        AppSpacing.content, AppSpacing.page, 0),
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(home.t(
+                              '${home.selectedPet?['name'] ?? '宠物'}的照护安排',
+                              'Care for ${home.selectedPet?['name'] ?? 'your pet'}')),
+                          const SizedBox(height: AppSpacing.inline),
+                          TextButton(
+                              onPressed: () => home.openCareArchive(),
+                              child: Text(
+                                  home.t('查看全部日期的安排', 'Browse all dates'))),
+                          const SizedBox(height: AppSpacing.content),
+                          AnimatedBuilder(
+                            animation: tabs,
+                            builder: (context, _) =>
+                                CupertinoSlidingSegmentedControl<int>(
+                              key: ValueKey(reduced ? tabs.index : -1),
+                              groupValue: tabs.index,
+                              backgroundColor: const Color(0xfff1eae2),
+                              thumbColor: const Color(0xfffffdf9),
+                              proportionalWidth: false,
+                              onValueChanged: (index) {
+                                if (index != null) {
+                                  tabs.animateTo(index,
+                                      duration: reduced
+                                          ? Duration.zero
+                                          : const Duration(milliseconds: 260));
+                                }
+                              },
+                              children: {
+                                for (final entry in <int, String>{
+                                  0: home.t('待照护', 'Pending'),
+                                  1: home.t('已完成', 'Completed'),
+                                  2: home.t('重复计划', 'Recurring'),
+                                }.entries)
+                                  entry.key: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: AppSpacing.inline),
+                                    child: Text(entry.value,
+                                        style: TextStyle(
+                                            color: const Color(0xff5b3b2e),
+                                            fontSize: 14,
+                                            fontWeight: tabs.index == entry.key
+                                                ? FontWeight.w600
+                                                : FontWeight.w400)),
+                                  ),
+                              },
+                            ),
+                          ),
+                        ])),
+                Expanded(
+                    child: TabBarView(
+                        controller: tabs,
+                        physics: reduced
+                            ? const NeverScrollableScrollPhysics()
+                            : null,
+                        children: [page(0), page(1), page(2)])),
+              ]),
+            ))),
+          );
+        });
+  }
 }
