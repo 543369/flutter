@@ -1,9 +1,11 @@
+import '../../core/theme/app_spacing.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/services.dart';
 import 'email_action_page.dart';
 import 'package:flutter/material.dart';
 import '../../core/network/care_api.dart';
+import '../../core/widgets/brand_motion.dart';
 
 class AuthPanel extends StatefulWidget {
   const AuthPanel(
@@ -120,16 +122,16 @@ class _AuthPanelState extends State<AuthPanel> {
           child: AutofillGroup(
               child: Form(
                   key: form,
-                  child: ListView(padding: const EdgeInsets.all(24), children: [
-                    const Icon(Icons.pets, size: 56),
-                    const SizedBox(height: 16),
+                  child: ListView(padding: AppSpacing.pageInsets, children: [
+                    const PawMark(size: 44),
+                    const SizedBox(height: AppSpacing.content),
                     Text(
                         registering
                             ? t('创建爪伴账号', 'Create your PetCare account')
                             : t('欢迎回来', 'Welcome back'),
                         style: Theme.of(context).textTheme.headlineSmall,
                         textAlign: TextAlign.center),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppSpacing.inline),
                     Text(
                         widget.binding
                             ? t('绑定后保留所有现有资料。',
@@ -137,7 +139,7 @@ class _AuthPanelState extends State<AuthPanel> {
                             : t('登录后，与家人一起照顾宠物。',
                                 'Sign in to care for your pets together.'),
                         textAlign: TextAlign.center),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: AppSpacing.section),
                     if (registering) ...[
                       TextFormField(
                           controller: name,
@@ -150,7 +152,7 @@ class _AuthPanelState extends State<AuthPanel> {
                               helperText: t('留空将按设备地区生成昵称，可在家庭 → 个人资料修改。',
                                   'Leave blank for a local nickname. Change it in Family → Personal profile.')),
                           validator: (v) => null),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: AppSpacing.item),
                     ],
                     TextFormField(
                         controller: email,
@@ -167,7 +169,7 @@ class _AuthPanelState extends State<AuthPanel> {
                                     .hasMatch(v.trim())
                             ? t('请输入有效邮箱', 'Enter a valid email')
                             : null),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AppSpacing.content),
                     TextFormField(
                         controller: password,
                         enabled: !busy,
@@ -201,7 +203,7 @@ class _AuthPanelState extends State<AuthPanel> {
                         onFieldSubmitted: (_) {
                           if (!registering) submit();
                         }),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AppSpacing.content),
                     if (registering) ...[
                       TextFormField(
                           controller: confirmation,
@@ -213,7 +215,7 @@ class _AuthPanelState extends State<AuthPanel> {
                               ? t('两次密码不一致', 'Passwords do not match')
                               : null,
                           onFieldSubmitted: (_) => submit()),
-                      const SizedBox(height: 16)
+                      const SizedBox(height: AppSpacing.content)
                     ],
                     if (error != null)
                       Padding(

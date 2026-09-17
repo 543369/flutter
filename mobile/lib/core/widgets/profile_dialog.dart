@@ -1,3 +1,4 @@
+import '../theme/app_spacing.dart';
 import 'package:flutter/material.dart';
 
 /// A compact form with a scrollable body and a footer that stays reachable.
@@ -30,8 +31,9 @@ class ProfileDialog extends StatelessWidget {
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
-                color: const Color(0xffffefcc),
+                padding: const EdgeInsets.fromLTRB(AppSpacing.section,
+                    AppSpacing.section, AppSpacing.section, AppSpacing.content),
+                color: Theme.of(context).colorScheme.surfaceContainerLow,
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -40,13 +42,14 @@ class ProfileDialog extends StatelessWidget {
                               .textTheme
                               .headlineSmall
                               ?.copyWith(fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 6),
-                      Text(subtitle),
+                      const SizedBox(height: AppSpacing.inline),
+                      Text(subtitle,
+                          style: Theme.of(context).textTheme.bodyMedium),
                     ]),
               ),
               Flexible(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(22),
+                  padding: AppSpacing.dialogInsets,
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       mainAxisSize: MainAxisSize.min,
@@ -55,29 +58,36 @@ class ProfileDialog extends StatelessWidget {
               ),
               if (error != null)
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 22),
-                  child: Text(error!,
-                      style: TextStyle(
-                          color: Theme.of(context).colorScheme.error)),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.section),
+                  child: Semantics(
+                      liveRegion: true,
+                      child: Text(error!,
+                          style: TextStyle(
+                              color: Theme.of(context).colorScheme.error))),
                 ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(22, 14, 22, 20),
+                padding: const EdgeInsets.fromLTRB(AppSpacing.section,
+                    AppSpacing.item, AppSpacing.section, AppSpacing.section),
                 child: Row(children: [
                   Expanded(
-                      child: OutlinedButton(
+                      child: TextButton(
                           onPressed:
                               saving ? null : () => Navigator.of(context).pop(),
                           child: Text(cancelLabel))),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: AppSpacing.item),
                   Expanded(
                       child: FilledButton(
                           onPressed: saving ? null : onSave,
                           child: saving
-                              ? const SizedBox(
+                              ? SizedBox(
                                   width: 22,
                                   height: 22,
-                                  child:
-                                      CircularProgressIndicator(strokeWidth: 2))
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onPrimary))
                               : Text(saveLabel))),
                 ]),
               ),
