@@ -47,7 +47,7 @@ class CareController extends ApiSupport {
   return Map.of("id",task);
  }
  @PatchMapping("/tasks/{taskId}") @Transactional
- Map<String,Boolean> complete(Authentication auth, @PathVariable String taskId, @Valid @RequestBody Completion input) {
+ Map<String,Object> complete(Authentication auth, @PathVariable String taskId, @Valid @RequestBody Completion input) {
   String home = permission(auth,"CARE");
   var states = db.queryForList("SELECT t.completed FROM care_tasks t JOIN pets p ON p.id=t.pet_id WHERE t.id=? AND p.household_id=? AND t.cancelled=FALSE FOR UPDATE",Boolean.class,taskId,home);
   if (states.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
@@ -55,7 +55,68 @@ class CareController extends ApiSupport {
    db.update("UPDATE care_tasks SET completed=? WHERE id=?",input.completed(),taskId);
    db.update("INSERT INTO care_events(id,task_id,actor_id,action,happened_at) VALUES (?,?,?,?,?)",id(),taskId,auth.getName(),input.completed()?"COMPLETED":"REOPENED",Timestamp.from(Instant.now()));
   }
-  return Map.of("completed",input.completed());
+  var result=task(home,taskId);
+  result.put("reminderTasks",CareReminders.list(db,home));
+  return result;
+ }
+
+ private Map<String,Object> task(String home,String taskId) {
+  var rows=db.query("SELECT t.id,t.pet_id,t.title,t.due_at,t.completed,p.name,t.plan_id,t.care_type,t.assigned_to,t.cancelled FROM care_tasks t JOIN pets p ON p.id=t.pet_id WHERE t.id=? AND p.household_id=?",(r,n)-> {
+   Map<String,Object> row=new LinkedHashMap<>();
+   row.put("id",r.getString(1));row.put("petId",r.getString(2));row.put("title",r.getString(3));row.put("dueAt",r.getTimestamp(4).toInstant().toString());row.put("completed",r.getBoolean(5));row.put("petName",r.getString(6));row.put("planId",r.getString(7));row.put("careType",r.getString(8));row.put("assignedTo",r.getString(9));row.put("cancelled",r.getBoolean(10));return row;
+  },taskId,home);
+  if(rows.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+  var row=rows.getFirst();
+  var events=db.query("SELECT e.id,e.action,e.happened_at,a.display_name FROM care_events e LEFT JOIN accounts a ON a.id=e.actor_id WHERE e.task_id=? ORDER BY e.happened_at DESC,e.id DESC LIMIT 1",(r,n)-> {
+   Map<String,Object> e=new LinkedHashMap<>();e.put("id",r.getString(1));e.put("action",r.getString(2));e.put("at",r.getTimestamp(3).toInstant().toString());e.put("actor",r.getString(4));return e;
+  },taskId);
+  if(!events.isEmpty()) row.put("lastEvent",events.getFirst());
+  return row;
+ }
+ @GetMapping("/tasks/{taskId}") @Transactional
+ Map<String,Object> getTask(Authentication auth,@PathVariable String taskId) {
+  return task(permission(auth,"READ"),taskId);
+ }
+ record Adjustment(@NotNull Instant dueAt) {}
+ @PatchMapping("/tasks/{taskId}/time") @Transactional
+ Map<String,Object> reschedule(Authentication auth,@PathVariable String taskId,@Valid @RequestBody Adjustment input) {
+  String home=permission(auth,"CARE");
+  if(input.dueAt().isBefore(Instant.now()) || input.dueAt().isAfter(Instant.parse("2037-12-31T23:59:59Z"))) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+  var old=task(home,taskId);
+  if(Boolean.TRUE.equals(old.get("completed")) || Boolean.TRUE.equals(old.get("cancelled"))) throw new ResponseStatusException(HttpStatus.CONFLICT,"TASK_NOT_PENDING");
+  String next=taskId;
+  if(old.get("planId")!=null) {
+   // Keep the original occurrence as a tombstone so materialize cannot recreate it.
+   db.update("UPDATE care_tasks SET cancelled=TRUE WHERE id=?",taskId);
+   next=id();
+   db.update("INSERT INTO care_tasks(id,pet_id,title,due_at,care_type,assigned_to) VALUES (?,?,?,?,?,?)",next,old.get("petId"),old.get("title"),Timestamp.from(input.dueAt()),old.get("careType"),old.get("assignedTo"));
+  } else db.update("UPDATE care_tasks SET due_at=? WHERE id=?",Timestamp.from(input.dueAt()),taskId);
+  db.update("INSERT INTO care_events(id,task_id,actor_id,action,happened_at) VALUES (?,?,?,?,?)",id(),taskId,auth.getName(),"RESCHEDULED",Timestamp.from(Instant.now()));
+  return task(home,next);
+ }
+ record Dismissal(@NotBlank @Pattern(regexp="SKIPPED|CANCELLED") String action) {}
+ @PostMapping("/tasks/{taskId}/dismiss") @Transactional
+ Map<String,Object> dismiss(Authentication auth,@PathVariable String taskId,@Valid @RequestBody Dismissal input) {
+  String home=permission(auth,"CARE");var old=task(home,taskId);
+  if(Boolean.TRUE.equals(old.get("completed"))) throw new ResponseStatusException(HttpStatus.CONFLICT,"TASK_NOT_PENDING");
+  if(!Boolean.TRUE.equals(old.get("cancelled"))) {
+   db.update("UPDATE care_tasks SET cancelled=TRUE WHERE id=?",taskId);
+   db.update("INSERT INTO care_events(id,task_id,actor_id,action,happened_at) VALUES (?,?,?,?,?)",id(),taskId,auth.getName(),input.action(),Timestamp.from(Instant.now()));
+  }
+  return task(home,taskId);
+ }
+ record PlanAdjustment(@NotNull Instant dueAt,@NotBlank @Pattern(regexp="DAILY|WEEKLY") String frequency,@NotBlank String zoneId) {}
+ @PatchMapping("/plans/{planId}/future") @Transactional
+ Map<String,String> adjustPlan(Authentication auth,@PathVariable String planId,@Valid @RequestBody PlanAdjustment input) {
+  String home=permission(auth,"CARE");
+  if(!input.dueAt().isAfter(Instant.now())) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+  var rows=db.queryForList("SELECT c.* FROM care_plans c JOIN pets p ON p.id=c.pet_id WHERE c.id=? AND p.household_id=? AND c.active=TRUE",planId,home);
+  if(rows.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+  var old=rows.getFirst();
+  // New plan identity preserves old history and occurrence uniqueness.
+  var result=addTask(auth,new TaskInput((String)old.get("pet_id"),(String)old.get("title"),input.dueAt(),input.frequency(),input.zoneId(),(String)old.get("care_type")));
+  stopPlan(auth,planId);
+  return result;
  }
  record Assignment(String memberId) {}
  @PatchMapping("/tasks/{taskId}/assignment") @Transactional

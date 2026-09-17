@@ -55,6 +55,14 @@ class PetController extends ApiSupport {
   benefits.checkGrowth(home,before);
   return Map.of("id",petId);
  }
+ @GetMapping("/pets/{petId}/photos") @Transactional
+ Map<String,Object> photos(Authentication auth,@PathVariable String petId) {
+  String home=permission(auth,"READ");
+  if(db.queryForObject("SELECT COUNT(*) FROM pets WHERE id=? AND household_id=?",Integer.class,petId,home)!=1) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+  var gallery=db.queryForList("SELECT photo_data FROM pet_photos WHERE pet_id=? ORDER BY position_index",String.class,petId);
+  Map<String,Object> result=new LinkedHashMap<>();result.put("photos",gallery);
+  result.put("photoData",db.queryForObject("SELECT photo_data FROM pets WHERE id=?",String.class,petId));return result;
+ }
  private void savePhotos(String petId, List<String> photos) {
   for (String photo : photos) {
    try {
@@ -64,7 +72,7 @@ class PetController extends ApiSupport {
   db.update("DELETE FROM pet_photos WHERE pet_id=?",petId);
   for (int i=0;i<photos.size();i++)
    db.update("INSERT INTO pet_photos(pet_id,position_index,photo_data) VALUES (?,?,?)",petId,i,photos.get(i));
-  db.update("UPDATE pets SET photo_data=? WHERE id=?",photos.isEmpty()?null:photos.getFirst(),petId);
+  db.update("UPDATE pets SET photo_data=?,photo_revision=photo_revision+1 WHERE id=?",photos.isEmpty()?null:photos.getFirst(),petId);
  }
  @DeleteMapping("/pets/{petId}") @ResponseStatus(HttpStatus.NO_CONTENT) @Transactional
  void deletePet(Authentication auth, @PathVariable String petId) {
