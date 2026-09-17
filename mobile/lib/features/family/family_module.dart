@@ -364,6 +364,7 @@ extension FamilyModule on CareHomeState {
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: openReminderSettings),
             ExpansionTile(
+                key: const PageStorageKey('family-data-privacy'),
                 leading: const Icon(Icons.lock_outline_rounded),
                 title: Text(t('数据与隐私', 'Data & privacy')),
                 childrenPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
