@@ -1,3 +1,4 @@
+import '../../core/theme/app_spacing.dart';
 import 'package:flutter/material.dart';
 import '../../app/home_shell.dart';
 import 'care_actions.dart';
@@ -27,7 +28,7 @@ extension CarePages on CareHomeState {
   }
 
   Widget _detailField(String label, String value) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.inline),
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           SizedBox(width: 94, child: Text(label)),
           Expanded(
@@ -39,21 +40,23 @@ extension CarePages on CareHomeState {
 
   Widget _detailCard(List<Widget> children) => Card(
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: AppSpacing.cardInsets,
           child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: children),
         ),
       );
 
-  Widget _sectionTitle(String title) => Padding(
-      padding: const EdgeInsets.only(top: 16, bottom: 12),
+  Widget _sectionTitle(String title, {bool afterCard = false}) => Padding(
+      padding: EdgeInsets.only(
+          top: afterCard ? AppSpacing.item : AppSpacing.section,
+          bottom: AppSpacing.item),
       child: Text(title, style: Theme.of(context).textTheme.titleLarge));
 
   Widget _scheduleCard(Map<String, dynamic> task) => Card(
         child: ListTile(
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+          contentPadding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.content, vertical: AppSpacing.inline),
           leading: CareKind.of(task).picture(size: 52),
           title: Text(task['title'] as String,
               style: const TextStyle(fontWeight: FontWeight.w700)),
@@ -80,7 +83,7 @@ extension CarePages on CareHomeState {
       return [
         Text(t('${selectedPet?['name'] ?? '宠物'}的照护安排',
             'Care for ${selectedPet?['name'] ?? 'your pet'}')),
-        const SizedBox(height: 16),
+        const SizedBox(height: AppSpacing.content),
         FilledButton.icon(
           key: const ValueKey('create-schedule'),
           onPressed: busy
@@ -101,7 +104,7 @@ extension CarePages on CareHomeState {
           icon: const Icon(Icons.add_rounded),
           label: Text(t('新建安排', 'New plan')),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: AppSpacing.section),
         SegmentedButton<String>(
           showSelectedIcon: false,
           segments: [
@@ -117,7 +120,7 @@ extension CarePages on CareHomeState {
             refresh();
           },
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: AppSpacing.section),
         if (filter == 'recurring') ...[
           if (petPlans.isEmpty)
             empty(
@@ -192,11 +195,11 @@ extension CarePages on CareHomeState {
         final completed = task['completed'] == true;
         return [
           CareKind.of(task).picture(size: 148),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.content),
           _detailCard([
             Text(task['title'] as String,
                 style: Theme.of(context).textTheme.headlineMedium),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.item),
             _detailField(t('宠物', 'Pet'), task['petName'] as String),
             _detailField(
                 t('负责照护', 'Assigned caregiver'),
@@ -211,26 +214,33 @@ extension CarePages on CareHomeState {
             _detailField(t('状态', 'Status'),
                 completed ? t('已完成', 'Completed') : t('待照护', 'Pending')),
           ]),
-          OutlinedButton.icon(
-              onPressed: busy ? null : () => assignCare(task),
-              icon: const Icon(Icons.person_add_alt_outlined),
-              label: Text(t('指定照护人', 'Assign caregiver'))),
-          FilledButton.icon(
-            onPressed: busy ? null : () => changeCompletion(task, !completed),
-            icon: Icon(
-                completed ? Icons.undo_rounded : Icons.check_circle_rounded),
-            label: Text(completed
-                ? t('撤销完成', 'Undo completion')
-                : t('标记完成', 'Mark as done')),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            spacing: AppSpacing.item,
+            children: [
+              OutlinedButton.icon(
+                  onPressed: busy ? null : () => assignCare(task),
+                  icon: const Icon(Icons.person_add_alt_outlined),
+                  label: Text(t('指定照护人', 'Assign caregiver'))),
+              FilledButton.icon(
+                onPressed:
+                    busy ? null : () => changeCompletion(task, !completed),
+                icon: Icon(completed
+                    ? Icons.undo_rounded
+                    : Icons.check_circle_rounded),
+                label: Text(completed
+                    ? t('撤销完成', 'Undo completion')
+                    : t('标记完成', 'Mark as done')),
+              ),
+              if (plan != null) ...[
+                OutlinedButton.icon(
+                  onPressed: () => openPlanDetails(plan),
+                  icon: const Icon(Icons.repeat_rounded),
+                  label: Text(t('查看重复计划', 'View recurring plan')),
+                ),
+              ],
+            ],
           ),
-          if (plan != null) ...[
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: () => openPlanDetails(plan),
-              icon: const Icon(Icons.repeat_rounded),
-              label: Text(t('查看重复计划', 'View recurring plan')),
-            ),
-          ],
           _sectionTitle(t('相关照护记录', 'Related care history')),
           if (events.isEmpty)
             Text(t('完成照护后，会在这里记录时间和照护人。',
@@ -255,11 +265,11 @@ extension CarePages on CareHomeState {
             tasks.where((item) => item['id'] == event['taskId']).firstOrNull;
         return [
           CareKind.of(event).picture(size: 148),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.content),
           _detailCard([
             Text(event['title'] as String,
                 style: Theme.of(context).textTheme.headlineMedium),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.item),
             _detailField(t('宠物', 'Pet'), event['petName'] as String),
             _detailField(t('记录时间', 'Recorded'),
                 dateLabel(DateTime.parse(event['at'] as String).toLocal())),
@@ -290,7 +300,7 @@ extension CarePages on CareHomeState {
           _detailCard([
             Text(plan['title'] as String,
                 style: Theme.of(context).textTheme.headlineMedium),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.item),
             _detailField(t('宠物', 'Pet'), plan['petName'] as String),
             _detailField(t('重复', 'Repeat'), frequencyLabel(plan)),
             if (plan['zoneId'] != null)
@@ -301,7 +311,7 @@ extension CarePages on CareHomeState {
                     ? t('进行中', 'Active')
                     : t('已停止', 'Stopped')),
           ]),
-          _sectionTitle(t('关联安排', 'Scheduled care')),
+          _sectionTitle(t('关联安排', 'Scheduled care'), afterCard: true),
           if (occurrences.isEmpty)
             Text(t('暂无关联安排。', 'No scheduled care available.')),
           ...occurrences.map(_scheduleCard),
@@ -314,13 +324,13 @@ extension CarePages on CareHomeState {
             _detailCard([
               const Icon(Icons.notifications_none_rounded,
                   size: 44, color: Color(0xffd95e32)),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.content),
               Text(t('照护时间到了，提醒你', 'A reminder when care is due'),
                   style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.inline),
               Text(t('为这台设备开启通知，接收家庭中所有宠物的照护提醒。',
                   'Enable notifications on this device for all pets in your household.')),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.item),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 title: Text(t('到时提醒', 'Care reminders')),
@@ -367,7 +377,7 @@ class _CarePageState extends State<_CarePage> {
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 760),
                     child: ListView(
-                      padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+                      padding: AppSpacing.pageInsets,
                       children: widget.content(() {
                         if (mounted) setState(() {});
                       }),

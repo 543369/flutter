@@ -1,3 +1,4 @@
+import '../../core/theme/app_spacing.dart';
 import 'package:flutter/material.dart';
 import '../../app/home_shell.dart';
 import '../../core/widgets/profile_dialog.dart';
@@ -87,6 +88,10 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
         cancelLabel: t('取消', 'Cancel'),
         children: [
           DropdownButtonFormField<String>(
+            borderRadius: BorderRadius.circular(16),
+            dropdownColor: Theme.of(context).colorScheme.surface,
+            elevation: 3,
+            icon: const Icon(Icons.expand_more_rounded, size: 20),
             key: const ValueKey('task-pet'),
             initialValue: petId,
             isExpanded: true,
@@ -99,14 +104,14 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
                 .toList(),
             onChanged: saving ? null : (v) => setState(() => petId = v!),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: AppSpacing.section),
           Text(t('照护类型', 'Care type'),
               style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 10),
+          const SizedBox(height: AppSpacing.inline),
           LayoutBuilder(
               builder: (context, constraints) => Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                  spacing: AppSpacing.inline,
+                  runSpacing: AppSpacing.inline,
                   children: CareKind.values
                       .map((item) => SizedBox(
                             width: (constraints.maxWidth - 16) / 3,
@@ -141,7 +146,8 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
                                           vertical: 8, horizontal: 2),
                                       child: Column(children: [
                                         item.picture(size: 54),
-                                        const SizedBox(height: 4),
+                                        const SizedBox(
+                                            height: AppSpacing.tight),
                                         Text(item.label(widget.home.zh),
                                             textAlign: TextAlign.center,
                                             style: TextStyle(
@@ -155,7 +161,7 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
                             ),
                           ))
                       .toList())),
-          const SizedBox(height: 18),
+          const SizedBox(height: AppSpacing.content),
           TextField(
               controller: title,
               enabled: !saving,
@@ -165,8 +171,12 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
                   labelText: t('安排名称', 'Plan name'),
                   hintText: t('例如：晚饭后遛狗', 'e.g. Evening walk')),
               onChanged: (_) => setState(() {})),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.inline),
           DropdownButtonFormField<String>(
+            borderRadius: BorderRadius.circular(16),
+            dropdownColor: Theme.of(context).colorScheme.surface,
+            elevation: 3,
+            icon: const Icon(Icons.expand_more_rounded, size: 20),
             initialValue: frequency,
             decoration: InputDecoration(
                 labelText: t('重复', 'Repeat'),
@@ -178,7 +188,7 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
             ],
             onChanged: saving ? null : (v) => setState(() => frequency = v!),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: AppSpacing.item),
           OutlinedButton.icon(
               onPressed: saving ? null : pickDate,
               icon: const Icon(Icons.schedule_rounded),

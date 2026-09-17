@@ -1,3 +1,4 @@
+import '../core/theme/app_spacing.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../core/network/care_api.dart';
@@ -6,6 +7,7 @@ import '../features/care/reminder_service.dart';
 import '../features/care/care_view.dart';
 import '../features/pets/pet_module.dart';
 import '../features/family/family_module.dart';
+import '../core/widgets/brand_motion.dart';
 
 class CareHome extends StatefulWidget {
   const CareHome(
@@ -356,62 +358,93 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
     return Scaffold(
       appBar: data == null || tab == 0
           ? null
-          : AppBar(title: Text(t('爪伴', 'PetCare')), actions: [
-              IconButton(
+          : AppBar(
+              title: const BrandWordmark(),
+              actions: [
+                IconButton(
                   tooltip: t('切换语言', 'Switch language'),
                   onPressed: () => widget.onLocale(Locale(zh ? 'en' : 'zh')),
-                  icon: const Icon(Icons.language)),
-              if (data != null)
-                IconButton(
+                  icon: const Icon(Icons.language),
+                ),
+                if (data != null)
+                  IconButton(
                     tooltip: t('刷新', 'Refresh'),
                     onPressed: busy ? null : () => perform(() async {}),
-                    icon: const Icon(Icons.refresh)),
-            ]),
+                    icon: const Icon(Icons.refresh),
+                  ),
+              ],
+            ),
       body: SafeArea(
-          child: Center(
-              child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 760),
-        child: loading
-            ? const Center(child: CircularProgressIndicator())
-            : Column(children: [
-                if (busy) const LinearProgressIndicator(),
-                Expanded(
-                    child: data == null
-                        ? welcome()
-                        : RefreshIndicator(
-                            onRefresh: () => perform(() async {}),
-                            child: ListView(
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              padding: tab == 0
-                                  ? const EdgeInsets.only(bottom: 24)
-                                  : const EdgeInsets.fromLTRB(18, 14, 18, 104),
-                              children: tab == 0
-                                  ? careView()
-                                  : tab == 1
-                                      ? petView()
-                                      : familyView(),
-                            ))),
-              ]),
-      ))),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 760),
+            child: GentleSwitch(
+              child: loading
+                  ? const SizedBox.expand(
+                      key: ValueKey('loading'),
+                      child: PawLoading(),
+                    )
+                  : Stack(
+                      key: const ValueKey('content'),
+                      children: [
+                        Positioned.fill(
+                          child: data == null
+                              ? welcome()
+                              : GentleSwitch(
+                                  child: RefreshIndicator(
+                                    key: ValueKey(tab),
+                                    onRefresh: () => perform(() async {}),
+                                    child: tab == 0
+                                        ? careScrollView()
+                                        : ListView(
+                                            key:
+                                                PageStorageKey('home-tab-$tab'),
+                                            physics:
+                                                const AlwaysScrollableScrollPhysics(),
+                                            padding: AppSpacing.pageInsets,
+                                            children: tab == 1
+                                                ? petView()
+                                                : familyView(),
+                                          ),
+                                  ),
+                                ),
+                        ),
+                        if (busy)
+                          const Positioned(
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            child: LinearProgressIndicator(minHeight: 2),
+                          ),
+                      ],
+                    ),
+            ),
+          ),
+        ),
+      ),
       bottomNavigationBar: data == null
           ? null
           : NavigationBar(
               selectedIndex: tab,
               onDestinationSelected: (v) => updateUi(() => tab = v),
               destinations: [
-                  NavigationDestination(
-                      icon: const Icon(Icons.check_circle_outline_rounded),
-                      selectedIcon: const Icon(Icons.check_circle_rounded),
-                      label: t('照护', 'Care')),
-                  NavigationDestination(
-                      icon: const Icon(Icons.pets_outlined),
-                      selectedIcon: const Icon(Icons.pets),
-                      label: t('宠物', 'Pets')),
-                  NavigationDestination(
-                      icon: const Icon(Icons.people_outline_rounded),
-                      selectedIcon: const Icon(Icons.people_rounded),
-                      label: t('家庭', 'Family')),
-                ]),
+                NavigationDestination(
+                  icon: const Icon(Icons.check_circle_outline_rounded),
+                  selectedIcon: const Icon(Icons.check_circle_rounded),
+                  label: t('照护', 'Care'),
+                ),
+                NavigationDestination(
+                  icon: const Icon(Icons.pets_outlined),
+                  selectedIcon: const Icon(Icons.pets),
+                  label: t('宠物', 'Pets'),
+                ),
+                NavigationDestination(
+                  icon: const Icon(Icons.people_outline_rounded),
+                  selectedIcon: const Icon(Icons.people_rounded),
+                  label: t('家庭', 'Family'),
+                ),
+              ],
+            ),
     );
   }
 

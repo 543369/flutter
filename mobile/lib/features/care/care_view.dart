@@ -1,9 +1,11 @@
+import '../../core/theme/app_spacing.dart';
 import 'package:flutter/material.dart';
 import '../../app/home_shell.dart';
 import 'care_actions.dart';
 import 'care_pages.dart';
 import 'care_kind.dart';
 import '../pets/pet_photo_carousel.dart';
+import '../../core/widgets/brand_motion.dart';
 
 extension CareView on CareHomeState {
   List<Map<String, dynamic>> get history => (data?['history'] as List? ?? [])
@@ -35,6 +37,7 @@ extension CareView on CareHomeState {
 
   Widget _petSelector(Map<String, dynamic>? pet, String name) =>
       PopupMenuButton<String>(
+        clipBehavior: Clip.antiAlias,
         tooltip: t('切换宠物', 'Switch pet'),
         initialValue: pet?['id'] as String?,
         onSelected: (id) => updateUi(() {
@@ -48,7 +51,7 @@ extension CareView on CareHomeState {
                     Icon(item['species'] == 'cat'
                         ? Icons.cruelty_free_rounded
                         : Icons.pets_rounded),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: AppSpacing.inline),
                     Text(item['name'] as String),
                   ]),
                 ))
@@ -59,7 +62,7 @@ extension CareView on CareHomeState {
                   color: Color(0xff34231e),
                   fontSize: 21,
                   fontWeight: FontWeight.w700)),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.inline),
           Container(
               width: 32,
               height: 32,
@@ -88,21 +91,12 @@ extension CareView on CareHomeState {
                 top: 22,
                 right: 22,
                 child: Row(children: [
-                  Stack(clipBehavior: Clip.none, children: [
-                    Text(t('爪伴', 'PetCare'),
-                        style: const TextStyle(
-                            color: Color(0xff34231e),
-                            fontSize: 27,
-                            fontWeight: FontWeight.w800)),
-                    const Positioned(
-                        right: -9,
-                        top: 1,
-                        child: DecoratedBox(
-                            decoration: BoxDecoration(
-                                color: Color(0xffd95e32),
-                                shape: BoxShape.circle),
-                            child: SizedBox(width: 7, height: 7))),
-                  ]),
+                  const DefaultTextStyle(
+                      style: TextStyle(
+                          color: Color(0xff34231e),
+                          fontSize: 24,
+                          fontWeight: FontWeight.w700),
+                      child: BrandWordmark()),
                   const Spacer(),
                   IconButton(
                       tooltip: t('提醒设置', 'Reminder settings'),
@@ -123,7 +117,7 @@ extension CareView on CareHomeState {
                               color: Color(0xff76645a),
                               fontSize: 15,
                               fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: AppSpacing.item),
                       Text(t('今天，\n也要好好陪你。', 'Today,\nwe are here for you.'),
                           style: const TextStyle(
                               color: Color(0xff34231e),
@@ -139,7 +133,7 @@ extension CareView on CareHomeState {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _petSelector(pet, name),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: AppSpacing.tight),
                       Text(
                           pet?['species'] == 'dog'
                               ? t('狗狗', 'Dog')
@@ -162,7 +156,7 @@ extension CareView on CareHomeState {
                   child: Row(children: [
                     const Icon(Icons.check_circle_rounded,
                         size: 20, color: Color(0xff5b4439)),
-                    const SizedBox(width: 7),
+                    const SizedBox(width: AppSpacing.inline),
                     Text(t('$remaining 项待照护', '$remaining tasks to do'),
                         style: const TextStyle(
                             color: Color(0xff4a3730),
@@ -186,11 +180,12 @@ extension CareView on CareHomeState {
       );
 
   Widget _nextCare(Map<String, dynamic> task) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 14, 24, 0),
+        padding: const EdgeInsets.fromLTRB(
+            AppSpacing.page, AppSpacing.content, AppSpacing.page, 0),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
             _sun(),
-            const SizedBox(width: 12),
+            const SizedBox(width: AppSpacing.item),
             Expanded(
                 child: Text(
                     t('接下来，陪${task['petName']}',
@@ -208,57 +203,84 @@ extension CareView on CareHomeState {
                       size: 20, color: Color(0xff867871))
                 ])),
           ]),
-          const SizedBox(height: 16),
-          InkWell(
-            key: const ValueKey('next-care-details'),
+          const SizedBox(height: AppSpacing.content),
+          Material(
+            color: Colors.transparent,
+            clipBehavior: Clip.antiAlias,
             borderRadius: BorderRadius.circular(18),
-            onTap: () => openTaskDetails(task),
-            child:
-                Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-              Expanded(
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            child: InkWell(
+              key: const ValueKey('next-care-details'),
+              borderRadius: BorderRadius.circular(18),
+              onTap: () => openTaskDetails(task),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Text(_time(task),
-                          style: const TextStyle(
-                              color: Color(0xff34231e),
-                              fontSize: 48,
-                              height: .95,
-                              fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 9),
-                      Text(task['title'] as String,
-                          style: const TextStyle(
-                              color: Color(0xff34231e),
-                              fontSize: 21,
-                              fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 6),
-                      Text(
-                          '${frequencyLabel(planFor(task))} · ${t('还未完成', 'Not completed')}'),
+                      Expanded(
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(_time(task),
+                                  style: const TextStyle(
+                                      color: Color(0xff34231e),
+                                      fontSize: 48,
+                                      height: .95,
+                                      fontWeight: FontWeight.w700)),
+                              const SizedBox(height: AppSpacing.inline),
+                              Text(task['title'] as String,
+                                  style: const TextStyle(
+                                      color: Color(0xff34231e),
+                                      fontSize: 21,
+                                      fontWeight: FontWeight.w700)),
+                              const SizedBox(height: AppSpacing.inline),
+                              Text(
+                                  '${frequencyLabel(planFor(task))} · ${t('还未完成', 'Not completed')}'),
+                            ]),
+                      ),
+                      const SizedBox(width: AppSpacing.inline),
+                      Flexible(
+                        child: SizedBox(
+                          height: 120,
+                          child: ShaderMask(
+                            blendMode: BlendMode.dstIn,
+                            shaderCallback: (bounds) => const RadialGradient(
+                              colors: [
+                                Colors.white,
+                                Colors.white,
+                                Colors.transparent
+                              ],
+                              stops: [0, .65, 1],
+                              radius: .72,
+                            ).createShader(bounds),
+                            child: Image.asset(CareKind.of(task).asset,
+                                fit: BoxFit.contain),
+                          ),
+                        ),
+                      ),
                     ]),
               ),
-              SizedBox(
-                  width: 164,
-                  height: 120,
-                  child: Image.asset(CareKind.of(task).asset,
-                      fit: BoxFit.contain)),
-            ]),
+            ),
           ),
-          const SizedBox(height: 17),
-          FilledButton.icon(
-              onPressed: busy ? null : () => changeCompletion(task, true),
-              icon: const Icon(Icons.check_circle_rounded, size: 22),
-              label: Text(CareKind.of(task) == CareKind.feeding
-                  ? t('喂好了', 'Mark as done')
-                  : t('完成照护', 'Mark as done'))),
+          const SizedBox(height: AppSpacing.content),
+          SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                  onPressed: busy ? null : () => changeCompletion(task, true),
+                  icon: const Icon(Icons.check_circle_rounded, size: 22),
+                  label: Text(CareKind.of(task) == CareKind.feeding
+                      ? t('喂好了', 'Mark as done')
+                      : t('完成照护', 'Mark as done')))),
         ]),
       );
 
   Widget _emptyNext() => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+        padding: const EdgeInsets.fromLTRB(
+            AppSpacing.page, AppSpacing.content, AppSpacing.page, 0),
         child: Column(children: [
           Row(children: [
             _sun(),
-            const SizedBox(width: 12),
+            const SizedBox(width: AppSpacing.item),
             Expanded(
                 child: Text(t('今天都照顾好啦', 'All cared for today'),
                     style: const TextStyle(
@@ -266,7 +288,7 @@ extension CareView on CareHomeState {
             TextButton(
                 onPressed: openSchedules, child: Text(t('全部安排', 'All plans'))),
           ]),
-          const SizedBox(height: 18),
+          const SizedBox(height: AppSpacing.content),
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 28),
@@ -276,7 +298,7 @@ extension CareView on CareHomeState {
             child: Column(children: [
               const Icon(Icons.favorite_outline_rounded,
                   size: 52, color: Color(0xff684739)),
-              const SizedBox(height: 10),
+              const SizedBox(height: AppSpacing.inline),
               Text(t('还没有新的照护事项', 'No new care tasks'),
                   style: const TextStyle(
                       color: Color(0xff34231e),
@@ -292,19 +314,21 @@ extension CareView on CareHomeState {
       );
 
   Widget _taskRow(Map<String, dynamic> task) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+        padding: const EdgeInsets.fromLTRB(
+            AppSpacing.page, AppSpacing.item, AppSpacing.page, 0),
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: () => openTaskDetails(task),
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.content, vertical: AppSpacing.item),
             child: Row(children: [
               CareKind.of(task).picture(size: 38),
-              const SizedBox(width: 16),
+              const SizedBox(width: AppSpacing.content),
               Text(_time(task),
                   style:
                       const TextStyle(color: Color(0xff34231e), fontSize: 18)),
-              const SizedBox(width: 18),
+              const SizedBox(width: AppSpacing.content),
               Expanded(
                   child: Text(task['title'] as String,
                       style: const TextStyle(
@@ -326,13 +350,14 @@ extension CareView on CareHomeState {
       child: InkWell(
         onTap: () => openRecordDetails(event),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 13, 14, 12),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.content,
+              AppSpacing.item, AppSpacing.content, AppSpacing.item),
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(
                 '${at.hour.toString().padLeft(2, '0')}:${at.minute.toString().padLeft(2, '0')}',
                 style: const TextStyle(color: Color(0xff746963), fontSize: 13)),
-            const SizedBox(height: 5),
+            const SizedBox(height: AppSpacing.tight),
             Text(event['title'] as String,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -348,7 +373,7 @@ extension CareView on CareHomeState {
                       : Icons.check_circle_rounded,
                   size: 18,
                   color: Color(0xff8a837e)),
-              const SizedBox(width: 6),
+              const SizedBox(width: AppSpacing.inline),
               Expanded(
                   child: Text('${event['petName']} · ${event['actor'] ?? ''}',
                       maxLines: 1,
@@ -365,7 +390,8 @@ extension CareView on CareHomeState {
   Widget _todayHistory(
           List<Map<String, dynamic>> petHistory, int completedCount) =>
       Padding(
-        padding: const EdgeInsets.fromLTRB(24, 22, 24, 10),
+        padding: const EdgeInsets.fromLTRB(AppSpacing.page, AppSpacing.section,
+            AppSpacing.page, AppSpacing.inline),
         child: Column(children: [
           Row(children: [
             Expanded(
@@ -379,13 +405,14 @@ extension CareView on CareHomeState {
                 icon: const Icon(Icons.history_rounded, size: 20),
                 label: Text(t('记录', 'History'))),
           ]),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.inline),
           if (petHistory.isEmpty)
             Container(
               height: 76,
               width: double.infinity,
               alignment: Alignment.centerLeft,
-              padding: const EdgeInsets.symmetric(horizontal: 18),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: AppSpacing.content),
               decoration: BoxDecoration(
                   color: const Color(0xfffff1e2),
                   borderRadius: BorderRadius.circular(18)),
@@ -399,11 +426,11 @@ extension CareView on CareHomeState {
                 for (final entry in petHistory.take(2).indexed) ...[
                   Expanded(child: _eventCard(entry.$2, entry.$1)),
                   if (entry.$1 == 0 && petHistory.length > 1)
-                    const SizedBox(width: 12),
+                    const SizedBox(width: AppSpacing.item),
                 ]
               ]),
             ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.inline),
           Align(
             alignment: Alignment.centerLeft,
             child: TextButton(
@@ -416,8 +443,8 @@ extension CareView on CareHomeState {
 
   Widget _taskTile(Map<String, dynamic> task) => Card(
         child: ListTile(
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+          contentPadding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.content, vertical: AppSpacing.tight),
           leading: Checkbox(
             value: task['completed'] == true,
             onChanged: busy ? null : (value) => changeCompletion(task, value!),
@@ -436,7 +463,8 @@ extension CareView on CareHomeState {
         ? t('已完成', 'Completed')
         : t('照护记录', 'Care history');
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 22, 24, 20),
+      padding: const EdgeInsets.fromLTRB(AppSpacing.page, AppSpacing.section,
+          AppSpacing.page, AppSpacing.section),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           IconButton(
@@ -447,7 +475,7 @@ extension CareView on CareHomeState {
               style:
                   const TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
         ]),
-        const SizedBox(height: 14),
+        const SizedBox(height: AppSpacing.item),
         if (careFilter == 'completed') ...[
           if (completed.isEmpty)
             empty(
@@ -472,33 +500,94 @@ extension CareView on CareHomeState {
     );
   }
 
+  Widget careScrollView() {
+    final sections = careView();
+    final pet = selectedPet;
+    return CustomScrollView(
+      key: const PageStorageKey('home-tab-0'),
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: [
+        SliverPersistentHeader(
+          pinned: true,
+          delegate: _CareHeroHeader(
+            expanded: sections.first,
+            reduceMotion: MediaQuery.disableAnimationsOf(context),
+            compact: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
+              child: Row(children: [
+                Expanded(
+                    child: _petSelector(
+                        pet, pet?['name'] as String? ?? t('豆包', 'Doubao'))),
+                IconButton(
+                  tooltip: t('提醒设置', 'Reminder settings'),
+                  onPressed: openReminderSettings,
+                  icon: const Icon(Icons.notifications_none_rounded),
+                ),
+              ]),
+            ),
+          ),
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.section),
+          sliver: SliverList.list(children: sections.skip(1).toList()),
+        ),
+      ],
+    );
+  }
+
   List<Widget> careView() {
     final pet = selectedPet;
     final petId = pet?['id'];
     final petName = pet?['name'];
     final petTasks = tasks.where((task) => task['petId'] == petId).toList();
     final petHistory = history
-        .where((event) =>
-            event['petId'] == petId ||
-            (event['petId'] == null && event['petName'] == petName))
+        .where(
+          (event) =>
+              event['petId'] == petId ||
+              (event['petId'] == null && event['petName'] == petName),
+        )
         .toList();
     final pending = petTasks.where((v) => v['completed'] != true).toList()
-      ..sort((a, b) => DateTime.parse(a['dueAt'] as String)
-          .compareTo(DateTime.parse(b['dueAt'] as String)));
+      ..sort(
+        (a, b) => DateTime.parse(
+          a['dueAt'] as String,
+        ).compareTo(DateTime.parse(b['dueAt'] as String)),
+      );
     final completed = petTasks.where((v) => v['completed'] == true).toList();
     return [
-      _hero(pending.length),
+      GentleSwitch(
+        child: KeyedSubtree(key: ValueKey(petId), child: _hero(pending.length)),
+      ),
       if (error != null)
         Padding(
-            padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
-            child: Text(t('同步失败，当前显示上次的数据。请下拉重试。',
-                'Sync failed. Showing the last update. Pull to retry.'))),
-      if (careFilter == 'pending') ...[
-        if (pending.isEmpty) _emptyNext() else _nextCare(pending.first),
-        if (pending.length > 1) _taskRow(pending[1]),
-        _todayHistory(petHistory, completed.length),
-      ] else
-        _alternateView(completed, petHistory),
+          padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
+          child: Text(
+            t(
+              '同步失败，当前显示上次的数据。请下拉重试。',
+              'Sync failed. Showing the last update. Pull to retry.',
+            ),
+          ),
+        ),
+      AnimatedSize(
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+        alignment: Alignment.topCenter,
+        child: GentleSwitch(
+          child: Column(
+            key: ValueKey('$petId-$careFilter-${pending.firstOrNull?['id']}'),
+            children: [
+              if (careFilter == 'pending') ...[
+                if (pending.isEmpty) _emptyNext() else _nextCare(pending.first),
+                if (pending.length > 1) _taskRow(pending[1]),
+                _todayHistory(petHistory, completed.length),
+              ] else
+                _alternateView(completed, petHistory),
+            ],
+          ),
+        ),
+      ),
     ];
   }
 }
@@ -516,4 +605,69 @@ class _HeroWaveClipper extends CustomClipper<Path> {
 
   @override
   bool shouldReclip(covariant _HeroWaveClipper oldClipper) => false;
+}
+
+/// The header follows the scroll position directly, so reversing a gesture
+/// expands it without a second animation or a jump in the care content.
+class _CareHeroHeader extends SliverPersistentHeaderDelegate {
+  _CareHeroHeader(
+      {required this.expanded,
+      required this.compact,
+      required this.reduceMotion});
+
+  final Widget expanded;
+  final Widget compact;
+  final bool reduceMotion;
+
+  @override
+  double get minExtent => 72;
+  @override
+  double get maxExtent => 392;
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    final progress = (shrinkOffset / (maxExtent - minExtent)).clamp(0.0, 1.0);
+    final expandedOpacity = (1 - progress / .75).clamp(0.0, 1.0);
+    final compactOpacity = ((progress - .65) / .35).clamp(0.0, 1.0);
+    return ClipRect(
+      child: ColoredBox(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        child: Stack(fit: StackFit.expand, children: [
+          Positioned(
+            top: -shrinkOffset * (reduceMotion ? 1 : .3),
+            left: 0,
+            right: 0,
+            height: maxExtent,
+            child: IgnorePointer(
+              ignoring: progress > .5,
+              child: ExcludeSemantics(
+                excluding: progress > .5,
+                child: Opacity(opacity: expandedOpacity, child: expanded),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: minExtent,
+            child: IgnorePointer(
+              ignoring: progress <= .65,
+              child: ExcludeSemantics(
+                excluding: progress <= .65,
+                child: Opacity(opacity: compactOpacity, child: compact),
+              ),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _CareHeroHeader oldDelegate) =>
+      expanded != oldDelegate.expanded ||
+      compact != oldDelegate.compact ||
+      reduceMotion != oldDelegate.reduceMotion;
 }
