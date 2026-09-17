@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>爪伴 · 交互预览</title>
+<style>
+*{box-sizing:border-box}body{height:100dvh;display:flex;flex-direction:column;margin:0;background:#f1eeea;color:#4b3a33;font:14px system-ui,sans-serif}
+header{display:flex;gap:16px;align-items:center;padding:12px 20px;border-bottom:1px solid #ded7d0;background:#fffdf9;flex-wrap:wrap}
+header strong{font-size:15px}header span{color:#796f68;flex-basis:100%;order:3;font-size:12px}header strong{margin-right:auto}button{font:inherit;color:inherit;border:1px solid #d8c8bb;background:transparent;border-radius:7px;padding:7px 12px;cursor:pointer}
+main{display:flex;justify-content:center;padding:12px;flex:1;min-height:0}iframe{width:402px;max-width:100%;height:100%;min-height:0;border:1px solid #ddd4ca;border-radius:12px;background:#fffdf9}
+@media(max-width:480px){main{padding:0}iframe{height:100%;border:0;border-radius:0}header{gap:8px;padding:10px}header span{font-size:12px}}
+</style>
+<header><strong>爪伴 · 交互预览</strong><span>真实 Flutter 页面 · 演示数据，未连接服务端。编辑、邀请与导出未接入。</span><button id="restart">重看加载</button><button id="width">切换宽屏</button></header>
+<main><iframe id="app" src="app/" title="爪伴 App"></iframe></main>
+<script>
+const app=document.getElementById('app');
+document.getElementById('restart').onclick=()=>app.contentWindow.location.reload();
+document.getElementById('width').onclick=()=>{app.style.width=app.style.width==='760px'?'402px':'760px'};
+</script>
+</html>

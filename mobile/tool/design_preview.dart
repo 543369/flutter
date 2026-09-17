@@ -9,12 +9,42 @@ class PreviewApi extends CareApi {
   }
 
   late List<Map<String, dynamic>> previewTasks = _tasks();
+  final health = <Map<String, dynamic>>[
+    {
+      'id': 'weight',
+      'kind': 'WEIGHT',
+      'title': '本周体重',
+      'notes': '精神和食欲都不错。',
+      'happenedOn': '2026-09-16',
+      'weightKg': 8.2,
+      'folder': '',
+      'photos': <String>[],
+      'createdAt': '2026-09-16T08:00:00Z',
+      'updatedAt': '2026-09-16T08:00:00Z',
+    },
+    {
+      'id': 'visit',
+      'kind': 'VISIT',
+      'title': '年度体检',
+      'notes': '检查记录已整理，日常继续观察。',
+      'happenedOn': '2026-09-10',
+      'weightKg': null,
+      'folder': '',
+      'photos': <String>[],
+      'createdAt': '2026-09-10T08:00:00Z',
+      'updatedAt': '2026-09-10T08:00:00Z',
+    },
+  ];
 
   static String _at(int hour, int minute) {
     final now = DateTime.now();
-    return DateTime(now.year, now.month, now.day, hour, minute)
-        .toUtc()
-        .toIso8601String();
+    return DateTime(
+      now.year,
+      now.month,
+      now.day,
+      hour,
+      minute,
+    ).toUtc().toIso8601String();
   }
 
   static List<Map<String, dynamic>> _tasks() => [
@@ -23,46 +53,66 @@ class PreviewApi extends CareApi {
           'petId': 'doubao',
           'petName': '豆包',
           'title': '午间喂食',
+          'careType': 'FEEDING',
           'completed': false,
           'dueAt': _at(12, 0),
-          'planId': 'daily-meal'
+          'planId': 'daily-meal',
         },
         {
           'id': 'walk',
           'petId': 'doubao',
           'petName': '豆包',
           'title': '出门散步',
+          'careType': 'WALK',
           'completed': false,
           'dueAt': _at(18, 30),
-          'planId': 'daily-walk'
+          'planId': 'daily-walk',
         },
         {
           'id': 'breakfast',
           'petId': 'doubao',
           'petName': '豆包',
           'title': '早餐',
+          'careType': 'FEEDING',
           'completed': true,
           'dueAt': _at(8, 10),
-          'planId': 'daily-breakfast'
+          'planId': 'daily-breakfast',
         },
         {
           'id': 'water',
           'petId': 'doubao',
           'petName': '豆包',
           'title': '换水',
+          'careType': 'CUSTOM',
           'completed': true,
           'dueAt': _at(8, 25),
-          'planId': 'daily-water'
+          'planId': 'daily-water',
         },
       ];
 
   @override
-  Future<void> restore() async {}
+  Future<void> restore() async {
+    await Future<void>.delayed(const Duration(milliseconds: 1800));
+  }
 
   @override
   Future<Map<String, dynamic>> dashboard() async => {
         'pets': [
-          {'id': 'doubao', 'name': '豆包', 'species': 'dog'}
+          {
+            'id': 'doubao',
+            'name': '豆包',
+            'species': 'dog',
+            'birthDate': '2023-04-12',
+            'biography': '喜欢散步，也喜欢在你身边打盹。',
+            'createdAt': '2026-01-01T00:00:00Z',
+          },
+          {
+            'id': 'niangao',
+            'name': '年糕',
+            'species': 'cat',
+            'birthDate': '2024-02-20',
+            'biography': '午后的窗台是最喜欢的地方。',
+          },
         ],
         'tasks': previewTasks,
         'history': [
@@ -73,7 +123,7 @@ class PreviewApi extends CareApi {
             'at': _at(8, 10),
             'actor': '妈妈',
             'title': '妈妈喂过早餐了',
-            'petName': '豆包'
+            'petName': '豆包',
           },
           {
             'id': 'h2',
@@ -82,45 +132,149 @@ class PreviewApi extends CareApi {
             'at': _at(8, 25),
             'actor': '年糕',
             'title': '换了新鲜的水',
-            'petName': '年糕'
-          }
+            'petName': '年糕',
+          },
         ],
         'plans': [],
+        'memberProfiles': [
+          {'id': 'me', 'name': '你', 'isMe': true},
+          {'id': 'mom', 'name': '妈妈', 'isMe': false},
+        ],
         'me': '你',
         'members': 2,
       };
 
   @override
-  Future<dynamic> request(String method, String path,
-      [Map<String, dynamic>? body]) async {
+  Future<dynamic> request(
+    String method,
+    String path, [
+    Map<String, dynamic>? body,
+  ]) async {
+    await Future<void>.delayed(const Duration(milliseconds: 350));
+    final uri = Uri.parse(path);
+    final segments = uri.pathSegments;
+    if (method == 'GET' && segments.length >= 3 && segments[2] == 'health') {
+      if (segments.length == 3) {
+        final kind = uri.queryParameters['kind'] ?? '';
+        final items =
+            health.where((r) => kind.isEmpty || r['kind'] == kind).toList();
+        return {
+          'items': items,
+          'hasMore': false,
+          'total': items.length,
+          'advanced': false,
+          'attachmentLimit': 2,
+        };
+      }
+      return health.firstWhere((r) => r['id'] == segments.last);
+    }
+    if (method == 'GET' && path.contains('/memories?')) {
+      return {'items': <Map<String, dynamic>>[], 'total': 0, 'hasMore': false};
+    }
+    if (method == 'GET' && path == '/profile') {
+      return {
+        'id': 'preview-user',
+        'name': '你',
+        'account': 'preview@example.com',
+        'birthDate': null,
+        'phone': null,
+        'createdAt': '2026-01-01T00:00:00Z',
+      };
+    }
+    if (method == 'GET' && path == '/benefits') {
+      return {
+        'tier': 'FREE',
+        'usedBytes': 10485760,
+        'limitBytes': 104857600,
+        'baseLimitBytes': 104857600,
+        'photoCount': 0,
+        'billingEnabled': false,
+        'canExport': false,
+        'canReport': false,
+      };
+    }
+    if (method == 'GET' && path == '/family/members') {
+      return {
+        'items': [
+          {
+            'id': 'me',
+            'name': '你',
+            'role': 'ADMIN',
+            'isMe': true,
+            'permissions': ['CARE', 'HEALTH', 'MEMORIES', 'PETS', 'REPORTS'],
+          },
+          {
+            'id': 'mom',
+            'name': '妈妈',
+            'role': 'MEMBER',
+            'isMe': false,
+            'permissions': ['CARE', 'HEALTH', 'MEMORIES', 'PETS', 'REPORTS'],
+          },
+        ],
+        'canManage': false,
+        'advanced': false,
+      };
+    }
+    if (method == 'GET' && path.startsWith('/family/weekly?')) {
+      return {
+        'advanced': false,
+        'due': 14,
+        'completed': 12,
+        'missed': 2,
+        'completionRate': 85.7,
+        'unassigned': 0,
+        'pets': [
+          {'name': '豆包', 'due': 14, 'completed': 12, 'missed': 2},
+        ],
+        'members': [
+          {'name': '你', 'assigned': 7, 'completed': 6},
+          {'name': '妈妈', 'assigned': 7, 'completed': 6},
+        ],
+        'missedTasks': <Map<String, dynamic>>[],
+        'trends': <Map<String, dynamic>>[],
+      };
+    }
     if (method == 'PATCH' && path.startsWith('/tasks/')) {
       final id = path.substring('/tasks/'.length);
       previewTasks = previewTasks
-          .map((task) => task['id'] == id
-              ? {...task, 'completed': body?['completed'] == true}
-              : task)
+          .map(
+            (task) => task['id'] == id
+                ? {...task, 'completed': body?['completed'] == true}
+                : task,
+          )
           .toList();
       return body;
     }
-    return null;
+    throw const ApiError(400, 'PREVIEW_ONLY');
   }
 }
 
 class PreviewReminders extends ReminderService {
+  @override
+  Future<bool> setEnabled(bool value) async {
+    enabled = value;
+    return value;
+  }
+
   @override
   Future<void> initialize(VoidCallback onTap) async {
     ready = true;
   }
 
   @override
-  Future<void> sync(List<Map<String, dynamic>> tasks,
-      {required bool chinese}) async {}
+  Future<void> sync(
+    List<Map<String, dynamic>> tasks, {
+    required bool chinese,
+  }) async {}
 
   @override
   Future<String> deviceZone() async => 'Asia/Shanghai';
 }
 
-void main() => runApp(PetCareApp(
-      api: PreviewApi(),
-      reminders: PreviewReminders(),
-    ));
+void main() => runApp(
+      PetCareApp(
+        initialLocale: const Locale('zh'),
+        api: PreviewApi(),
+        reminders: PreviewReminders(),
+      ),
+    );
