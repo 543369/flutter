@@ -87,47 +87,172 @@ class _EmailActionPageState extends State<EmailActionPage> {
       appBar: AppBar(
           title: Text(t(widget.recovery ? '忘记密码' : '验证邮箱',
               widget.recovery ? 'Forgot password' : 'Verify email'))),
-      body: ListView(padding: AppSpacing.pageInsets, children: [
-        if (widget.recovery)
-          TextField(
-              controller: email,
-              enabled: !busy,
-              keyboardType: TextInputType.emailAddress,
-              decoration:
-                  InputDecoration(labelText: t('注册邮箱', 'Account email'))),
-        const SizedBox(height: AppSpacing.content),
-        Text(t('将邮件中的完整验证码粘贴到下方。',
-            'Paste the complete code from the email below.')),
-        const SizedBox(height: AppSpacing.inline),
-        OutlinedButton(
-            onPressed: busy ? null : () => act(true),
-            child: Text(t('发送验证码', 'Send code'))),
-        const SizedBox(height: AppSpacing.content),
-        TextField(
-            controller: code,
-            enabled: !busy,
-            autocorrect: false,
-            decoration: InputDecoration(labelText: t('邮箱验证码', 'Email code'))),
-        if (widget.recovery) ...[
-          const SizedBox(height: AppSpacing.content),
-          TextField(
-              controller: password,
-              enabled: !busy,
-              obscureText: true,
-              decoration: InputDecoration(labelText: t('新密码', 'New password'))),
-          const SizedBox(height: AppSpacing.content),
-          TextField(
-              controller: confirmation,
-              enabled: !busy,
-              obscureText: true,
-              decoration:
-                  InputDecoration(labelText: t('确认新密码', 'Confirm password'))),
-        ],
-        const SizedBox(height: AppSpacing.content),
-        if (message != null) Text(message!),
-        const SizedBox(height: AppSpacing.inline),
-        FilledButton(
-            onPressed: busy ? null : () => act(false),
-            child: Text(t('确认', 'Confirm'))),
-      ]));
+      body: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(
+                    24, constraints.maxHeight > 650 ? 48 : 24, 24, 32),
+                child: Center(
+                  child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 440),
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Align(
+                                alignment: Alignment.centerLeft,
+                                child: Container(
+                                    width: 56,
+                                    height: 56,
+                                    decoration: BoxDecoration(
+                                        color: const Color(0xffffe8c9),
+                                        borderRadius:
+                                            BorderRadius.circular(18)),
+                                    child: Icon(
+                                        widget.recovery
+                                            ? Icons.lock_reset_rounded
+                                            : Icons.mark_email_read_outlined,
+                                        size: 28,
+                                        color: const Color(0xff80523f)))),
+                            const SizedBox(height: AppSpacing.section),
+                            Text(
+                                t(
+                                    widget.recovery ? '找回你的账号' : '让陪伴多一份安心',
+                                    widget.recovery
+                                        ? 'Welcome back'
+                                        : 'A little more peace of mind'),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .headlineSmall
+                                    ?.copyWith(fontWeight: FontWeight.w700)),
+                            const SizedBox(height: AppSpacing.inline),
+                            Text(
+                                t(
+                                    widget.recovery
+                                        ? '通过注册邮箱接收验证码，为账号设置新密码。'
+                                        : '先发送验证码，再将邮件中的完整验证码粘贴到下方，完成邮箱验证。',
+                                    widget.recovery
+                                        ? 'Get a code at your account email to set a new password.'
+                                        : 'Send a code to your email, then paste it below to verify your address.'),
+                                style: const TextStyle(
+                                    fontSize: 14,
+                                    height: 1.6,
+                                    color: Color(0xff8b7466))),
+                            const SizedBox(height: AppSpacing.section),
+                            Container(
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                    color: const Color(0xfff8f1e9),
+                                    borderRadius: BorderRadius.circular(24)),
+                                child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      if (widget.recovery) ...[
+                                        TextField(
+                                            controller: email,
+                                            enabled: !busy,
+                                            keyboardType:
+                                                TextInputType.emailAddress,
+                                            decoration: InputDecoration(
+                                                labelText:
+                                                    t('注册邮箱', 'Account email'),
+                                                filled: true,
+                                                fillColor:
+                                                    const Color(0xfffffcf8))),
+                                        const SizedBox(height: AppSpacing.item),
+                                      ],
+                                      Align(
+                                          alignment: Alignment.centerRight,
+                                          child: TextButton.icon(
+                                              onPressed:
+                                                  busy ? null : () => act(true),
+                                              icon: const Icon(
+                                                  Icons.send_outlined,
+                                                  size: 17),
+                                              label: Text(
+                                                  t('发送验证码', 'Send code')))),
+                                      const SizedBox(height: AppSpacing.inline),
+                                      TextField(
+                                          controller: code,
+                                          enabled: !busy,
+                                          autocorrect: false,
+                                          autofillHints: const [
+                                            AutofillHints.oneTimeCode
+                                          ],
+                                          decoration: InputDecoration(
+                                              labelText:
+                                                  t('邮箱验证码', 'Email code'),
+                                              filled: true,
+                                              fillColor:
+                                                  const Color(0xfffffcf8))),
+                                      if (widget.recovery) ...[
+                                        const SizedBox(
+                                            height: AppSpacing.content),
+                                        TextField(
+                                            controller: password,
+                                            enabled: !busy,
+                                            obscureText: true,
+                                            decoration: InputDecoration(
+                                                labelText:
+                                                    t('新密码', 'New password'),
+                                                filled: true,
+                                                fillColor:
+                                                    const Color(0xfffffcf8))),
+                                        const SizedBox(
+                                            height: AppSpacing.content),
+                                        TextField(
+                                            controller: confirmation,
+                                            enabled: !busy,
+                                            obscureText: true,
+                                            decoration: InputDecoration(
+                                                labelText: t('确认新密码',
+                                                    'Confirm password'),
+                                                filled: true,
+                                                fillColor:
+                                                    const Color(0xfffffcf8))),
+                                      ],
+                                      if (message != null) ...[
+                                        const SizedBox(
+                                            height: AppSpacing.content),
+                                        Semantics(
+                                            liveRegion: true,
+                                            child: Text(message!,
+                                                style: const TextStyle(
+                                                    fontSize: 13,
+                                                    height: 1.5))),
+                                      ],
+                                      const SizedBox(
+                                          height: AppSpacing.section),
+                                      FilledButton(
+                                          style: FilledButton.styleFrom(
+                                              minimumSize:
+                                                  const Size.fromHeight(48)),
+                                          onPressed:
+                                              busy ? null : () => act(false),
+                                          child: busy
+                                              ? const SizedBox(
+                                                  width: 20,
+                                                  height: 20,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                          strokeWidth: 2))
+                                              : Text(t(
+                                                  widget.recovery
+                                                      ? '重置密码'
+                                                      : '验证邮箱',
+                                                  widget.recovery
+                                                      ? 'Reset password'
+                                                      : 'Verify email'))),
+                                    ])),
+                            const SizedBox(height: AppSpacing.content),
+                            Text(
+                                t('验证码 15 分钟内有效，未收到时也请检查垃圾邮件。',
+                                    'Codes expire in 15 minutes. Check your spam folder if needed.'),
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                    fontSize: 12,
+                                    height: 1.5,
+                                    color: Color(0xff8b7466))),
+                          ])),
+                ),
+              )));
 }

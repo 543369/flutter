@@ -27,11 +27,13 @@ void main() {
     expect(api.calls, ['/auth/recovery/request']);
     await tester.enterText(fields.at(1), 'email-code');
     await tester.enterText(fields.at(2), 'New-password-42');
-    await tester.tap(find.text('Confirm'));
+    await tester.ensureVisible(find.text('Reset password'));
+    await tester.tap(find.text('Reset password'));
     await tester.pumpAndSettle();
     expect(api.calls.length, 1);
     await tester.enterText(fields.at(3), 'New-password-42');
-    await tester.tap(find.text('Confirm'));
+    await tester.ensureVisible(find.text('Reset password'));
+    await tester.tap(find.text('Reset password'));
     await tester.pumpAndSettle();
     expect(api.calls.last, '/auth/recovery/confirm');
     expect(find.text('Password reset. Return to sign in.'), findsOneWidget);

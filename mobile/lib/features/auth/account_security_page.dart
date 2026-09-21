@@ -141,111 +141,200 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: Text(t('账号安全', 'Account security'))),
-        body: ListView(padding: AppSpacing.cardInsets, children: [
-          if (identity?['email'] != null)
-            ListTile(
-                subtitle: Text(identity?['verified'] == true
-                    ? t('邮箱已验证', 'Email verified')
-                    : t('邮箱尚未验证', 'Email not verified')),
-                title: Text(t('验证邮箱', 'Verify email')),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: busy
-                    ? null
-                    : () async {
-                        await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) =>
-                                    EmailActionPage(api: widget.api)));
-                        if (mounted) await refresh();
-                      }),
-          if (busy) const LinearProgressIndicator(),
-          if (error != null)
-            Text(error!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error)),
-          if (identity?['hasPassword'] == false)
-            Text(t('此账号使用 Apple 登录，无需本地密码。',
-                'This account uses Apple sign-in without a local password.')),
-          if (identity?['hasPassword'] != false) ...[
-            Text(t('修改密码', 'Change password'),
-                style: Theme.of(context).textTheme.titleLarge),
-            Form(
-                key: form,
-                child: Column(children: [
-                  TextFormField(
-                      controller: oldPassword,
-                      obscureText: true,
-                      enabled: !busy,
-                      decoration: InputDecoration(
-                          labelText: t('当前密码', 'Current password')),
-                      validator: (s) => s == null || s.isEmpty
-                          ? t('请输入当前密码', 'Enter your current password')
-                          : null),
-                  TextFormField(
-                      controller: newPassword,
-                      obscureText: true,
-                      enabled: !busy,
-                      decoration: InputDecoration(
-                          labelText: t('新密码（至少 10 位）',
-                              'New password (at least 10 characters)')),
-                      validator: (s) => s == null ||
-                              s.length < 10 ||
-                              utf8.encode(s).length > 72
-                          ? t('密码须至少 10 位，最多 72 字节',
-                              'Use at least 10 characters, at most 72 bytes')
-                          : s == oldPassword.text
-                              ? t('新密码不能与当前密码相同', 'Choose a different password')
-                              : null),
-                  TextFormField(
-                      controller: confirmation,
-                      obscureText: true,
-                      enabled: !busy,
-                      decoration: InputDecoration(
-                          labelText: t('确认新密码', 'Confirm new password')),
-                      validator: (s) => s != newPassword.text
-                          ? t('两次密码不一致', 'Passwords do not match')
-                          : null),
-                  const SizedBox(height: AppSpacing.item),
-                  Text(t('修改后保留本次登录，其他会话将退出。',
-                      'This session stays signed in. All other sessions will be signed out.')),
-                  const SizedBox(height: AppSpacing.inline),
-                  FilledButton(
-                      onPressed: busy ? null : changePassword,
-                      child: Text(t('修改密码', 'Change password'))),
-                ])),
-          ],
-          const SizedBox(height: AppSpacing.section),
-          Row(children: [
-            Expanded(
-                child: Text(t('登录会话', 'Sign-in sessions'),
-                    style: Theme.of(context).textTheme.titleLarge)),
-            IconButton(
-                onPressed: busy ? null : refresh,
-                icon: const Icon(Icons.refresh),
-                tooltip: t('刷新', 'Refresh'))
-          ]),
-          Text(t('同一设备多次登录可能产生多个会话；设备名称由客户端提供。',
-              'A device may have multiple sessions. Device names are reported by the app.')),
-          for (final session in sessions)
-            Card(
-                child: ListTile(
-                    title: Text(
-                        '${session['deviceName']} ${session['current'] == true ? t('（当前）', '(current)') : ''}'),
-                    subtitle: Text(
-                        '${t('登录时间', 'Signed in')}: ${date(session['createdAt'])}\n${t('最近活动', 'Last active')}: ${date(session['lastSeenAt'])}'),
-                    trailing: session['current'] == true
-                        ? null
-                        : IconButton(
-                            tooltip: t('退出此会话', 'Sign out session'),
-                            icon: const Icon(Icons.logout),
-                            onPressed: busy
+        body: Center(
+            child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 620),
+                child: ListView(padding: AppSpacing.pageInsets, children: [
+                  if (identity?['email'] != null)
+                    Card(
+                        color: const Color(0xffe8eee0),
+                        child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
+                            leading: const Icon(Icons.mark_email_read_outlined),
+                            subtitle: Text(identity?['verified'] == true
+                                ? t('邮箱已验证', 'Email verified')
+                                : t('邮箱尚未验证', 'Email not verified')),
+                            title: Text(t('验证邮箱', 'Verify email')),
+                            trailing: const Icon(Icons.chevron_right),
+                            onTap: busy
                                 ? null
-                                : () => revoke(session['id'] as String)))),
-          OutlinedButton(
-              onPressed: busy || !sessions.any((s) => s['current'] != true)
-                  ? null
-                  : () => revoke(),
-              child: Text(t('退出其他所有会话', 'Sign out all other sessions'))),
-        ]),
+                                : () async {
+                                    await Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (_) => EmailActionPage(
+                                                api: widget.api)));
+                                    if (mounted) await refresh();
+                                  })),
+                  const SizedBox(height: AppSpacing.item),
+                  if (busy) const LinearProgressIndicator(),
+                  if (error != null)
+                    Text(error!,
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.error)),
+                  if (identity?['hasPassword'] == false)
+                    Text(t('此账号使用 Apple 登录，无需本地密码。',
+                        'This account uses Apple sign-in without a local password.')),
+                  if (identity?['hasPassword'] != false) ...[
+                    Container(
+                      padding: const EdgeInsets.all(AppSpacing.content),
+                      decoration: BoxDecoration(
+                        color: const Color(0xfff8f1e9),
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(children: [
+                              Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                      color: const Color(0xffffe8c9),
+                                      borderRadius: BorderRadius.circular(14)),
+                                  child: const Icon(Icons.lock_outline_rounded,
+                                      size: 22, color: Color(0xff80523f))),
+                              const SizedBox(width: AppSpacing.item),
+                              Text(t('修改密码', 'Change password'),
+                                  style:
+                                      Theme.of(context).textTheme.titleLarge),
+                            ]),
+                            const SizedBox(height: AppSpacing.section),
+                            Form(
+                                key: form,
+                                child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      TextFormField(
+                                          controller: oldPassword,
+                                          obscureText: true,
+                                          enabled: !busy,
+                                          textInputAction: TextInputAction.next,
+                                          decoration: InputDecoration(
+                                              filled: true,
+                                              fillColor:
+                                                  const Color(0xfffffcf8),
+                                              labelText: t(
+                                                  '当前密码', 'Current password')),
+                                          validator: (s) => s == null ||
+                                                  s.isEmpty
+                                              ? t('请输入当前密码',
+                                                  'Enter your current password')
+                                              : null),
+                                      const SizedBox(
+                                          height: AppSpacing.content),
+                                      TextFormField(
+                                          controller: newPassword,
+                                          obscureText: true,
+                                          enabled: !busy,
+                                          textInputAction: TextInputAction.next,
+                                          decoration: InputDecoration(
+                                              filled: true,
+                                              fillColor:
+                                                  const Color(0xfffffcf8),
+                                              labelText: t('新密码（至少 10 位）',
+                                                  'New password (at least 10 characters)')),
+                                          validator: (s) => s == null ||
+                                                  s.length < 10 ||
+                                                  utf8.encode(s).length > 72
+                                              ? t('密码须至少 10 位，最多 72 字节',
+                                                  'Use at least 10 characters, at most 72 bytes')
+                                              : s == oldPassword.text
+                                                  ? t('新密码不能与当前密码相同',
+                                                      'Choose a different password')
+                                                  : null),
+                                      const SizedBox(
+                                          height: AppSpacing.content),
+                                      TextFormField(
+                                          controller: confirmation,
+                                          obscureText: true,
+                                          enabled: !busy,
+                                          textInputAction: TextInputAction.done,
+                                          decoration: InputDecoration(
+                                              filled: true,
+                                              fillColor:
+                                                  const Color(0xfffffcf8),
+                                              labelText: t('确认新密码',
+                                                  'Confirm new password')),
+                                          validator: (s) =>
+                                              s != newPassword.text
+                                                  ? t('两次密码不一致',
+                                                      'Passwords do not match')
+                                                  : null),
+                                      const SizedBox(height: AppSpacing.item),
+                                      Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            const Icon(
+                                                Icons.info_outline_rounded,
+                                                size: 16,
+                                                color: Color(0xff8b7466)),
+                                            const SizedBox(
+                                                width: AppSpacing.inline),
+                                            Expanded(
+                                                child: Text(
+                                                    t('修改后保留本次登录，其他会话将退出。',
+                                                        'This session stays signed in. All other sessions will be signed out.'),
+                                                    style: const TextStyle(
+                                                        fontSize: 12,
+                                                        height: 1.5,
+                                                        color: Color(
+                                                            0xff8b7466)))),
+                                          ]),
+                                      const SizedBox(height: AppSpacing.inline),
+                                      FilledButton(
+                                          style: FilledButton.styleFrom(
+                                              minimumSize:
+                                                  const Size.fromHeight(48)),
+                                          onPressed:
+                                              busy ? null : changePassword,
+                                          child: Text(
+                                              t('修改密码', 'Change password'))),
+                                    ])),
+                          ]),
+                    ),
+                  ],
+                  const SizedBox(height: AppSpacing.section),
+                  Row(children: [
+                    Expanded(
+                        child: Text(t('登录会话', 'Sign-in sessions'),
+                            style: Theme.of(context).textTheme.titleLarge)),
+                    IconButton(
+                        onPressed: busy ? null : refresh,
+                        icon: const Icon(Icons.refresh),
+                        tooltip: t('刷新', 'Refresh'))
+                  ]),
+                  Text(
+                      t('同一设备多次登录可能产生多个会话；设备名称由客户端提供。',
+                          'A device may have multiple sessions. Device names are reported by the app.'),
+                      style: const TextStyle(
+                          fontSize: 12, height: 1.5, color: Color(0xff8b7466))),
+                  const SizedBox(height: AppSpacing.item),
+                  for (final session in sessions)
+                    Card(
+                        child: ListTile(
+                            title: Text(
+                                '${session['deviceName']} ${session['current'] == true ? t('（当前）', '(current)') : ''}'),
+                            subtitle: Text(
+                                '${t('登录时间', 'Signed in')}: ${date(session['createdAt'])}\n${t('最近活动', 'Last active')}: ${date(session['lastSeenAt'])}'),
+                            trailing: session['current'] == true
+                                ? null
+                                : IconButton(
+                                    tooltip: t('退出此会话', 'Sign out session'),
+                                    icon: const Icon(Icons.logout),
+                                    onPressed: busy
+                                        ? null
+                                        : () =>
+                                            revoke(session['id'] as String)))),
+                  OutlinedButton(
+                      onPressed:
+                          busy || !sessions.any((s) => s['current'] != true)
+                              ? null
+                              : () => revoke(),
+                      child:
+                          Text(t('退出其他所有会话', 'Sign out all other sessions'))),
+                ]))),
       );
 }
