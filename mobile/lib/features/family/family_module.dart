@@ -1,3 +1,4 @@
+import 'member_avatar.dart';
 import '../../core/theme/app_spacing.dart';
 import 'household_management_pages.dart';
 import 'personal_profile_page.dart';
@@ -129,6 +130,10 @@ extension FamilyModule on CareHomeState {
         [
           {'name': data?['me'] ?? '', 'isMe': true}
         ]);
+    final orderedMembers = [
+      ...memberProfiles.where((member) => member['isMe'] == true),
+      ...memberProfiles.where((member) => member['isMe'] != true),
+    ];
     final memories = pets.fold<int>(
         0, (sum, pet) => sum + (pet['memoryCount'] as int? ?? 0));
     return [
@@ -147,51 +152,69 @@ extension FamilyModule on CareHomeState {
         ]),
       ),
       const SizedBox(height: AppSpacing.section),
-      Text(t('一起陪伴的人', 'The people who care'),
+      Text(
+          t('一起陪伴的人 · ${orderedMembers.length}',
+              'The people who care · ${orderedMembers.length}'),
           style: Theme.of(context).textTheme.titleLarge),
       const SizedBox(height: AppSpacing.item),
-      Wrap(
+      LayoutBuilder(builder: (context, constraints) {
+        final width = (constraints.maxWidth - AppSpacing.item) / 2;
+        return Wrap(
           spacing: AppSpacing.item,
           runSpacing: AppSpacing.item,
-          children: memberProfiles
-              .map((member) => Material(
-                  color: const Color(0xfffff0db),
-                  borderRadius: BorderRadius.circular(20),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(20),
-                    onTap: member['isMe'] == true && !busy ? editName : null,
-                    child: Padding(
-                        padding: AppSpacing.cardInsets,
-                        child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          const CircleAvatar(
-                              radius: 21,
-                              backgroundColor: Colors.white,
-                              child:
-                                  Icon(Icons.person_outline_rounded, size: 23)),
-                          const SizedBox(width: AppSpacing.inline),
-                          ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 170),
-                              child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(member['name'] as String,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.w700)),
-                                    Text(
-                                        member['isMe'] == true
-                                            ? t('我 · 查看个人资料',
-                                                'Me · personal profile')
-                                            : t('家人', 'Family'),
-                                        style: const TextStyle(fontSize: 11)),
-                                  ])),
-                          if (member['isMe'] == true) ...[
-                            const SizedBox(width: AppSpacing.inline),
-                            const Icon(Icons.edit_outlined, size: 16)
-                          ],
-                        ])),
-                  )))
-              .toList()),
+          children: orderedMembers.take(4).map((member) {
+            final isMe = member['isMe'] == true;
+            return SizedBox(
+              width: width,
+              child: Material(
+                color: const Color(0xfffff0db),
+                borderRadius: BorderRadius.circular(20),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: isMe && !busy ? editName : null,
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.item),
+                    child: Row(children: [
+                      MemberAvatar(data: member['avatarData'] as String?),
+                      const SizedBox(width: AppSpacing.inline),
+                      Expanded(
+                          child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(member['name'] as String,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w700)),
+                          Text(
+                              isMe
+                                  ? t('我 · 查看个人资料', 'Me · personal profile')
+                                  : t('家人', 'Family'),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 11)),
+                        ],
+                      )),
+                    ]),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        );
+      }),
+      if (orderedMembers.length > 4)
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton.icon(
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                builder: (_) => HouseholdMembersPage(home: this))),
+            label: Text(t('查看全部 ${orderedMembers.length} 位家人',
+                'View all ${orderedMembers.length} people')),
+            icon: const Icon(Icons.chevron_right_rounded),
+            iconAlignment: IconAlignment.end,
+          ),
+        ),
       const SizedBox(height: AppSpacing.content),
       IntrinsicHeight(
           child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [

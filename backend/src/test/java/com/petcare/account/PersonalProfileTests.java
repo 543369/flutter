@@ -29,6 +29,28 @@ class PersonalProfileTests {
   assertNull(other.get("phone")); assertNull(other.get("birthDate"));
   assertNull(controller.profile(auth,new AccountController.ProfileInput("小圆",null,"")).get("phone"));
  }
+ @Test void avatarPersistsOnlyForCurrentAccountAndSurvivesProfileEdits() throws Exception {
+  String home=UUID.randomUUID().toString(),one=UUID.randomUUID().toString(),two=UUID.randomUUID().toString();
+  db.update("INSERT INTO households(id) VALUES (?)",home);
+  for(String id:new String[]{one,two}) db.update("INSERT INTO accounts(id,household_id,token_hash,display_name) VALUES (?,?,?,?)",id,home,id,"Family");
+  var controller=new AccountController(db);
+  var auth=new UsernamePasswordAuthenticationToken(one,"unused");
+  var bytes=new java.io.ByteArrayOutputStream();
+  javax.imageio.ImageIO.write(new java.awt.image.BufferedImage(256,256,java.awt.image.BufferedImage.TYPE_INT_RGB),"jpg",bytes);
+  String avatar=java.util.Base64.getEncoder().encodeToString(bytes.toByteArray());
+  assertEquals(avatar,controller.avatar(auth,new AccountController.AvatarInput(avatar)).get("avatarData"));
+  assertEquals(avatar,controller.profile(auth,new AccountController.ProfileInput("New name",null,null)).get("avatarData"));
+  assertNull(controller.profile(new UsernamePasswordAuthenticationToken(two,"unused")).get("avatarData"));
+  assertThrows(org.springframework.web.server.ResponseStatusException.class,()->controller.avatar(auth,new AccountController.AvatarInput("not-an-image")));
+  assertEquals(avatar,controller.profile(auth).get("avatarData"));
+ }
+ @Test void rejectsOversizedAndNonImageAvatars() throws Exception {
+  var bytes=new java.io.ByteArrayOutputStream();
+  javax.imageio.ImageIO.write(new java.awt.image.BufferedImage(513,1,java.awt.image.BufferedImage.TYPE_INT_RGB),"png",bytes);
+  assertThrows(org.springframework.web.server.ResponseStatusException.class,()->AccountController.validateAvatar(java.util.Base64.getEncoder().encodeToString(bytes.toByteArray())));
+  assertThrows(org.springframework.web.server.ResponseStatusException.class,()->AccountController.validateAvatar("a".repeat(200001)));
+  assertThrows(org.springframework.web.server.ResponseStatusException.class,()->AccountController.validateAvatar("aGVsbG8="));
+ }
  @Test void validatesDatesPhonesAndLocaleNames() {
   assertFalse(validator.validate(new AccountController.ProfileInput(" ",LocalDate.now().plusDays(1),"bad-number")).isEmpty());
   assertTrue(validator.validate(new AccountController.ProfileInput("Sunny",LocalDate.of(1999,1,1),"+1 415 555 1234")).isEmpty());

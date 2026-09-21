@@ -85,103 +85,120 @@ extension CareView on CareHomeState {
           ]),
         );
 
-  Widget _hero(int remaining) {
-    final pet = selectedPet;
-    final name = pet?['name'] as String? ?? t('添加宠物', 'Add a pet');
-    final now = DateTime.now();
-    return ClipPath(
-      clipper: const _HeroWaveClipper(),
-      child: SizedBox(
-        height: 332,
-        child: PetPhotoCarousel(
-            pet: pet ?? {'species': 'dog'},
-            indicatorBottom: 12,
-            overlay: [
-              Positioned(
-                left: 28,
-                top: 22,
-                right: 22,
-                child: Row(children: [
-                  const DefaultTextStyle(
-                      style: TextStyle(
-                          color: Color(0xff34231e),
-                          fontSize: 24,
-                          fontWeight: FontWeight.w700),
-                      child: BrandWordmark()),
-                  const Spacer(),
-                  IconButton(
-                      tooltip: t('提醒设置', 'Reminder settings'),
-                      onPressed: openReminderSettings,
-                      icon: const Icon(Icons.notifications_none_rounded,
-                          size: 27, color: Color(0xff34231e))),
-                ]),
-              ),
-              Positioned(
-                left: 28,
-                top: 92,
-                right: 174,
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                          '${_weekday()} · ${t('${now.month}月${now.day}日', '${now.month}/${now.day}')}',
-                          style: const TextStyle(
-                              color: Color(0xff76645a),
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600)),
-                      const SizedBox(height: AppSpacing.item),
-                      Text(t('今天，\n也要好好陪你。', 'Today,\nwe are here for you.'),
-                          style: const TextStyle(
+  Widget _hero(int remaining) => Builder(builder: (context) {
+        final progress = _HeroCollapseScope.of(context);
+        final opacity = (1 - progress / .55).clamp(0.0, 1.0);
+        final pet = selectedPet;
+        final name = pet?['name'] as String? ?? t('添加宠物', 'Add a pet');
+        final now = DateTime.now();
+        return ClipPath(
+          clipper: _HeroWaveClipper(progress),
+          child: SizedBox(
+            height: 332,
+            child: PetPhotoCarousel(
+                pet: pet ?? {'species': 'dog'},
+                indicatorBottom: 12,
+                overlay: <Positioned>[
+                  Positioned(
+                    left: 28,
+                    top: 22,
+                    right: 22,
+                    child: Row(children: [
+                      const DefaultTextStyle(
+                          style: TextStyle(
                               color: Color(0xff34231e),
-                              fontSize: 28,
-                              height: 1.16,
-                              fontWeight: FontWeight.w800)),
+                              fontSize: 24,
+                              fontWeight: FontWeight.w700),
+                          child: BrandWordmark()),
+                      const Spacer(),
+                      IconButton(
+                          tooltip: t('提醒设置', 'Reminder settings'),
+                          onPressed: openReminderSettings,
+                          icon: const Icon(Icons.notifications_none_rounded,
+                              size: 27, color: Color(0xff34231e))),
                     ]),
-              ),
-              Positioned(
-                left: 28,
-                bottom: 58,
-                right: 180,
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _petSelector(pet, name),
-                      const SizedBox(height: AppSpacing.tight),
-                      Text(
-                          pet?['species'] == 'dog'
-                              ? t('狗狗', 'Dog')
-                              : pet?['species'] == 'cat'
-                                  ? t('猫咪', 'Cat')
-                                  : t('宠物', 'Pet'),
-                          style: const TextStyle(
-                              color: Color(0xff786961), fontSize: 15)),
-                    ]),
-              ),
-              Positioned(
-                right: 20,
-                bottom: 61,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: .96),
-                      borderRadius: BorderRadius.circular(24)),
-                  child: Row(children: [
-                    const Icon(Icons.check_circle_rounded,
-                        size: 20, color: Color(0xff5b4439)),
-                    const SizedBox(width: AppSpacing.inline),
-                    Text(t('$remaining 项待照护', '$remaining tasks to do'),
-                        style: const TextStyle(
-                            color: Color(0xff4a3730),
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700)),
-                  ]),
-                ),
-              ),
-            ]),
-      ),
-    );
-  }
+                  ),
+                  Positioned(
+                    left: 28,
+                    top: 92,
+                    right: 174,
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                              '${_weekday()} · ${t('${now.month}月${now.day}日', '${now.month}/${now.day}')}',
+                              style: const TextStyle(
+                                  color: Color(0xff76645a),
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600)),
+                          const SizedBox(height: AppSpacing.item),
+                          Text(
+                              t('今天，\n也要好好陪你。', 'Today,\nwe are here for you.'),
+                              style: const TextStyle(
+                                  color: Color(0xff34231e),
+                                  fontSize: 28,
+                                  height: 1.16,
+                                  fontWeight: FontWeight.w800)),
+                        ]),
+                  ),
+                  Positioned(
+                    left: 28,
+                    bottom: 58,
+                    right: 180,
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _petSelector(pet, name),
+                          const SizedBox(height: AppSpacing.tight),
+                          Text(
+                              pet?['species'] == 'dog'
+                                  ? t('狗狗', 'Dog')
+                                  : pet?['species'] == 'cat'
+                                      ? t('猫咪', 'Cat')
+                                      : t('宠物', 'Pet'),
+                              style: const TextStyle(
+                                  color: Color(0xff786961), fontSize: 15)),
+                        ]),
+                  ),
+                  Positioned(
+                    right: 20,
+                    bottom: 61,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: .96),
+                          borderRadius: BorderRadius.circular(24)),
+                      child: Row(children: [
+                        const Icon(Icons.check_circle_rounded,
+                            size: 20, color: Color(0xff5b4439)),
+                        const SizedBox(width: AppSpacing.inline),
+                        Text(t('$remaining 项待照护', '$remaining tasks to do'),
+                            style: const TextStyle(
+                                color: Color(0xff4a3730),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700)),
+                      ]),
+                    ),
+                  ),
+                ]
+                    .map((positioned) => Positioned(
+                          left: positioned.left,
+                          top: positioned.top,
+                          right: positioned.right,
+                          bottom: positioned.bottom,
+                          child: IgnorePointer(
+                              ignoring: opacity < .1,
+                              child: ExcludeSemantics(
+                                  excluding: opacity < .1,
+                                  child: Opacity(
+                                      opacity: opacity,
+                                      child: positioned.child))),
+                        ))
+                    .toList()),
+          ),
+        );
+      });
 
   Widget _sun() => Container(
         width: 48,
@@ -520,7 +537,6 @@ extension CareView on CareHomeState {
 
   Widget careScrollView() {
     final sections = careView();
-    final pet = selectedPet;
     return CustomScrollView(
       key: const PageStorageKey('home-tab-0'),
       physics: const AlwaysScrollableScrollPhysics(),
@@ -529,18 +545,18 @@ extension CareView on CareHomeState {
           pinned: true,
           delegate: _CareHeroHeader(
             expanded: sections.first,
-            reduceMotion: MediaQuery.disableAnimationsOf(context),
             compact: Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
               child: Row(children: [
                 Expanded(
                     child: _petSelector(
-                        pet, pet?['name'] as String? ?? t('豆包', 'Doubao'))),
+                        selectedPet,
+                        selectedPet?['name'] as String? ??
+                            t('添加宠物', 'Add a pet'))),
                 IconButton(
-                  tooltip: t('提醒设置', 'Reminder settings'),
-                  onPressed: openReminderSettings,
-                  icon: const Icon(Icons.notifications_none_rounded),
-                ),
+                    tooltip: t('提醒设置', 'Reminder settings'),
+                    onPressed: openReminderSettings,
+                    icon: const Icon(Icons.notifications_none_rounded)),
               ]),
             ),
           ),
@@ -704,81 +720,84 @@ extension CareView on CareHomeState {
 }
 
 class _HeroWaveClipper extends CustomClipper<Path> {
-  const _HeroWaveClipper();
+  const _HeroWaveClipper(this.progress);
+  final double progress;
 
   @override
   Path getClip(Size size) => Path()
-    ..lineTo(0, size.height - 35)
-    ..quadraticBezierTo(
-        size.width * .5, size.height + 5, size.width, size.height - 35)
+    ..lineTo(0, size.height - 35 * (1 - progress))
+    ..quadraticBezierTo(size.width * .5, size.height + 5 * (1 - progress),
+        size.width, size.height - 35 * (1 - progress))
     ..lineTo(size.width, 0)
     ..close();
 
   @override
-  bool shouldReclip(covariant _HeroWaveClipper oldClipper) => false;
+  bool shouldReclip(covariant _HeroWaveClipper oldClipper) =>
+      progress != oldClipper.progress;
 }
 
-/// The header follows the scroll position directly, so reversing a gesture
-/// expands it without a second animation or a jump in the care content.
-class _CareHeroHeader extends SliverPersistentHeaderDelegate {
-  _CareHeroHeader(
-      {required this.expanded,
-      required this.compact,
-      required this.reduceMotion});
+class _HeroCollapseScope extends InheritedWidget {
+  const _HeroCollapseScope({required this.progress, required super.child});
+  final double progress;
+  static double of(BuildContext context) =>
+      context
+          .dependOnInheritedWidgetOfExactType<_HeroCollapseScope>()
+          ?.progress ??
+      0;
+  @override
+  bool updateShouldNotify(_HeroCollapseScope oldWidget) =>
+      progress != oldWidget.progress;
+}
 
+class _CareHeroHeader extends SliverPersistentHeaderDelegate {
+  _CareHeroHeader({required this.expanded, required this.compact});
   final Widget expanded;
   final Widget compact;
-  final bool reduceMotion;
-
   @override
   double get minExtent => 72;
   @override
   double get maxExtent => 392;
-
   @override
   Widget build(
       BuildContext context, double shrinkOffset, bool overlapsContent) {
     final progress = (shrinkOffset / (maxExtent - minExtent)).clamp(0.0, 1.0);
-    final expandedOpacity = (1 - progress / .75).clamp(0.0, 1.0);
-    final compactOpacity = ((progress - .65) / .35).clamp(0.0, 1.0);
+    final compactOpacity = ((progress - .55) / .45).clamp(0.0, 1.0);
     return ClipRect(
-      child: ColoredBox(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        child: Stack(fit: StackFit.expand, children: [
-          Positioned(
-            top: -shrinkOffset * (reduceMotion ? 1 : .3),
+      key: const ValueKey('care-hero'),
+      child: Stack(fit: StackFit.expand, children: [
+        // Keep the photo opaque and at its original size; only crop its viewport.
+        Positioned(
+            top: 0,
             left: 0,
             right: 0,
             height: maxExtent,
-            child: IgnorePointer(
-              ignoring: progress > .5,
-              child: ExcludeSemantics(
-                excluding: progress > .5,
-                child: Opacity(opacity: expandedOpacity, child: expanded),
-              ),
-            ),
-          ),
-          Positioned(
+            child: _HeroCollapseScope(progress: progress, child: expanded)),
+        Positioned(
             top: 0,
             left: 0,
             right: 0,
             height: minExtent,
             child: IgnorePointer(
-              ignoring: progress <= .65,
-              child: ExcludeSemantics(
-                excluding: progress <= .65,
-                child: Opacity(opacity: compactOpacity, child: compact),
-              ),
-            ),
-          ),
-        ]),
-      ),
+                ignoring: compactOpacity < .5,
+                child: ExcludeSemantics(
+                    excluding: compactOpacity < .5,
+                    child: Opacity(
+                        opacity: compactOpacity,
+                        child: DecoratedBox(
+                            decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                    colors: [
+                                  Color(0xfff3dfbf).withValues(alpha: .96),
+                                  Color(0xfff3dfbf).withValues(alpha: .82)
+                                ],
+                                    begin: Alignment.centerLeft,
+                                    end: Alignment.centerRight)),
+                            child: compact))))),
+      ]),
     );
   }
 
   @override
-  bool shouldRebuild(covariant _CareHeroHeader oldDelegate) =>
-      expanded != oldDelegate.expanded ||
-      compact != oldDelegate.compact ||
-      reduceMotion != oldDelegate.reduceMotion;
+  bool shouldRebuild(_CareHeroHeader oldDelegate) =>
+      expanded != oldDelegate.expanded || compact != oldDelegate.compact;
 }

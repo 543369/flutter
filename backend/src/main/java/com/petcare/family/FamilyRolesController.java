@@ -19,8 +19,8 @@ public class FamilyRolesController extends ApiSupport {
  @GetMapping("/members") @Transactional
  public Map<String,Object> members(Authentication auth){
   String home=permission(auth,"READ");
-  var rows=db.query("SELECT id,display_name,family_role,permissions,access_until FROM accounts WHERE household_id=? ORDER BY display_name,id",(r,n)->{
-   Map<String,Object> row=new LinkedHashMap<>();row.put("id",r.getString(1));row.put("name",r.getString(2));row.put("role",r.getString(3));row.put("permissions",r.getString(4).isEmpty()?List.of():Arrays.asList(r.getString(4).split(",")));row.put("expiresAt",r.getTimestamp(5)==null?null:r.getTimestamp(5).toInstant().toString());row.put("isMe",auth.getName().equals(r.getString(1)));return row;
+  var rows=db.query("SELECT id,display_name,family_role,permissions,access_until,avatar_data FROM accounts WHERE household_id=? ORDER BY display_name,id",(r,n)->{
+   Map<String,Object> row=new LinkedHashMap<>();row.put("id",r.getString(1));row.put("name",r.getString(2));row.put("role",r.getString(3));row.put("permissions",r.getString(4).isEmpty()?List.of():Arrays.asList(r.getString(4).split(",")));row.put("expiresAt",r.getTimestamp(5)==null?null:r.getTimestamp(5).toInstant().toString());row.put("avatarData",r.getString(6));row.put("isMe",auth.getName().equals(r.getString(1)));return row;
   },home);
   boolean admin=rows.stream().anyMatch(r->Boolean.TRUE.equals(r.get("isMe"))&&"ADMIN".equals(r.get("role")));
   return Map.of("items",rows,"canManage",admin,"advanced",benefits.access(home).extended());

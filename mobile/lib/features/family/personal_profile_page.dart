@@ -1,6 +1,31 @@
+import 'dart:convert';
+import 'package:image/image.dart' as image_lib;
+import 'package:image_picker/image_picker.dart';
+import 'member_avatar.dart';
 import '../../core/theme/app_spacing.dart';
 import 'package:flutter/material.dart';
 import '../../app/home_shell.dart';
+
+Future<String?> _pickAvatar() async {
+  final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 512,
+      maxHeight: 512,
+      imageQuality: 85);
+  if (picked == null) return null;
+  final decoded = image_lib.decodeImage(await picked.readAsBytes());
+  if (decoded == null) throw const FormatException('invalid image');
+  final oriented = image_lib.bakeOrientation(decoded);
+  final side =
+      oriented.width < oriented.height ? oriented.width : oriented.height;
+  final cropped = image_lib.copyCrop(oriented,
+      x: (oriented.width - side) ~/ 2,
+      y: (oriented.height - side) ~/ 2,
+      width: side,
+      height: side);
+  final resized = image_lib.copyResize(cropped, width: 256, height: 256);
+  return base64Encode(image_lib.encodeJpg(resized, quality: 85));
+}
 
 class PersonalProfilePage extends StatefulWidget {
   const PersonalProfilePage({super.key, required this.home});
@@ -13,6 +38,7 @@ class _PersonalProfilePageState extends State<PersonalProfilePage> {
   Map<String, dynamic>? profile;
   String? error;
   bool loading = true;
+  bool uploading = false;
   String t(String zh, String en) => widget.home.t(zh, en);
   @override
   void initState() {
@@ -44,6 +70,28 @@ class _PersonalProfilePageState extends State<PersonalProfilePage> {
     if (saved != null && mounted) {
       setState(() => profile = saved);
       await widget.home.perform(() async {});
+    }
+  }
+
+  Future<void> uploadAvatar() async {
+    if (uploading) return;
+    setState(() => uploading = true);
+    try {
+      final encoded = await _pickAvatar();
+      if (encoded == null || !mounted) return;
+      final result = await widget.home.widget.api
+          .request('PUT', '/profile/avatar', {'avatarData': encoded});
+      if (!mounted) return;
+      setState(() => profile = Map<String, dynamic>.from(result as Map));
+      await widget.home.perform(() async {});
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(t('头像上传失败，请重新选择图片并重试。',
+                'Could not upload your avatar. Choose an image and try again.'))));
+      }
+    } finally {
+      if (mounted) setState(() => uploading = false);
     }
   }
 
@@ -91,13 +139,34 @@ class _PersonalProfilePageState extends State<PersonalProfilePage> {
                                       color: const Color(0xffffefcc),
                                       borderRadius: BorderRadius.circular(28)),
                                   child: Column(children: [
-                                    const CircleAvatar(
-                                        radius: 36,
-                                        backgroundColor: Colors.white,
-                                        child: Icon(
-                                            Icons.person_outline_rounded,
-                                            size: 40,
-                                            color: Color(0xff80523f))),
+                                    Semantics(
+                                      button: true,
+                                      label: t('更换头像', 'Change avatar'),
+                                      child: InkWell(
+                                        onTap: uploading ? null : uploadAvatar,
+                                        customBorder: const CircleBorder(),
+                                        child: MemberAvatar(
+                                            data: profile!['avatarData']
+                                                as String?,
+                                            radius: 36),
+                                      ),
+                                    ),
+                                    TextButton.icon(
+                                      onPressed:
+                                          uploading ? null : uploadAvatar,
+                                      icon: uploading
+                                          ? const SizedBox(
+                                              width: 16,
+                                              height: 16,
+                                              child: CircularProgressIndicator(
+                                                  strokeWidth: 2))
+                                          : const Icon(
+                                              Icons.add_a_photo_outlined,
+                                              size: 18),
+                                      label: Text(uploading
+                                          ? t('上传中…', 'Uploading…')
+                                          : t('更换头像', 'Change avatar')),
+                                    ),
                                     const SizedBox(height: AppSpacing.content),
                                     Text(profile!['name'] as String,
                                         textAlign: TextAlign.center,
@@ -111,7 +180,7 @@ class _PersonalProfilePageState extends State<PersonalProfilePage> {
                                         textAlign: TextAlign.center),
                                     const SizedBox(height: AppSpacing.section),
                                     FilledButton.icon(
-                                        onPressed: edit,
+                                        onPressed: uploading ? null : edit,
                                         icon: const Icon(Icons.edit_outlined,
                                             size: 18),
                                         label: Text(t('编辑资料', 'Edit profile'))),
@@ -179,6 +248,28 @@ class _ProfileEditorState extends State<_ProfileEditor> {
   late DateTime? birthday =
       DateTime.tryParse(widget.profile['birthDate'] as String? ?? '');
   bool saving = false;
+  bool pickingAvatar = false;
+  String? selectedAvatar;
+  bool get busy => saving || pickingAvatar;
+
+  Future<void> pickAvatar() async {
+    setState(() {
+      pickingAvatar = true;
+      error = null;
+    });
+    try {
+      final value = await _pickAvatar();
+      if (mounted && value != null) setState(() => selectedAvatar = value);
+    } catch (_) {
+      if (mounted) {
+        setState(() => error = t('无法读取图片，请重新选择。',
+            'Could not read this image. Please choose another.'));
+      }
+    } finally {
+      if (mounted) setState(() => pickingAvatar = false);
+    }
+  }
+
   String? error;
   String t(String zh, String en) => widget.home.t(zh, en);
   @override
@@ -200,12 +291,16 @@ class _ProfileEditorState extends State<_ProfileEditor> {
   }
 
   Future<void> save() async {
-    if (saving || !form.currentState!.validate()) return;
+    if (busy || !form.currentState!.validate()) return;
     setState(() {
       saving = true;
       error = null;
     });
     try {
+      if (selectedAvatar != null) {
+        await widget.home.widget.api
+            .request('PUT', '/profile/avatar', {'avatarData': selectedAvatar});
+      }
       final value = await widget.home.widget.api.request('PATCH', '/profile', {
         'name': name.text.trim(),
         'phone': phone.text.trim(),
@@ -225,7 +320,7 @@ class _ProfileEditorState extends State<_ProfileEditor> {
 
   @override
   Widget build(BuildContext context) => PopScope(
-      canPop: !saving,
+      canPop: !busy,
       child: Dialog(
           insetPadding:
               const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
@@ -246,9 +341,24 @@ class _ProfileEditorState extends State<_ProfileEditor> {
                             Text(t('完善资料，留下属于你的陪伴印记。',
                                 'Make your profile feel like you.')),
                             const SizedBox(height: AppSpacing.section),
+                            Center(
+                                child: Column(children: [
+                              MemberAvatar(
+                                  data: selectedAvatar ??
+                                      widget.profile['avatarData'] as String?,
+                                  radius: 36),
+                              TextButton.icon(
+                                  onPressed: busy ? null : pickAvatar,
+                                  icon: const Icon(Icons.add_a_photo_outlined,
+                                      size: 18),
+                                  label: Text(pickingAvatar
+                                      ? t('读取中…', 'Loading…')
+                                      : t('更换头像', 'Change avatar'))),
+                            ])),
+                            const SizedBox(height: AppSpacing.item),
                             TextFormField(
                                 controller: name,
-                                enabled: !saving,
+                                enabled: !busy,
                                 maxLength: 40,
                                 decoration: InputDecoration(
                                     labelText: t('照护称呼', 'Caregiver name'),
@@ -261,14 +371,14 @@ class _ProfileEditorState extends State<_ProfileEditor> {
                             Row(children: [
                               Expanded(
                                   child: OutlinedButton.icon(
-                                      onPressed: saving ? null : pickBirthday,
+                                      onPressed: busy ? null : pickBirthday,
                                       icon: const Icon(Icons.cake_outlined),
                                       label: Text(birthday == null
                                           ? t('选择生日（选填）', 'Birthday (optional)')
                                           : '${birthday!.year}/${birthday!.month}/${birthday!.day}'))),
                               if (birthday != null)
                                 IconButton(
-                                    onPressed: saving
+                                    onPressed: busy
                                         ? null
                                         : () => setState(() => birthday = null),
                                     tooltip: t('清除生日', 'Clear birthday'),
@@ -277,7 +387,7 @@ class _ProfileEditorState extends State<_ProfileEditor> {
                             const SizedBox(height: AppSpacing.content),
                             TextFormField(
                                 controller: phone,
-                                enabled: !saving,
+                                enabled: !busy,
                                 maxLength: 25,
                                 keyboardType: TextInputType.phone,
                                 decoration: InputDecoration(
@@ -307,14 +417,14 @@ class _ProfileEditorState extends State<_ProfileEditor> {
                             Row(children: [
                               Expanded(
                                   child: TextButton(
-                                      onPressed: saving
+                                      onPressed: busy
                                           ? null
                                           : () => Navigator.pop(context),
                                       child: Text(t('取消', 'Cancel')))),
                               const SizedBox(width: AppSpacing.item),
                               Expanded(
                                   child: FilledButton(
-                                      onPressed: saving ? null : save,
+                                      onPressed: busy ? null : save,
                                       child: Text(saving
                                           ? t('保存中…', 'Saving…')
                                           : t('保存资料', 'Save profile'))))

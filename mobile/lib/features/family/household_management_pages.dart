@@ -1,3 +1,4 @@
+import 'member_avatar.dart';
 import '../../core/widgets/app_select.dart';
 import '../../core/theme/app_spacing.dart';
 import 'package:flutter/material.dart';
@@ -30,6 +31,22 @@ class _HouseholdMembersPageState extends State<HouseholdMembersPage> {
   Map<String, dynamic>? data;
   String? error;
   bool busy = false;
+  String query = "";
+
+  List<Map<String, dynamic>> get filteredMembers {
+    final members = (data?['items'] as List? ?? [])
+        .map((raw) => Map<String, dynamic>.from(raw as Map))
+        .toList();
+    return [
+      ...members.where((m) => m['isMe'] == true),
+      ...members.where((m) => m['isMe'] != true),
+    ]
+        .where((m) => (m['name'] as String)
+            .toLowerCase()
+            .contains(query.trim().toLowerCase()))
+        .toList();
+  }
+
   String t(String z, String e) => widget.home.t(z, e);
   @override
   void initState() {
@@ -122,7 +139,20 @@ class _HouseholdMembersPageState extends State<HouseholdMembersPage> {
                       child: Text(t('重试', 'Retry')))
                 ],
                 if (data != null) ...[
-                  for (final raw in data!['items'] as List)
+                  TextField(
+                    decoration: InputDecoration(
+                      labelText: t('搜索家人', 'Search people'),
+                      prefixIcon: const Icon(Icons.search),
+                    ),
+                    onChanged: (value) => setState(() => query = value),
+                  ),
+                  const SizedBox(height: AppSpacing.item),
+                  if (filteredMembers.isEmpty)
+                    Padding(
+                      padding: AppSpacing.cardInsets,
+                      child: Text(t('没有找到匹配的家人', 'No matching people')),
+                    ),
+                  for (final raw in filteredMembers)
                     Builder(builder: (context) {
                       final m = Map<String, dynamic>.from(raw as Map);
                       final role = roleNames[m['role']]!;
@@ -133,9 +163,8 @@ class _HouseholdMembersPageState extends State<HouseholdMembersPage> {
                           child: ListTile(
                               contentPadding:
                                   const EdgeInsets.all(AppSpacing.content),
-                              leading: Icon(m['role'] == 'ADMIN'
-                                  ? Icons.shield_outlined
-                                  : Icons.person_outline),
+                              leading: MemberAvatar(
+                                  data: m['avatarData'] as String?),
                               title: Text(
                                   '${m['name']}${m['isMe'] == true ? t('（我）', ' (me)') : ''}'),
                               subtitle: Text(

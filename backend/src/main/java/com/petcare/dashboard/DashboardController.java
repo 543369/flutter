@@ -50,7 +50,9 @@ class DashboardController extends ApiSupport {
    row.put("title",r.getString(6)); row.put("petName",r.getString(7)); row.put("petId",r.getString(8)); row.put("careType",r.getString(9)); return row;
   }, home);
   var recurring = db.queryForList("SELECT c.id,c.title,c.frequency,c.zone_id AS zoneId,c.active,c.care_type AS careType,p.name AS petName,p.id AS petId FROM care_plans c JOIN pets p ON p.id=c.pet_id WHERE p.household_id=? ORDER BY c.active DESC,c.title,c.id",home);
-  var memberProfiles=db.query("SELECT id,display_name FROM accounts WHERE household_id=? ORDER BY display_name,id",(r,n)->Map.of("id",r.getString(1),"name",r.getString(2),"isMe",r.getString(1).equals(auth.getName())),home);
+  var memberProfiles=db.query("SELECT id,display_name,avatar_data FROM accounts WHERE household_id=? ORDER BY display_name,id",(r,n)->{
+   Map<String,Object> row=new LinkedHashMap<>();row.put("id",r.getString(1));row.put("name",r.getString(2));row.put("isMe",r.getString(1).equals(auth.getName()));row.put("avatarData",r.getString(3));return row;
+  },home);
   var access=db.queryForMap("SELECT family_role AS role,permissions FROM accounts WHERE id=?",auth.getName());
   Map<String,Object> result = new LinkedHashMap<>(Map.of("access",access,"memberProfiles",memberProfiles,"registered",db.queryForObject("SELECT (email IS NOT NULL OR apple_subject IS NOT NULL) FROM accounts WHERE id=?",Boolean.class,auth.getName()),"pets",pets,"tasks",compact ? tasks.stream().limit(300).toList() : tasks,"history",history,"plans",recurring,
    "me",db.queryForObject("SELECT display_name FROM accounts WHERE id=?",String.class,auth.getName()),

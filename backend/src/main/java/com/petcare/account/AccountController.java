@@ -26,13 +26,14 @@ class AccountController extends ApiSupport {
  @GetMapping("/profile") @Transactional
  Map<String,Object> profile(Authentication auth) {
   household(auth);
-  return db.queryForObject("SELECT id,display_name,email,apple_subject,birth_date,phone,created_at FROM accounts WHERE id=?",(rs,n)->{
+  return db.queryForObject("SELECT id,display_name,email,apple_subject,birth_date,phone,created_at,avatar_data FROM accounts WHERE id=?",(rs,n)->{
    Map<String,Object> result=new LinkedHashMap<>();
    result.put("id",rs.getString("id")); result.put("name",rs.getString("display_name"));
    result.put("account",rs.getString("email")!=null?rs.getString("email"):
     rs.getString("apple_subject")!=null?"Apple ID":"DEVICE");
    result.put("birthDate",rs.getDate("birth_date")==null?null:rs.getDate("birth_date").toLocalDate().toString());
    result.put("phone",rs.getString("phone"));
+   result.put("avatarData",rs.getString("avatar_data"));
    result.put("createdAt",rs.getTimestamp("created_at")==null?null:rs.getTimestamp("created_at").toInstant().toString());
    return result;
   },auth.getName());
@@ -42,6 +43,34 @@ class AccountController extends ApiSupport {
   household(auth);
   db.update("UPDATE accounts SET display_name=?,birth_date=?,phone=? WHERE id=?",input.name().strip(),input.birthDate(),input.phone()==null||input.phone().isBlank()?null:input.phone().strip(),auth.getName());
   return profile(auth);
+ }
+
+ record AvatarInput(@NotBlank @Size(max=200000) String avatarData) {}
+ @PutMapping("/profile/avatar") @Transactional
+ Map<String,Object> avatar(Authentication auth, @Valid @RequestBody AvatarInput input) {
+  household(auth);
+  validateAvatar(input.avatarData());
+  db.update("UPDATE accounts SET avatar_data=? WHERE id=?",input.avatarData(),auth.getName());
+  return profile(auth);
+ }
+ static void validateAvatar(String value) {
+  try {
+   if(value==null || value.length()>200000) throw new IllegalArgumentException();
+   byte[] bytes=Base64.getDecoder().decode(value);
+   try(var stream=javax.imageio.ImageIO.createImageInputStream(new java.io.ByteArrayInputStream(bytes))) {
+    var readers=javax.imageio.ImageIO.getImageReaders(stream);
+    if(!readers.hasNext()) throw new IllegalArgumentException();
+    var reader=readers.next();
+    try {
+     reader.setInput(stream);
+     String format=reader.getFormatName();
+     if(!format.equalsIgnoreCase("JPEG") && !format.equalsIgnoreCase("PNG")) throw new IllegalArgumentException();
+     if(reader.getWidth(0)>512 || reader.getHeight(0)>512 || reader.read(0)==null) throw new IllegalArgumentException();
+    } finally { reader.dispose(); }
+   }
+  } catch(java.io.IOException | RuntimeException e) {
+   throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"INVALID_AVATAR");
+  }
  }
 
  @DeleteMapping("/account") @ResponseStatus(HttpStatus.NO_CONTENT) @Transactional
