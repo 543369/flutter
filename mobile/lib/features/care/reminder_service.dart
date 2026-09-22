@@ -33,6 +33,7 @@ class ReminderService {
 
   Future<String> deviceZone() => FlutterTimezone.getLocalTimezone();
   Future<void> initialize(ValueChanged<String?> onTap) async {
+    if (kIsWeb) { ready = true; return; }
     tzdata.initializeTimeZones();
     await plugin.initialize(
         const InitializationSettings(
@@ -57,6 +58,7 @@ class ReminderService {
   }
 
   Future<bool> allowed() async {
+    if (kIsWeb) return false;
     if (defaultTargetPlatform == TargetPlatform.iOS) {
       return (await plugin
                   .resolvePlatformSpecificImplementation<
@@ -84,6 +86,7 @@ class ReminderService {
   }
 
   Future<bool> setEnabled(bool value) async {
+    if (kIsWeb) return false;
     if (!ready) throw StateError('Notifications not initialized');
     bool granted = false;
     if (value && defaultTargetPlatform == TargetPlatform.iOS) {
@@ -121,6 +124,7 @@ class ReminderService {
 
   Future<void> _sync(List<Map<String, dynamic>> tasks,
       {required bool chinese}) async {
+    if (kIsWeb) return;
     if (!ready) throw StateError('Notifications not initialized');
     if (enabled && !await allowed()) {
       enabled = false;

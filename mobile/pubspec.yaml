@@ -13,6 +13,7 @@ dependencies:
   flutter_timezone: 3.0.1
   timezone: ^0.9.4
   flutter_secure_storage: ^9.2.2
+  http: ^1.6.0
   image_picker: ^1.2.3
   image: ^4.9.2
   pdf: ^3.13.0

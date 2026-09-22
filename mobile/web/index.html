@@ -33,6 +33,26 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
+  <div id="loading" role="status" style="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#fffdf9;color:#5b3b2e;font-family:system-ui,sans-serif;text-align:center;padding:24px">
+    <div style="font-size:32px">爪伴</div>
+    <p id="loading-message">正在加载，首次打开需要一点时间…</p>
+    <button id="retry" hidden onclick="location.reload()" style="padding:10px 24px">重新加载</button>
+  </div>
+  <script>
+    window.addEventListener('flutter-first-frame', function () {
+      document.getElementById('loading')?.remove();
+    });
+    function loadingFailed() {
+      const message = document.getElementById('loading-message');
+      if (message) message.textContent = '加载较慢或未完成，请检查网络后重试。';
+      const retry = document.getElementById('retry');
+      if (retry) retry.hidden = false;
+    }
+    window.addEventListener('error', loadingFailed);
+    window.addEventListener('unhandledrejection', loadingFailed);
+    setTimeout(loadingFailed, 45000);
+  </script>
+
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

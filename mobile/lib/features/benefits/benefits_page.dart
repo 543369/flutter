@@ -1,8 +1,7 @@
 import '../../core/widgets/app_select.dart';
 import '../../core/theme/app_spacing.dart';
 import '../family/household_management_pages.dart';
-import 'dart:typed_data';
-import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:printing/printing.dart';
@@ -549,7 +548,7 @@ class BenefitPdfPreview extends StatefulWidget {
 class _BenefitPdfPreviewState extends State<BenefitPdfPreview> {
   bool saving = false;
   bool get desktop =>
-      Platform.isMacOS || Platform.isWindows || Platform.isLinux;
+      (!kIsWeb && defaultTargetPlatform == TargetPlatform.macOS) || (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) || (!kIsWeb && defaultTargetPlatform == TargetPlatform.linux);
   bool get zh => Localizations.localeOf(context).languageCode == 'zh';
   Future<void> save() async {
     if (saving) return;

@@ -1,6 +1,6 @@
 import 'dart:convert';
 import '../images/photo_cache.dart';
-import 'dart:io';
+import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -21,27 +21,21 @@ class CareApi {
 
   Future<dynamic> request(String method, String path,
       [Map<String, dynamic>? body]) async {
-    final uri = Uri.parse('$baseUrl/api$path');
+    final uri = Uri.base.resolve('$baseUrl/api$path');
     if (kReleaseMode && uri.scheme != 'https') {
       throw const ApiError(0, 'HTTPS_REQUIRED');
     }
-    final client = HttpClient()
-      ..connectionTimeout = const Duration(seconds: 10);
+    final client = http.Client();
     try {
-      final req = await client
-          .openUrl(method, uri)
-          .timeout(const Duration(seconds: 15));
-      req.headers.set('X-Device-Name', '${Platform.operatingSystem} App');
-      if (token != null) req.headers.set('Authorization', 'Bearer $token');
+      final req = http.Request(method, uri);
+      req.headers['X-Device-Name'] = kIsWeb ? 'Web Browser' : '${defaultTargetPlatform.name} App';
+      if (token != null) req.headers['Authorization'] = 'Bearer $token';
       if (body != null) {
-        req.headers.contentType = ContentType.json;
-        req.write(jsonEncode(body));
+        req.headers['Content-Type'] = 'application/json';
+        req.body = jsonEncode(body);
       }
-      final response = await req.close().timeout(const Duration(seconds: 15));
-      final text = await response
-          .transform(utf8.decoder)
-          .join()
-          .timeout(const Duration(seconds: 15));
+      final response = await client.send(req).timeout(const Duration(seconds: 15));
+      final text = await response.stream.bytesToString().timeout(const Duration(seconds: 15));
       if (response.statusCode >= 400) {
         var code = 'REQUEST_FAILED';
         try {
@@ -56,7 +50,7 @@ class CareApi {
       }
       return text.isEmpty ? null : jsonDecode(text);
     } finally {
-      client.close(force: true);
+      client.close();
     }
   }
 
@@ -77,7 +71,7 @@ class CareApi {
       'email': email.trim(),
       'password': password,
       'name': name.trim(),
-      'locale': Platform.localeName.replaceAll('_', '-')
+      'locale': PlatformDispatcher.instance.locale.toLanguageTag()
     });
     await saveSession(result['token'] as String);
   }

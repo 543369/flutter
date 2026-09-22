@@ -1,6 +1,6 @@
 import '../../core/theme/app_spacing.dart';
 import 'dart:convert';
-import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'email_action_page.dart';
 import 'package:flutter/material.dart';
@@ -241,7 +241,7 @@ class _AuthPanelState extends State<AuthPanel> {
                                       builder: (_) => EmailActionPage(
                                           api: widget.api, recovery: true))),
                           child: Text(t('忘记密码？', 'Forgot password?'))),
-                    if (!widget.binding && Platform.isIOS)
+                    if (!widget.binding && (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS))
                       Padding(
                           padding: const EdgeInsets.symmetric(vertical: AppSpacing.inline),
                           child: OutlinedButton(

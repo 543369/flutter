@@ -1,5 +1,5 @@
 import '../../core/theme/app_spacing.dart';
-import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
@@ -88,7 +88,7 @@ class _HealthTimelinePageState extends State<HealthTimelinePage> {
                     title: t('健康时间线预览', 'Health timeline preview'))));
       } else {
         final bytes = HealthExport.csv(data);
-        if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
+        if ((!kIsWeb && defaultTargetPlatform == TargetPlatform.macOS) || (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) || (!kIsWeb && defaultTargetPlatform == TargetPlatform.linux)) {
           final result = await getSaveLocation(
               suggestedName: filename,
               acceptedTypeGroups: [
