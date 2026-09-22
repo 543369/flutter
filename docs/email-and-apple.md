@@ -10,7 +10,7 @@
 
 ## 邮件配置
 
-在后端进程环境配置 `.env.example` 中的 `SPRING_MAIL_*` 和 `PETCARE_MAIL_FROM`。本地启动脚本读取 `.local/backend.env`，请在该私有文件添加 `export KEY=value`；Docker 环境需要显式传入这些变量。配置 SMTP 提供商允许的发件地址及 TLS。不要提交密码，不要在聊天中发送密钥。
+在后端进程环境配置 `.env.example` 中的 `SPRING_MAIL_*` 和 `PETCARE_MAIL_FROM`。本地启动脚本读取 `.local/backend.env`，请在该私有文件添加 `export KEY=value`；Docker Compose 已映射这些变量，在项目根目录的私有 `.env` 填写后运行 `docker compose up -d --build api` 使其生效。587 + STARTTLS 可使用 `.env.example` 默认值；若服务商要求 465 + SSL，将端口改为 465、`SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_ENABLE=true`，并将两项 STARTTLS 变量设为 false。配置 SMTP 提供商允许的发件地址及 TLS。不要提交密码，不要在聊天中发送密钥。
 
 未配置邮件服务时返回 503，App 显示尚未配置；不会把验证码写入日志或用假发送替代邮件。自动化测试使用 mock 邮件发送器验证正文和数据库流程，尚未验证真实邮件送达。
 
