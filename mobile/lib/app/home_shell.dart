@@ -82,6 +82,51 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
     });
   }
 
+  final _photoLoads = <String>{};
+  final _photoFailures = <String>{};
+  String photoKey(Map<String, dynamic> pet) =>
+      '${widget.api.token}:${pet['id']}:${pet['photoRevision']}';
+
+  void loadPhotosInBackground({bool retry = false}) {
+    if (retry) _photoFailures.clear();
+    for (final pet in pets) {
+      final key = photoKey(pet);
+      if (pet['photosPending'] != true ||
+          _photoLoads.contains(key) || _photoFailures.contains(key)) {
+        continue;
+      }
+      unawaited(loadPhoto(pet));
+    }
+  }
+
+  Future<bool> loadPhoto(Map<String, dynamic> pet) async {
+    final key = photoKey(pet);
+    if (!_photoLoads.add(key)) return false;
+    final session = widget.api.token;
+    try {
+      final photos = await widget.api.loadPetPhotos(pet);
+      if (!mounted || session != widget.api.token) return false;
+      final current = pets.where((p) => p['id'] == pet['id'] &&
+          p['photoRevision'] == pet['photoRevision']).firstOrNull;
+      if (current == null) return false;
+      updateUi(() {
+        data!['pets'] = pets.map((p) => p['id'] == pet['id']
+            ? {...p, 'photos': photos['photos'], 'photoData': photos['photoData'],
+               'photosPending': false} : p).toList();
+        _photoFailures.remove(key);
+      });
+      return true;
+    } catch (_) {
+      if (mounted && session == widget.api.token) {
+        updateUi(() => _photoFailures.add(key));
+      }
+      return false;
+    } finally {
+      _photoLoads.remove(key);
+      if (mounted) updateUi(() {});
+    }
+  }
+
   Future<void> restore() async {
     try {
       await widget.api.restore();
@@ -111,6 +156,7 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
     }
     if (mounted) {
       updateUi(() => loading = false);
+      loadPhotosInBackground();
       if (pendingNotificationTap) {
         WidgetsBinding.instance
             .addPostFrameCallback((_) => openNotificationTask());
@@ -263,6 +309,7 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
           accessExpired = false;
           error = null;
         });
+        loadPhotosInBackground();
         await syncReminders();
       }
     } on ApiError catch (e) {
@@ -406,6 +453,7 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
           accessExpired = false;
           error = null;
         });
+        loadPhotosInBackground();
         await syncReminders();
       }
     } catch (e) {
@@ -545,6 +593,28 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
                                   ),
                                 ),
                         ),
+                        if (data != null && pets.any((p) =>
+                            p['photosPending'] == true && _photoFailures.contains(photoKey(p))))
+                          Positioned(
+                            bottom: 8, left: 12, right: 12,
+                            child: Material(
+                              elevation: 2,
+                              borderRadius: BorderRadius.circular(12),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                child: Row(children: [
+                                  Expanded(child: Text(t('照片加载失败，其他功能可正常使用',
+                                      'Photos unavailable. Other features still work.'))),
+                                  TextButton(
+                                    onPressed: () {
+                                      updateUi(() => _photoFailures.clear());
+                                      loadPhotosInBackground(retry: true);
+                                    },
+                                    child: Text(t('重试照片', 'Retry photos'))),
+                                ]),
+                              ),
+                            ),
+                          ),
                         if (busy)
                           const Positioned(
                             top: 0,

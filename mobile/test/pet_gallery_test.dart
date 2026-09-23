@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
@@ -12,7 +13,37 @@ final galleryPhotos = List.generate(
     (n) => base64Encode(img.encodePng(
         img.Image(width: 2, height: 2)..setPixelRgb(0, 0, n * 40, 80, 50))));
 
+class SlowPhotosApi extends FakeApi {
+  final firstPhoto = Completer<Map<String, dynamic>>();
+  int photoCalls = 0;
+  @override
+  Future<Map<String, dynamic>> loadPetPhotos(Map<String, dynamic> pet) {
+    photoCalls++;
+    return photoCalls == 1 ? firstPhoto.future : Future.value({'photos': galleryPhotos});
+  }
+}
+
 void main() {
+  testWidgets('home appears before photos and retries photos without dashboard reload', (tester) async {
+    final api = SlowPhotosApi();
+    api.petItems.single['photosPending'] = true;
+    await showCare(tester, api);
+    final home = tester.state<CareHomeState>(find.byType(CareHome));
+    expect(home.data, isNotNull);
+    expect(home.loading, isFalse);
+    expect(api.photoCalls, 1);
+    api.firstPhoto.completeError(TimeoutException('photo download'));
+    await tester.pumpAndSettle();
+    expect(home.error, isNull);
+    final calls = api.dashboardCalls;
+    await tester.tap(find.text('Retry photos'));
+    await tester.pumpAndSettle();
+    expect(api.photoCalls, 2);
+    expect(api.dashboardCalls, calls);
+    expect(home.pets.single['photos'], galleryPhotos);
+    expect(find.text('Retry photos'), findsNothing);
+  });
+
   test('gallery accepts old photos but explicit empty gallery clears the cover',
       () {
     expect(petPhotos({'photoData': galleryPhotos[0]}), [galleryPhotos[0]]);

@@ -115,15 +115,25 @@ class CareApi {
     for (final pet in pets) {
       final id = pet['id'] as String;
       final cached = _petPhotos[id];
-      if (cached == null || cached['version'] != pet['photoRevision']) {
-        final photos = Map<String, dynamic>.from(
-            await request('GET', '/pets/$id/photos') as Map);
-        _petPhotos[id] = {...photos, 'version': pet['photoRevision']};
+      if (cached != null && cached['version'] == pet['photoRevision']) {
+        pet['photoData'] = cached['photoData'];
+        pet['photos'] = cached['photos'];
+      } else {
+        pet['photosPending'] = true;
       }
-      pet['photoData'] = _petPhotos[id]!['photoData'];
-      pet['photos'] = _petPhotos[id]!['photos'];
     }
     return result;
+  }
+
+  Future<Map<String, dynamic>> loadPetPhotos(Map<String, dynamic> pet) async {
+    final session = token;
+    final id = pet['id'] as String;
+    final photos = Map<String, dynamic>.from(
+        await request('GET', '/pets/$id/photos') as Map);
+    if (session == token && _photoSession == session) {
+      _petPhotos[id] = {...photos, 'version': pet['photoRevision']};
+    }
+    return photos;
   }
 
   Future<void> deleteAccount() async {

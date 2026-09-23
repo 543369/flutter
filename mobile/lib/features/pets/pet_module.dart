@@ -49,6 +49,17 @@ extension PetModule on CareHomeState {
   Future<void> editPet(Map<String, dynamic> pet) => showPetForm(pet);
 
   Future<void> showPetForm([Map<String, dynamic>? pet]) async {
+    if (pet != null && pet['photosPending'] == true) {
+      final loaded = await loadPhoto(pet);
+      if (!mounted) return;
+      if (!loaded) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(
+            t('请等待照片加载完成后再编辑，可点击重试照片。',
+              'Wait for photos to load before editing. You can retry photos.'))));
+        return;
+      }
+      pet = pets.firstWhere((p) => p['id'] == pet!['id']);
+    }
     final id = await showDialog<String>(
         context: context,
         barrierDismissible: false,
