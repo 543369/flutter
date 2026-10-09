@@ -53,8 +53,7 @@ void main() {
     await tester.enterText(
         find.widgetWithText(TextFormField, 'Password'), 'password-test-123');
     await tester.enterText(
-        find.widgetWithText(TextFormField, 'Email verification code'),
-        'test-code');
+        find.widgetWithText(TextFormField, 'Email code'), 'test-code');
     await tester.enterText(
         find.widgetWithText(TextFormField, 'Confirm password'),
         'password-test-123');
@@ -101,8 +100,7 @@ void main() {
     await tester.enterText(
         find.widgetWithText(TextFormField, 'Password'), 'password-test-123');
     await tester.enterText(
-        find.widgetWithText(TextFormField, 'Email verification code'),
-        'test-code');
+        find.widgetWithText(TextFormField, 'Email code'), 'test-code');
     await tester.enterText(
         find.widgetWithText(TextFormField, 'Confirm password'),
         'different-password');
@@ -115,8 +113,7 @@ void main() {
     expect(api.registrations, 0);
     expect(find.text('Passwords do not match'), findsOneWidget);
     await tester.enterText(
-        find.widgetWithText(TextFormField, 'Email verification code'),
-        'test-code');
+        find.widgetWithText(TextFormField, 'Email code'), 'test-code');
     await tester.enterText(
         find.widgetWithText(TextFormField, 'Confirm password'),
         'password-test-123');
@@ -155,14 +152,14 @@ void main() {
     expect(api.registrations, 0);
     expect(find.text('Request and enter the email verification code'),
         findsOneWidget);
-    await tester.ensureVisible(find.text('Send verification code'));
-    await tester.tap(find.text('Send verification code'));
+    await tester.ensureVisible(find.text('Send code'));
+    await tester.tap(find.text('Send code'));
     await tester.pumpAndSettle();
     expect(api.codeRequests, 1);
     expect(
         tester
-            .widget<OutlinedButton>(
-                find.widgetWithText(OutlinedButton, 'Resend in 60 seconds'))
+            .widget<FilledButton>(
+                find.widgetWithText(FilledButton, 'Resend in 60 s'))
             .onPressed,
         isNull);
     await tester.pumpWidget(const SizedBox());

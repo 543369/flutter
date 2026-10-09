@@ -32,7 +32,7 @@ class _AuthPanelState extends State<AuthPanel> {
       name = TextEditingController(),
       confirmation = TextEditingController();
   late bool registering = widget.binding;
-  bool busy = false, hidden = true;
+  bool busy = false, hidden = true, sendingCode = false;
   String? error;
   String t(String zh, String en) =>
       Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
@@ -108,6 +108,7 @@ class _AuthPanelState extends State<AuthPanel> {
     }
     setState(() {
       busy = true;
+      sendingCode = true;
       error = null;
     });
     try {
@@ -140,7 +141,12 @@ class _AuthPanelState extends State<AuthPanel> {
                     'Could not send email. Please try again later.'));
       }
     } finally {
-      if (mounted) setState(() => busy = false);
+      if (mounted) {
+        setState(() {
+          busy = false;
+          sendingCode = false;
+        });
+      }
     }
   }
 
@@ -240,22 +246,55 @@ class _AuthPanelState extends State<AuthPanel> {
                             : null),
                     if (registering) ...[
                       const SizedBox(height: AppSpacing.item),
-                      OutlinedButton(
-                        onPressed:
-                            busy || cooldown > 0 ? null : sendRegistrationCode,
-                        child: Text(cooldown > 0
-                            ? t('$cooldown 秒后重发', 'Resend in $cooldown seconds')
-                            : t('发送验证码', 'Send verification code')),
-                      ),
                       TextFormField(
                         controller: verificationCode,
                         enabled: !busy,
                         autocorrect: false,
                         enableSuggestions: false,
                         decoration: InputDecoration(
-                            labelText: t('邮箱验证码', 'Email verification code'),
-                            helperText: t('粘贴邮件中的完整验证码，15 分钟内有效。',
-                                'Paste the complete code. Valid for 15 minutes.')),
+                            labelText: t('邮箱验证码', 'Email code'),
+                            hintText: t('粘贴验证码', 'Paste code'),
+                            helperMaxLines: 2,
+                            errorMaxLines: 2,
+                            helperText: cooldown > 0
+                                ? t('已发送，请查收邮件 · 15 分钟内有效',
+                                    'Sent to your inbox · Valid for 15 minutes')
+                                : t('验证邮箱后即可注册 · 验证码 15 分钟内有效',
+                                    'Verify your email to register · Code valid for 15 minutes'),
+                            suffixIcon: Padding(
+                              padding: const EdgeInsets.all(6),
+                              child: FilledButton.tonal(
+                                onPressed: busy || cooldown > 0
+                                    ? null
+                                    : sendRegistrationCode,
+                                style: FilledButton.styleFrom(
+                                  minimumSize: const Size(104, 44),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14),
+                                  backgroundColor: const Color(0xfff1e2d3),
+                                  foregroundColor: const Color(0xff684936),
+                                  disabledBackgroundColor:
+                                      const Color(0xfff1ebe5),
+                                  disabledForegroundColor:
+                                      const Color(0xff8b7466),
+                                  textStyle: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12)),
+                                ),
+                                child: sendingCode
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2))
+                                    : Text(cooldown > 0
+                                        ? t('$cooldown 秒后重发',
+                                            'Resend in $cooldown s')
+                                        : t('发送验证码', 'Send code')),
+                              ),
+                            )),
                         validator: (v) => v == null || v.trim().isEmpty
                             ? t('请先获取并填写邮箱验证码',
                                 'Request and enter the email verification code')
