@@ -28,14 +28,18 @@ class CareApi {
     final client = http.Client();
     try {
       final req = http.Request(method, uri);
-      req.headers['X-Device-Name'] = kIsWeb ? 'Web Browser' : '${defaultTargetPlatform.name} App';
+      req.headers['X-Device-Name'] =
+          kIsWeb ? 'Web Browser' : '${defaultTargetPlatform.name} App';
       if (token != null) req.headers['Authorization'] = 'Bearer $token';
       if (body != null) {
         req.headers['Content-Type'] = 'application/json';
         req.body = jsonEncode(body);
       }
-      final response = await client.send(req).timeout(const Duration(seconds: 15));
-      final text = await response.stream.bytesToString().timeout(const Duration(seconds: 15));
+      final response =
+          await client.send(req).timeout(const Duration(seconds: 15));
+      final text = await response.stream
+          .bytesToString()
+          .timeout(const Duration(seconds: 15));
       if (response.statusCode >= 400) {
         var code = 'REQUEST_FAILED';
         try {
@@ -72,6 +76,18 @@ class CareApi {
       'password': password,
       'name': name.trim(),
       'locale': PlatformDispatcher.instance.locale.toLanguageTag()
+    });
+    await saveSession(result['token'] as String);
+  }
+
+  Future<void> registerVerified(
+      String email, String password, String name, String code) async {
+    final result = await request('POST', '/auth/register', {
+      'email': email.trim(),
+      'password': password,
+      'name': name.trim(),
+      'locale': PlatformDispatcher.instance.locale.toLanguageTag(),
+      'code': code.trim(),
     });
     await saveSession(result['token'] as String);
   }

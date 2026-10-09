@@ -56,7 +56,8 @@ com.petcare/
 
 | 接口 | 行为 |
 | --- | --- |
-| POST `/api/auth/register` | `{email,password,name}`；201 返回 token。带有效旧设备令牌时升级原身份 |
+| POST `/api/auth/register/request` | `{email}`；发送注册验证码，成功 204，每邮箱 60 秒冷却 |
+| POST `/api/auth/register` | `{email,password,name,locale,code}`；邮箱验证码必填，15 分钟内单次使用；201 返回 token。带有效旧设备令牌时升级原身份，保留资料 |
 | POST `/api/auth/login` | `{email,password}`；200 返回 token |
 | POST `/api/auth/logout` | 需要 Bearer token；撤销本次会话，204 |
 | GET `/api/dashboard` | 新增 registered，指明是否已绑定邮箱 |

@@ -14,11 +14,18 @@ Flutter + Java 21 / Spring Boot 4.1.1 + MySQL 的宠物照护与家庭协作新�
 - [移动端设计规范与首页参考](docs/design/README.md)
 - [照护闭环使用说明](docs/care-workflow.md)
 - [家庭会员权益与导出](docs/household-benefits.md)
+- [支付上线状态](docs/payment-launch.md) · [RevenueCat / Google Play 配置](docs/revenuecat-google-play.md)
 - [健康档案、家庭周报与照护权限](docs/health-and-family.md)
 - [API 接口说明](docs/api.md)
 - [市场依据与产品路线](docs/market.md)
 - [App Store 发布准备](docs/app-store.md)
 - [验证记录](docs/verification.md)
+
+## macOS 的 VS Code 启动环境
+
+项目根目录及 `mobile/` 的 `.vscode/settings.json` 为 Dart/Flutter 子进程设置了 macOS 工具路径，包含 Apple Silicon Homebrew 的 `/opt/homebrew/bin`，避免 IDE 找不到已安装的 CocoaPods。两份配置分别对应打开整个仓库和单独打开 `mobile/`。修改配置后停止旧调试会话再启动；若 IDE 仍保留旧环境，执行 `Developer: Reload Window`。
+
+此配置使用 macOS 的常用工具目录；如需额外的自定义命令目录，可追加到 `dart.env.PATH`。部分插件尚未支持 Swift Package Manager，目前仍通过 CocoaPods 构建，因此必须保留可用的 `pod`。
 
 ## 本机已经初始化的独立数据库
 

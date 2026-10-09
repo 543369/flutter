@@ -5,14 +5,14 @@ import 'package:petcare/features/auth/account_security_page.dart';
 
 class SecurityFake extends CareApi {
   int changes = 0;
-  bool reject = false;
+  bool reject = false, verified = true;
   @override
   Future<dynamic> request(String method, String path,
       [Map<String, dynamic>? body]) async {
     if (path == '/auth/email/status') {
       return {
         'email': 'test@example.com',
-        'verified': false,
+        'verified': verified,
         'hasPassword': true
       };
     }
@@ -24,6 +24,38 @@ class SecurityFake extends CareApi {
 }
 
 void main() {
+  testWidgets('unverified email blocks password change and opens verification',
+      (tester) async {
+    final api = SecurityFake()..verified = false;
+    await tester.pumpWidget(MaterialApp(
+        home: AccountSecurityPage(api: api, translate: (zh, en) => en)));
+    await tester.pumpAndSettle();
+    expect(find.text('Email not verified'), findsOneWidget);
+    expect(
+        tester
+            .widget<FilledButton>(
+                find.widgetWithText(FilledButton, 'Change password'))
+            .onPressed,
+        isNull);
+    for (final field
+        in tester.widgetList<TextFormField>(find.byType(TextFormField))) {
+      expect(field.enabled, isFalse);
+    }
+    await tester.tap(find.text('Verify email'));
+    await tester.pumpAndSettle();
+    expect(find.text('test@example.com'), findsWidgets);
+    api.verified = true;
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('Email verified'), findsOneWidget);
+    expect(
+        tester
+            .widget<FilledButton>(
+                find.widgetWithText(FilledButton, 'Change password'))
+            .onPressed,
+        isNotNull);
+    expect(api.changes, 0);
+  });
   for (final reject in [false, true]) {
     testWidgets('password validation and submission (rejected: $reject)',
         (tester) async {
@@ -31,6 +63,8 @@ void main() {
       await tester.pumpWidget(MaterialApp(
           home: AccountSecurityPage(api: api, translate: (zh, en) => en)));
       await tester.pumpAndSettle();
+      expect(find.text('Verify email'), findsOneWidget);
+      expect(find.text('Email verified'), findsOneWidget);
       final fields = find.byType(TextFormField);
       await tester.enterText(fields.at(0), 'Original-password-42');
       await tester.enterText(fields.at(1), 'Changed-password-43');

@@ -13,6 +13,8 @@ public class HouseholdBenefits {
  private final JdbcTemplate db;
  private final long freeBytes, previewBytes;
  private final boolean preview;
+ @org.springframework.beans.factory.annotation.Autowired
+ private com.petcare.billing.RevenueCatSettings billing;
  public HouseholdBenefits(JdbcTemplate db,
    @Value("${petcare.benefits.free-bytes:104857600}") long freeBytes,
    @Value("${petcare.benefits.preview-bytes:1073741824}") long previewBytes,
@@ -22,6 +24,12 @@ public class HouseholdBenefits {
  }
  public record Access(String tier, long limitBytes, Instant expiresAt, boolean extended) {}
  public Access access(String home) {
+  if(billing!=null && billing.enabled) {
+   var subscriptions=db.query("SELECT MAX(active_until) FROM revenuecat_customers WHERE household_id=? AND active_until>UTC_TIMESTAMP(6) AND verified_at>DATE_SUB(UTC_TIMESTAMP(6),INTERVAL 1 HOUR)",
+    (r,n)->r.getTimestamp(1),home);
+   if(!subscriptions.isEmpty() && subscriptions.getFirst()!=null)
+    return new Access("FAMILY",Math.max(freeBytes,billing.storageBytes),subscriptions.getFirst().toInstant(),true);
+  }
   var grants=db.query("SELECT storage_limit_bytes,expires_at FROM household_benefits WHERE household_id=? AND (expires_at IS NULL OR expires_at>CURRENT_TIMESTAMP(6))",
    (r,n)->new Access("FAMILY",Math.max(freeBytes,r.getLong(1)),r.getTimestamp(2)==null?null:r.getTimestamp(2).toInstant(),true),home);
   return grants.isEmpty()?new Access(preview?"PREVIEW":"FREE",preview?previewBytes:freeBytes,null,preview):grants.getFirst();
@@ -51,7 +59,7 @@ public class HouseholdBenefits {
   result.put("canExport",access.extended()); result.put("canReport",access.extended());
   result.put("canHealthTrends",access.extended()); result.put("canBatchOrganize",access.extended());
   result.put("canAdvancedRoles",access.extended()); result.put("healthAttachmentLimit",access.extended()?12:2);
-  result.put("billingEnabled",false);
+  result.put("billingEnabled",billing!=null && billing.enabled);
   return result;
  }
 }

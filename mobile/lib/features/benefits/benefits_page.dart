@@ -9,6 +9,7 @@ import '../../app/home_shell.dart';
 import '../pets/pet_detail_page.dart';
 import '../pets/pet_profile.dart';
 import 'benefits_pdf.dart';
+import 'revenuecat_page.dart';
 
 String storageLabel(num bytes) => bytes >= 1073741824
     ? '${(bytes / 1073741824).toStringAsFixed(1)} GB'
@@ -145,6 +146,26 @@ class _BenefitsPageState extends State<BenefitsPage> {
                   const SizedBox(height: AppSpacing.content)
                 ],
                 if (status != null) ...[
+                  if (PlayBilling.available &&
+                      status!['billingEnabled'] == true)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: FilledButton.icon(
+                        icon: const Icon(Icons.workspace_premium_outlined),
+                        label: Text(t('家庭会员与购买管理', 'Membership & purchases')),
+                        onPressed: loading
+                            ? null
+                            : () async {
+                                await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (_) => RevenueCatPage(
+                                            api: widget.home.widget.api,
+                                            translate: t)));
+                                if (mounted) await load();
+                              },
+                      ),
+                    ),
                   panel(const Color(0xffffefcc), [
                     const Icon(Icons.auto_awesome_outlined,
                         size: 32, color: Color(0xffad6345)),
@@ -548,7 +569,9 @@ class BenefitPdfPreview extends StatefulWidget {
 class _BenefitPdfPreviewState extends State<BenefitPdfPreview> {
   bool saving = false;
   bool get desktop =>
-      (!kIsWeb && defaultTargetPlatform == TargetPlatform.macOS) || (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) || (!kIsWeb && defaultTargetPlatform == TargetPlatform.linux);
+      (!kIsWeb && defaultTargetPlatform == TargetPlatform.macOS) ||
+      (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) ||
+      (!kIsWeb && defaultTargetPlatform == TargetPlatform.linux);
   bool get zh => Localizations.localeOf(context).languageCode == 'zh';
   Future<void> save() async {
     if (saving) return;

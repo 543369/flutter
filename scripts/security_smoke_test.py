@@ -20,23 +20,25 @@ try:
     call('DELETE', '/auth/sessions/' + own, a, expected=409)
     call('POST', '/auth/password', a, {'oldPassword': 'incorrect-password', 'newPassword': new_password}, 403)
     call('GET', '/dashboard', b)
-    call('POST', '/auth/password', a, {'oldPassword': password, 'newPassword': password}, 400)
+    call('POST', '/auth/password', a, {'oldPassword': password, 'newPassword': password}, 403)
     call('POST', '/auth/password', a, {'oldPassword': password, 'newPassword': 'short'}, 400)
     call('POST', '/auth/password', guest, {'oldPassword': password, 'newPassword': new_password}, 409)
-    call('POST', '/auth/password', a, {'oldPassword': password, 'newPassword': new_password}, 204)
+    blocked = call('POST', '/auth/password', a, {'oldPassword': password, 'newPassword': new_password}, 403)
+    assert blocked['error'] == 'EMAIL_VERIFICATION_REQUIRED'
     call('GET', '/dashboard', a)
-    call('GET', '/dashboard', b, expected=401)
-    call('POST', '/auth/login', body={'email': email, 'password': password}, expected=401)
-    c = call('POST', '/auth/login', body={'email': email, 'password': new_password})['token']
-    other = next(s['id'] for s in call('GET', '/auth/sessions', a) if not s['current'])
+    call('GET', '/dashboard', b)
+    # Verified password replacement is covered by EmailIdentityTests with mock mail.
+    c = call('POST', '/auth/login', body={'email': email, 'password': password})['token']
+    current_c = next(s['id'] for s in call('GET', '/auth/sessions', c) if s['current'])
+    other = current_c
     call('DELETE', '/auth/sessions/' + other, a, expected=204)
     call('GET', '/dashboard', c, expected=401)
-    d = call('POST', '/auth/login', body={'email': email, 'password': new_password})['token']
+    d = call('POST', '/auth/login', body={'email': email, 'password': password})['token']
     call('POST', '/auth/sessions/revoke-others', a, expected=204)
     call('POST', '/auth/sessions/revoke-others', a, expected=204)
     call('GET', '/dashboard', d, expected=401)
     assert len(call('GET', '/auth/sessions', a)) == 1
-    print('PASS: password validation, password replacement, current-session preservation, revocation, session isolation and private metadata.')
+    print('PASS: unverified-password protection, revocation, session isolation and private metadata.')
 finally:
     for token in cleanup:
         call('DELETE', '/account', token, expected=204)

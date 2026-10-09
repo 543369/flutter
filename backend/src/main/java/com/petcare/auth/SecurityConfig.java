@@ -22,7 +22,8 @@ class SecurityConfig {
  @Bean SecurityFilterChain security(HttpSecurity http, JdbcTemplate db) throws Exception {
   return http.csrf(c -> c.disable())
    .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-   .authorizeHttpRequests(a -> a.dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ERROR).permitAll().requestMatchers(org.springframework.http.HttpMethod.POST, "/api/session", "/api/auth/register", "/api/auth/login", "/api/auth/recovery/request", "/api/auth/recovery/confirm", "/api/auth/apple/challenge", "/api/auth/apple/login").permitAll()
+   .authorizeHttpRequests(a -> a.dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ERROR).permitAll().requestMatchers(org.springframework.http.HttpMethod.POST, "/api/session", "/api/auth/register", "/api/auth/register/request", "/api/auth/login", "/api/auth/recovery/request", "/api/auth/recovery/confirm", "/api/auth/apple/challenge", "/api/auth/apple/login").permitAll()
+    .requestMatchers(org.springframework.http.HttpMethod.POST,"/api/billing/revenuecat/webhook").permitAll()
     .requestMatchers("/api/health").permitAll().anyRequest().authenticated())
    .exceptionHandling(e -> e.authenticationEntryPoint((q,r,x) -> r.sendError(401)))
    .addFilterBefore(new OncePerRequestFilter() {

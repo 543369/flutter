@@ -11,8 +11,9 @@ import org.springframework.web.bind.annotation.*;
 class AuthController {
  private final AuthService auth;
  private final AuthRateLimiter limits;
- AuthController(AuthService auth,AuthRateLimiter limits) { this.auth=auth; this.limits=limits; }
- record Registration(@NotBlank @Email @Size(max=254) String email,@NotBlank @Size(min=10,max=72) String password,@Size(max=40) String name, @Size(max=35) String locale) {}
+ private final RegistrationVerification registration;
+ AuthController(AuthService auth,AuthRateLimiter limits,RegistrationVerification registration) { this.auth=auth; this.limits=limits;this.registration=registration; }
+ record Registration(@NotBlank @Email @Size(max=254) String email,@NotBlank @Size(min=10,max=72) String password,@Size(max=40) String name, @Size(max=35) String locale,@NotBlank @Size(max=128) String code) {}
  record Login(@NotBlank @Email @Size(max=254) String email,@NotBlank @Size(max=72) String password) {}
  private String device(HttpServletRequest request) {
   String value=request.getHeader("X-Device-Name");
@@ -25,7 +26,12 @@ class AuthController {
   limits.check(request.getRemoteAddr());
   if(request.getHeader("Authorization") != null && (user == null || "anonymousUser".equals(user.getName())))
    throw new org.springframework.web.server.ResponseStatusException(HttpStatus.UNAUTHORIZED);
-  return auth.register(input.email(),input.password(),input.name()==null || input.name().isBlank()?DefaultNames.forLocale(input.locale()):input.name(),user,device(request));
+  return registration.register(input.email(),input.code(),input.password(),input.name()==null || input.name().isBlank()?DefaultNames.forLocale(input.locale()):input.name(),user,device(request));
+ }
+ record RegistrationEmail(@NotBlank @Email @Size(max=254) String email) {}
+ @PostMapping("/register/request") @ResponseStatus(HttpStatus.NO_CONTENT)
+ void requestRegistration(@Valid @RequestBody RegistrationEmail input,HttpServletRequest request){
+  limits.check(request.getRemoteAddr());registration.request(input.email());
  }
  @PostMapping("/login")
  Map<String,String> login(@Valid @RequestBody Login input,HttpServletRequest request) {

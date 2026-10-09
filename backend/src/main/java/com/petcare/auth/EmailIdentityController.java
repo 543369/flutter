@@ -4,12 +4,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import java.util.*;
-import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,10 +16,9 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/auth")
 class EmailIdentityController {
  private final JdbcTemplate db; private final AuthRateLimiter limits;
- private final ObjectProvider<JavaMailSender> mail;
- private final String from;
- EmailIdentityController(JdbcTemplate db,AuthRateLimiter limits,ObjectProvider<JavaMailSender> mail,@Value("${petcare.mail.from:}") String from) {
-  this.db=db;this.limits=limits;this.mail=mail;this.from=from;
+ private final IdentityMailSender mail;
+ EmailIdentityController(JdbcTemplate db,AuthRateLimiter limits,IdentityMailSender mail) {
+  this.db=db;this.limits=limits;this.mail=mail;
  }
  record Email(@NotBlank @jakarta.validation.constraints.Email @Size(max=254) String email) {}
  record Code(@NotBlank @Size(max=128) String code) {}
@@ -32,16 +27,14 @@ class EmailIdentityController {
   return db.queryForMap("SELECT email, email_verified AS verified, password_hash IS NOT NULL AS hasPassword FROM accounts WHERE id=?",user.getName());
  }
  private void send(String account,String address,String purpose) {
-  var sender=mail.getIfAvailable();
-  if(sender==null || from.isBlank()) throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE);
+  mail.requireConfigured();
   if(db.queryForObject("SELECT COUNT(*) FROM email_actions WHERE account_id=? AND purpose=? AND sent_at>DATE_SUB(UTC_TIMESTAMP(6),INTERVAL 1 MINUTE)",Integer.class,account,purpose)>0) return;
   String code=Tokens.create();
   db.update("DELETE FROM email_actions WHERE account_id=? AND purpose=?",account,purpose);
   db.update("INSERT INTO email_actions VALUES (?,?,?,DATE_ADD(UTC_TIMESTAMP(6),INTERVAL 15 MINUTE),UTC_TIMESTAMP(6))",account,purpose,Tokens.hash(code));
-  SimpleMailMessage message=new SimpleMailMessage(); message.setFrom(from);message.setTo(address);
-  message.setSubject(purpose.equals("verify")?"PetCare 邮箱验证 / Verify email":"PetCare 重置密码 / Reset password");
-  message.setText("请在 PetCare 中粘贴以下验证码，15 分钟内有效，仅可使用一次。\nPaste this code in PetCare. Expires in 15 minutes, single use.\n\n"+code+"\n\n如果不是你发起的请求，请忽略此邮件。 / Ignore this email if you did not request it.");
-  sender.send(message);
+  String subject=(purpose.equals("verify")?"PetCare 邮箱验证 / Verify email":"PetCare 重置密码 / Reset password");
+  String text=("请在 PetCare 中粘贴以下验证码，15 分钟内有效，仅可使用一次。\nPaste this code in PetCare. Expires in 15 minutes, single use.\n\n"+code+"\n\n如果不是你发起的请求，请忽略此邮件。 / Ignore this email if you did not request it.");
+  mail.send(address,subject,text);
  }
  @PostMapping("/email/request") @ResponseStatus(HttpStatus.NO_CONTENT) @Transactional
  void requestVerification(Authentication user,HttpServletRequest request) {
@@ -60,7 +53,7 @@ class EmailIdentityController {
  @PostMapping("/recovery/request") @ResponseStatus(HttpStatus.NO_CONTENT) @Transactional
  void recovery(@Valid @RequestBody Email input,HttpServletRequest request) {
   limits.check(request.getRemoteAddr());
-  if(mail.getIfAvailable()==null || from.isBlank()) throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE);
+  mail.requireConfigured();
   var rows=db.queryForList("SELECT id,email FROM accounts WHERE email=? AND password_hash IS NOT NULL FOR UPDATE",input.email().strip().toLowerCase(Locale.ROOT));
   if(!rows.isEmpty()) send((String)rows.getFirst().get("id"),(String)rows.getFirst().get("email"),"reset");
  }

@@ -73,6 +73,8 @@ public class AuthService extends ApiSupport {
   validatePassword(oldPassword); validatePassword(newPassword);
   String oldHash=db.queryForObject("SELECT password_hash FROM accounts WHERE id=?",String.class,user.getName());
   if(oldHash==null) throw new ResponseStatusException(HttpStatus.CONFLICT);
+  if(!Boolean.TRUE.equals(db.queryForObject("SELECT email_verified FROM accounts WHERE id=?",Boolean.class,user.getName())))
+   throw new ResponseStatusException(HttpStatus.FORBIDDEN,"EMAIL_VERIFICATION_REQUIRED");
   if(!passwords.matches(oldPassword,oldHash)) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
   if(passwords.matches(newPassword,oldHash)) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
   db.update("DELETE FROM email_actions WHERE account_id=? AND purpose='reset'",user.getName());

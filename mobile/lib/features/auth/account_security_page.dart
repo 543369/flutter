@@ -52,12 +52,18 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
         return;
       }
       setState(() {
-        error = e.status == 403
-            ? t('当前密码不正确', 'Current password is incorrect')
-            : e.status == 429
-                ? t('操作太频繁，请稍后重试', 'Too many attempts. Try again later.')
-                : t('操作失败，请刷新后重试（${e.status}）',
-                    'Request failed. Refresh and retry (${e.status}).');
+        if (e.code == 'EMAIL_VERIFICATION_REQUIRED' && identity != null) {
+          identity!['verified'] = false;
+        }
+        error = e.code == 'EMAIL_VERIFICATION_REQUIRED'
+            ? t('请先验证邮箱，再修改密码',
+                'Verify your email before changing your password')
+            : e.status == 403
+                ? t('当前密码不正确', 'Current password is incorrect')
+                : e.status == 429
+                    ? t('操作太频繁，请稍后重试', 'Too many attempts. Try again later.')
+                    : t('操作失败，请刷新后重试（${e.status}）',
+                        'Request failed. Refresh and retry (${e.status}).');
       });
     } catch (_) {
       if (mounted) {
@@ -112,7 +118,10 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
   }
 
   Future<void> changePassword() async {
-    if (!form.currentState!.validate()) return;
+    if (identity?['verified'] != true || identity?['hasPassword'] != true) {
+      return;
+    }
+    if (!(form.currentState?.validate() ?? false)) return;
     await run(() async {
       await widget.api.request('POST', '/auth/password', {
         'oldPassword': oldPassword.text,
@@ -145,7 +154,7 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
             child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 620),
                 child: ListView(padding: AppSpacing.pageInsets, children: [
-                  if (identity?['email'] != null)
+                  if (identity?['email'] != null) ...[
                     Card(
                         color: const Color(0xffe8eee0),
                         child: ListTile(
@@ -167,7 +176,8 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
                                                 api: widget.api)));
                                     if (mounted) await refresh();
                                   })),
-                  const SizedBox(height: AppSpacing.item),
+                    const SizedBox(height: AppSpacing.item),
+                  ],
                   if (busy) const LinearProgressIndicator(),
                   if (error != null)
                     Text(error!,
@@ -176,7 +186,7 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
                   if (identity?['hasPassword'] == false)
                     Text(t('此账号使用 Apple 登录，无需本地密码。',
                         'This account uses Apple sign-in without a local password.')),
-                  if (identity?['hasPassword'] != false) ...[
+                  if (identity?['hasPassword'] == true) ...[
                     Container(
                       padding: const EdgeInsets.all(AppSpacing.content),
                       decoration: BoxDecoration(
@@ -200,6 +210,13 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
                                       Theme.of(context).textTheme.titleLarge),
                             ]),
                             const SizedBox(height: AppSpacing.section),
+                            if (identity?['verified'] != true)
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                    bottom: AppSpacing.item),
+                                child: Text(t('请先完成上方的邮箱验证，再修改密码。',
+                                    'Verify your email above before changing your password.')),
+                              ),
                             Form(
                                 key: form,
                                 child: Column(
@@ -209,7 +226,8 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
                                       TextFormField(
                                           controller: oldPassword,
                                           obscureText: true,
-                                          enabled: !busy,
+                                          enabled: !busy &&
+                                              identity?['verified'] == true,
                                           textInputAction: TextInputAction.next,
                                           decoration: InputDecoration(
                                               filled: true,
@@ -227,7 +245,8 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
                                       TextFormField(
                                           controller: newPassword,
                                           obscureText: true,
-                                          enabled: !busy,
+                                          enabled: !busy &&
+                                              identity?['verified'] == true,
                                           textInputAction: TextInputAction.next,
                                           decoration: InputDecoration(
                                               filled: true,
@@ -249,7 +268,8 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
                                       TextFormField(
                                           controller: confirmation,
                                           obscureText: true,
-                                          enabled: !busy,
+                                          enabled: !busy &&
+                                              identity?['verified'] == true,
                                           textInputAction: TextInputAction.done,
                                           decoration: InputDecoration(
                                               filled: true,
@@ -288,8 +308,10 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
                                           style: FilledButton.styleFrom(
                                               minimumSize:
                                                   const Size.fromHeight(48)),
-                                          onPressed:
-                                              busy ? null : changePassword,
+                                          onPressed: busy ||
+                                                  identity?['verified'] != true
+                                              ? null
+                                              : changePassword,
                                           child: Text(
                                               t('修改密码', 'Change password'))),
                                     ])),
