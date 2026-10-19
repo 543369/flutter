@@ -3,11 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import '../../app/home_shell.dart';
 import 'care_actions.dart';
-import 'care_day.dart';
 import 'care_view.dart';
 import 'care_kind.dart';
 import '../health/health_pages.dart';
 import 'care_history_page.dart';
+import 'overdue_care_page.dart';
 
 extension CarePages on CareHomeState {
   String frequencyLabel(Map<String, dynamic>? plan) =>
@@ -83,88 +83,10 @@ extension CarePages on CareHomeState {
               _SchedulesPage(home: this, initialFilter: initialFilter)));
 
   Future<void> openOverdueCare() async {
-    final petId = selectedPet?['id'];
-    final selected = <String>{};
-    await _openCarePage(t('逾期事项', 'Overdue care'), (refresh) {
-      final today = DateTime.now();
-      final start = DateTime(today.year, today.month, today.day);
-      final current = {for (final task in tasks) task['id']: task};
-      final overdue = current.values
-          .where((task) =>
-              task['petId'] == petId &&
-              actionableCare(task) &&
-              DateTime.parse(task['dueAt'] as String).isBefore(start))
-          .toList()
-        ..sort((a, b) => DateTime.parse(a['dueAt'] as String)
-            .compareTo(DateTime.parse(b['dueAt'] as String)));
-      selected.retainAll(overdue.map((task) => task['id'] as String));
-      return [
-        Text(t('跳过会保留记录，不计为完成，也不会改变后续重复安排。单次重要照护请先确认。',
-            'Skipping keeps history and does not count as completed or change future care. Review important one-off reminders first.')),
-        if (overdue.isEmpty)
-          Padding(
-              padding: AppSpacing.cardInsets,
-              child: Text(t('没有逾期事项', 'No overdue care'))),
-        for (final task in overdue)
-          Card(
-              child: CheckboxListTile(
-            value: selected.contains(task['id']),
-            onChanged: busy
-                ? null
-                : (checked) {
-                    if (checked == true) {
-                      selected.add(task['id'] as String);
-                    } else {
-                      selected.remove(task['id']);
-                    }
-                    refresh();
-                  },
-            title: Text(task['title'] as String),
-            subtitle: Text(
-                '${dateLabel(DateTime.parse(task['dueAt'] as String).toLocal())} · ${frequencyLabel(planFor(task))}'),
-            secondary: IconButton(
-              tooltip: t('查看详情', 'View details'),
-              icon: const Icon(Icons.chevron_right),
-              onPressed: busy ? null : () => openTaskDetails(task),
-            ),
-          )),
-        if (overdue.isNotEmpty)
-          FilledButton(
-            onPressed: busy || selected.isEmpty
-                ? null
-                : () async {
-                    final ids = selected.toList();
-                    if (!await confirm(
-                        t('跳过选中的 ${ids.length} 项照护？',
-                            'Skip ${ids.length} selected reminders?'),
-                        t('保留跳过记录，不计为完成。用药、就诊等单次重要安排请确认后再跳过。',
-                            'History is kept; these will not count as completed. Confirm important medical care before skipping.'))) {
-                      return;
-                    }
-                    await perform(() async {
-                      for (final id in ids) {
-                        final result = Map<String, dynamic>.from(
-                            await widget.api.writeCareTask(
-                                current[id]!,
-                                'SKIP',
-                                'POST',
-                                '/tasks/$id/dismiss',
-                                {'action': 'SKIPPED'}));
-                        // Merge each successful write so a later failure can be retried
-                        // without presenting earlier successes as still pending.
-                        current[id] = result;
-                        mergeCare(result);
-                        selected.remove(id);
-                      }
-                    });
-                    await syncReminders();
-                    refresh();
-                  },
-            child: Text(t('标记跳过（${selected.length}）',
-                'Skip selected (${selected.length})')),
-          ),
-      ];
-    });
+    final petId = selectedPet?['id'] as String?;
+    if (petId == null) return;
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => OverdueCarePage(home: this, petId: petId)));
   }
 
   Future<void> openCareHistory() =>
@@ -404,8 +326,11 @@ extension CarePages on CareHomeState {
                         : t('待照护', 'Pending')),
           ]),
           if (task['lastEvent'] is Map)
-            Text(
-                '${task['lastEvent']['actor'] ?? ''} · ${dateLabel(DateTime.parse(task['lastEvent']['at'] as String).toLocal())}'),
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.item),
+              child: Text(
+                  '${task['lastEvent']['actor'] ?? ''} · ${dateLabel(DateTime.parse(task['lastEvent']['at'] as String).toLocal())}'),
+            ),
           if (!cancelled)
             Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,

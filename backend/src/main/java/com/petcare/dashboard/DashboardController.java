@@ -22,8 +22,9 @@ class DashboardController extends ApiSupport {
  private final CarePlans plans;
  DashboardController(JdbcTemplate db, CarePlans plans) { super(db); this.plans=plans; }
 
+ Map<String,Object> dashboard(Authentication auth,boolean compact){return dashboard(auth,compact,null);}
  @GetMapping("/dashboard") @Transactional
- Map<String,Object> dashboard(Authentication auth, @RequestParam(defaultValue="false") boolean compact) {
+ Map<String,Object> dashboard(Authentication auth, @RequestParam(defaultValue="false") boolean compact,@RequestParam(required=false) Instant overdueBefore) {
   String home = permission(auth,"READ");
   Map<String,List<String>> photoGallery = new HashMap<>();
   if(!compact) db.query("SELECT f.pet_id,f.photo_data FROM pet_photos f JOIN pets p ON p.id=f.pet_id WHERE p.household_id=? ORDER BY f.pet_id,f.position_index", r -> {
@@ -37,12 +38,14 @@ class DashboardController extends ApiSupport {
    row.put("createdAt",r.getTimestamp(7)==null?null:r.getTimestamp(7).toInstant().toString()); row.put("memoryCount",r.getInt(8)); row.put("photoVersion",r.getString(9)); return row;
   }, home);
   plans.materialize(home);
-  var tasks = db.query("SELECT t.id,t.pet_id,t.title,t.due_at,t.completed,p.name,t.plan_id,t.care_type,t.assigned_to,t.skipped,t.health_record_id,(SELECT MAX(e.happened_at) FROM care_events e WHERE e.task_id=t.id AND e.action='COMPLETED') completed_at,t.revision FROM care_tasks t JOIN pets p ON p.id=t.pet_id WHERE p.household_id=? AND t.cancelled=FALSE AND t.skipped=FALSE ORDER BY t.completed,t.due_at,t.id"+(compact ? " LIMIT 301" : ""), (r,n) -> {
+  if(overdueBefore!=null && (overdueBefore.isAfter(Instant.now().plusSeconds(2)) || overdueBefore.isBefore(Instant.parse("2000-01-01T00:00:00Z"))))throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+  Object[] taskArgs=overdueBefore==null?new Object[]{home}:new Object[]{home,Timestamp.from(overdueBefore)};
+  var tasks = db.query("SELECT t.id,t.pet_id,t.title,t.due_at,t.completed,p.name,t.plan_id,t.care_type,t.assigned_to,t.skipped,t.health_record_id,(SELECT MAX(e.happened_at) FROM care_events e WHERE e.task_id=t.id AND e.action='COMPLETED') completed_at,t.revision FROM care_tasks t JOIN pets p ON p.id=t.pet_id WHERE p.household_id=? AND t.cancelled=FALSE AND t.skipped=FALSE ORDER BY t.completed,"+(overdueBefore==null?"":"(t.due_at<?),")+"t.due_at,t.id"+(compact ? " LIMIT 301" : ""), (r,n) -> {
    Map<String,Object> row = new LinkedHashMap<>();
    row.put("id",r.getString(1)); row.put("petId",r.getString(2)); row.put("title",r.getString(3));
    row.put("dueAt",r.getTimestamp(4).toInstant().toString()); row.put("completed",r.getBoolean(5));
    row.put("petName",r.getString(6)); row.put("planId",r.getString(7)); row.put("careType",r.getString(8)); row.put("assignedTo",r.getString(9)); row.put("skipped",r.getBoolean(10)); row.put("healthRecordId",r.getString(11)); row.put("revision",r.getLong(13)); row.put("completedAt",r.getTimestamp(12)==null?null:r.getTimestamp(12).toInstant().toString()); return row;
-  }, home);
+  }, taskArgs);
   var history = db.query("SELECT e.id,e.task_id,e.action,e.happened_at,a.display_name,t.title,p.name,p.id,t.care_type FROM care_events e JOIN care_tasks t ON t.id=e.task_id JOIN pets p ON p.id=t.pet_id LEFT JOIN accounts a ON a.id=e.actor_id WHERE p.household_id=? ORDER BY e.happened_at DESC,e.id DESC LIMIT "+(compact ? 30 : 100), (r,n) -> {
    Map<String,Object> row = new LinkedHashMap<>();
    row.put("id",r.getString(1)); row.put("taskId",r.getString(2)); row.put("action",r.getString(3));
@@ -60,6 +63,10 @@ class DashboardController extends ApiSupport {
   result.put("householdId",home);
   result.put("accountId",auth.getName());
   result.put("reminderTasks",com.petcare.care.CareReminders.list(db,home));
+  if(overdueBefore!=null) {
+   var counts=db.query("SELECT t.pet_id,COUNT(*),COALESCE(SUM(t.plan_id IS NULL),0) FROM care_tasks t JOIN pets p ON p.id=t.pet_id WHERE p.household_id=? AND t.completed=FALSE AND t.cancelled=FALSE AND t.skipped=FALSE AND t.due_at<? GROUP BY t.pet_id",(r,n)->Map.<String,Object>of("petId",r.getString(1),"count",r.getLong(2),"singleCount",r.getLong(3)),home,Timestamp.from(overdueBefore));
+   result.put("overdueSummary",counts);
+  }
   result.put("tasksTruncated",compact && tasks.size()>300);
   return result;
  }

@@ -171,10 +171,16 @@ class _ChangeEmailPageState extends State<ChangeEmailPage> {
                       onPressed: busy ? null : () => submit(confirm: true),
                       child: Text(t('确认更换邮箱', 'Confirm email change'))),
                 ],
-                if (busy) const LinearProgressIndicator(),
+                if (busy)
+                  const Padding(
+                      padding: EdgeInsets.only(top: AppSpacing.item),
+                      child: LinearProgressIndicator()),
                 if (error != null)
-                  Text(error!,
-                      style: TextStyle(
-                          color: Theme.of(context).colorScheme.error)),
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.item),
+                    child: Text(error!,
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.error)),
+                  ),
               ]))));
 }

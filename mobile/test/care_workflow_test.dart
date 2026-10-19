@@ -28,16 +28,63 @@ class PendingMutationApi extends FakeApi {
 
 class SkipApi extends FakeApi {
   final skipped = <String>[];
+  List<Map<String, dynamic>> selected = [];
   @override
   Future<dynamic> request(String method, String path,
       [Map<String, dynamic>? body]) async {
-    if (method == 'POST' && path.endsWith('/dismiss')) {
-      expect(body?['action'], 'SKIPPED');
-      final id = path.split('/')[2];
-      skipped.add(id);
-      final task = items.firstWhere((v) => v['id'] == id);
-      task['cancelled'] = true;
-      return {...task};
+    final route = Uri.parse(path);
+    final old =
+        items.where((v) => v['id'] == 'old' && v['skipped'] != true).toList();
+    if (route.path == '/care/overdue/groups') {
+      return {
+        'total': old.length,
+        'recurringTotal': old.length,
+        'singleTotal': 0,
+        'asOf': DateTime.now().toUtc().toIso8601String(),
+        'householdId': 'test-home',
+        'items': [
+          for (final task in old)
+            {
+              'id': 'daily',
+              'title': task['title'],
+              'count': 1,
+              'firstAt': task['dueAt'],
+              'lastAt': task['dueAt']
+            }
+        ],
+        'hasMore': false,
+        'nextCursor': '',
+      };
+    }
+    if (route.path == '/care/overdue/batches/current') return {};
+    if (route.path == '/care/overdue/preview') {
+      selected = old;
+      return {
+        'id': 'batch',
+        'total': old.length,
+        'remaining': old.length,
+        'success': 0,
+        'changed': 0,
+        'failed': 0,
+        'state': 'PREVIEW',
+        'finished': false
+      };
+    }
+    if (route.path == '/care/overdue/batches/batch/apply') {
+      for (final task in selected) {
+        task['skipped'] = true;
+        skipped.add(task['id'] as String);
+      }
+      return {
+        'id': 'batch',
+        'total': selected.length,
+        'remaining': 0,
+        'success': selected.length,
+        'changed': 0,
+        'failed': 0,
+        'state': 'COMPLETE',
+        'finished': true
+      };
     }
     return super.request(method, path, body);
   }
@@ -64,9 +111,9 @@ void main() {
     unawaited(home.openOverdueCare());
     await tester.pumpAndSettle();
     expect(find.text('Old walk'), findsOneWidget);
-    await tester.tap(find.byType(CheckboxListTile));
+    await tester.tap(find.byType(Checkbox).first);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Skip selected (1)'));
+    await tester.tap(find.text('Skip selected'));
     await tester.pumpAndSettle();
     expect(api.skipped, isEmpty);
     await tester.tap(find.text('Confirm'));

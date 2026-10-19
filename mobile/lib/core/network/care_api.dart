@@ -180,8 +180,9 @@ class CareApi {
     Map<String, dynamic> result;
     try {
       await offlineCare.flush();
-      result = Map<String, dynamic>.from(
-          await request('GET', '/dashboard?compact=true') as Map);
+      result = Map<String, dynamic>.from(await request('GET',
+              '/dashboard?compact=true&overdueBefore=${Uri.encodeQueryComponent(DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day).toUtc().toIso8601String())}')
+          as Map);
       await offlineCare.remember(result);
       result = offlineCare.project(result);
     } catch (e) {

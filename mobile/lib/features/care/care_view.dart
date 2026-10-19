@@ -229,6 +229,7 @@ extension CareView on CareHomeState {
                         color: Color(0xff34231e),
                         fontSize: 18,
                         fontWeight: FontWeight.w700))),
+            const SizedBox(width: AppSpacing.item),
             TextButton(
                 onPressed: openSchedules,
                 child: Row(children: [
@@ -293,6 +294,8 @@ extension CareView on CareHomeState {
           SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(48)),
                   onPressed: busy || submittingTasks.contains(task['id'])
                       ? null
                       : () => changeCompletion(task, true),
@@ -321,6 +324,7 @@ extension CareView on CareHomeState {
                         : t('今天都照顾好啦', 'All cared for today'),
                     style: const TextStyle(
                         fontSize: 18, fontWeight: FontWeight.w700))),
+            const SizedBox(width: AppSpacing.item),
             TextButton(
                 onPressed: openSchedules, child: Text(t('全部安排', 'All plans'))),
           ]),
@@ -436,6 +440,7 @@ extension CareView on CareHomeState {
                         color: Color(0xff34231e),
                         fontSize: 20,
                         fontWeight: FontWeight.w700))),
+            const SizedBox(width: AppSpacing.item),
             TextButton.icon(
                 onPressed: () => openCareArchive(events: true),
                 icon: const Icon(Icons.history_rounded, size: 20),
@@ -599,6 +604,13 @@ extension CareView on CareHomeState {
     // entered under a custom title, without guessing from its wording.
     final importantOverdue =
         overdue.where((task) => task['planId'] == null).toList();
+    final summary = (data?['overdueSummary'] as List? ?? [])
+        .cast<Map>()
+        .where((v) => v['petId'] == petId)
+        .firstOrNull;
+    final overdueCount = (summary?['count'] as num?)?.toInt() ?? overdue.length;
+    final importantCount =
+        (summary?['singleCount'] as num?)?.toInt() ?? importantOverdue.length;
     final todayHistory = petHistory
         .where((e) => careOnDay(e['at'] as String, DateTime.now()))
         .toList();
@@ -676,37 +688,52 @@ extension CareView on CareHomeState {
                         onPressed: openSchedules,
                         child: Text(t('查看今天的全部待办', 'View all pending care'))),
                 ],
-                if (overdue.isNotEmpty) ...[
+                if (overdueCount > 0)
                   Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: AppSpacing.page),
-                    child: Card(
-                        child: ListTile(
-                      leading: const Icon(Icons.history_rounded),
-                      title: Text(t('逾期事项 · ${overdue.length}',
-                          'Overdue · ${overdue.length}')),
-                      subtitle: Text(t('查看并处理过去未完成的照护',
-                          'Review unfinished care from previous days')),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: openOverdueCare,
-                    )),
-                  ),
-                  if (importantOverdue.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.page),
-                      child: Text(t(
-                          '有 ${importantOverdue.length} 项单次照护已逾期，请确认用药、就诊等重要安排。',
-                          '${importantOverdue.length} one-off reminders are overdue. Review important care, including medication and appointments.')),
+                    padding: const EdgeInsets.fromLTRB(AppSpacing.page,
+                        AppSpacing.section, AppSpacing.page, 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Card(
+                          margin: EdgeInsets.zero,
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.content,
+                                vertical: AppSpacing.inline),
+                            leading: const Icon(Icons.history_rounded),
+                            title: Text(t('逾期事项 · $overdueCount',
+                                'Overdue · $overdueCount')),
+                            subtitle: Text(t('查看并处理过去未完成的照护',
+                                'Review unfinished care from previous days')),
+                            trailing: const Icon(Icons.chevron_right),
+                            onTap: openOverdueCare,
+                          ),
+                        ),
+                        if (importantCount > 0)
+                          Padding(
+                            padding:
+                                const EdgeInsets.only(top: AppSpacing.item),
+                            child: Text(t(
+                                '有 $importantCount 项单次照护已逾期，请确认用药、就诊等重要安排。',
+                                '$importantCount one-off reminders are overdue. Review important care, including medication and appointments.')),
+                          ),
+                      ],
                     ),
-                ],
+                  ),
                 if (futureCount > 0)
                   Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.page),
-                      child: TextButton(
-                          onPressed: openSchedules,
-                          child: Text(t('查看后续安排', 'View upcoming plans')))),
+                    padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.page, AppSpacing.item, AppSpacing.page, 0),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        onPressed: openSchedules,
+                        icon: const Icon(Icons.event_note_outlined, size: 20),
+                        label: Text(t('查看后续安排', 'View upcoming plans')),
+                      ),
+                    ),
+                  ),
                 _todayHistory(todayHistory, completed.length),
               ] else
                 _alternateView(completed, petHistory),

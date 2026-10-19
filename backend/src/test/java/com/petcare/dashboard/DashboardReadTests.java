@@ -40,6 +40,13 @@ class DashboardReadTests {
   var compact=dashboard.dashboard(auth,true);
   assertEquals(300,((List<?>)compact.get("tasks")).size());
   assertEquals(true,compact.get("tasksTruncated"));
+  var prioritized=dashboard.dashboard(auth,true,Instant.now());
+  var prioritizedTasks=(List<Map<String,Object>>)prioritized.get("tasks");
+  assertTrue(((String)prioritizedTasks.getFirst().get("title")).startsWith("Task 30"));
+  var overdue=(Map<?,?>)((List<?>)prioritized.get("overdueSummary")).getFirst();
+  assertEquals(301L,((Number)overdue.get("count")).longValue());
+  assertEquals(301L,((Number)overdue.get("singleCount")).longValue());
+
   var pet=(Map<?,?>)((List<?>)compact.get("pets")).getFirst();
   assertNull(pet.get("photoData"));assertNotNull(pet.get("photoVersion"));
   assertEquals(0L,pet.get("photoRevision"));

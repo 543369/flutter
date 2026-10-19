@@ -35,3 +35,13 @@
 ## 日常照护局部状态与分页
 
 新增精简看板、按版本相册、安排改期/取消/跳过、单任务详情、游标历史和健康提醒关联接口；请求与响应见[日常照护分轮优化](care-iterations.md#接口)。
+
+
+## 逾期分组与批量跳过
+
+- `GET /api/care/overdue/groups?petId=...&before=...`：`before` 为设备当天零点的 UTC 时间；可带 `from`（含）、`to`（不含）、`asOf`、`cursor`。返回 `total / recurringTotal / singleTotal / asOf / items / hasMore / nextCursor`，每页 20 个计划 ID 分组，含次数、首末时间。
+- `GET /api/care/overdue/items`：相同筛选参数，加 `groupId`（计划 ID 或 `single`），每页 30 条；沿用响应游标。后续请求携带首次返回的 `asOf`。
+- `POST /api/care/overdue/preview`：`{petId,before,from?,to?,asOf,allRecurring,groupIds,excludedGroups,excludedIds,items:[{id,revision}]}`。`allRecurring` 永远排除无计划的单次事项；单次事项只能通过 `items` 明确选择。服务端冻结待处理 ID 与版本，返回批次统计，确认后再 apply。5000 条上限、每分钟每账号 10 次预览，预览 15 分钟有效。
+- `POST /api/care/overdue/batches/{id}/apply`：每次最多处理 100 条，重复调用到 `finished=true`，网络失败后使用同一 ID 继续。返回 `id,state,finished,total,success,changed,failed,remaining`。状态已变化或已删除计入 changed；不会覆盖更新后的记录。
+- `GET /api/care/overdue/batches/current?petId=...`：获取本人在当前家庭该宠物的最近已开始/完成批次，支持恢复处理及结果查看。
+- `GET /api/dashboard?compact=true&overdueBefore=...`：提供每只宠物准确的 `overdueSummary[{petId,count,singleCount}]`，并优先返回当天及未来任务。批量接口需要 CARE 权限，读接口需要 READ 权限。

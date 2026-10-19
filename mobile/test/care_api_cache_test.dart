@@ -11,7 +11,7 @@ class MediaApi extends CareApi {
   @override
   Future<dynamic> request(String method, String path,
       [Map<String, dynamic>? body]) async {
-    if (path == '/dashboard?compact=true') {
+    if (path.startsWith('/dashboard?compact=true')) {
       return {
         'pets': deleted
             ? []
