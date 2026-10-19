@@ -24,6 +24,9 @@ public abstract class ApiSupport {
   boolean admin="ADMIN".equals(row.get("family_role"));
   if(!admin && !permission.equals("READ") && (permission.equals("ADMIN") || !java.util.Arrays.asList(((String)row.get("permissions")).split(",")).contains(permission)))
    throw new ResponseStatusException(HttpStatus.FORBIDDEN,"PERMISSION_DENIED");
+  // Written in the caller's transaction: rollback removes the invalidation too.
+  // No external network I/O runs while holding a household lock.
+  if(!permission.equals("READ")) db.update("INSERT INTO push_outbox(household_id) VALUES(?) ON DUPLICATE KEY UPDATE revision=revision+1,updated_at=UTC_TIMESTAMP(6)",home);
   return home;
  }
  protected void require(int changed) { if (changed != 1) throw new ResponseStatusException(HttpStatus.NOT_FOUND); }

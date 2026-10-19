@@ -1,0 +1,2 @@
+PETCARE_ENTITLEMENTS = Runner/RunnerPush.entitlements
+APS_ENVIRONMENT = development

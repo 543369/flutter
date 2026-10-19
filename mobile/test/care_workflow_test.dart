@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:petcare/app/home_shell.dart';
 import 'package:petcare/features/care/care_actions.dart';
+import 'package:petcare/features/care/care_pages.dart';
 import 'package:petcare/features/care/care_day.dart';
 import 'widget_test.dart' show FakeApi, FakeReminders, showCare, pendingTask;
 
@@ -25,7 +26,56 @@ class PendingMutationApi extends FakeApi {
   }
 }
 
+class SkipApi extends FakeApi {
+  final skipped = <String>[];
+  @override
+  Future<dynamic> request(String method, String path,
+      [Map<String, dynamic>? body]) async {
+    if (method == 'POST' && path.endsWith('/dismiss')) {
+      expect(body?['action'], 'SKIPPED');
+      final id = path.split('/')[2];
+      skipped.add(id);
+      final task = items.firstWhere((v) => v['id'] == id);
+      task['cancelled'] = true;
+      return {...task};
+    }
+    return super.request(method, path, body);
+  }
+}
+
 void main() {
+  testWidgets('today leads while old care is reviewed and skipped explicitly',
+      (tester) async {
+    final api = SkipApi()
+      ..items = [
+        {
+          ...pendingTask('old', 'Old walk', planId: 'daily'),
+          'dueAt': DateTime.now()
+              .subtract(const Duration(days: 2))
+              .toUtc()
+              .toIso8601String()
+        },
+        pendingTask('today', 'Today meal'),
+      ];
+    await showCare(tester, api);
+    expect(find.text('Today meal'), findsWidgets);
+    expect(find.text('Old walk'), findsNothing);
+    final home = tester.state<CareHomeState>(find.byType(CareHome));
+    unawaited(home.openOverdueCare());
+    await tester.pumpAndSettle();
+    expect(find.text('Old walk'), findsOneWidget);
+    await tester.tap(find.byType(CheckboxListTile));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Skip selected (1)'));
+    await tester.pumpAndSettle();
+    expect(api.skipped, isEmpty);
+    await tester.tap(find.text('Confirm'));
+    await tester.pumpAndSettle();
+    expect(api.skipped, ['old']);
+    expect(api.items.first['completed'], false);
+    expect(find.text('No overdue care'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
   testWidgets('legacy notification cold launch consumes a null payload safely',
       (tester) async {
     await showCare(tester, FakeApi(), LegacyLaunchReminders());

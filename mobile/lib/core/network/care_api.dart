@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../sync/offline_care.dart';
 import '../images/photo_cache.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
@@ -10,6 +11,11 @@ class CareApi {
     // Production retains the data-protection keychain and requires signing capabilities.
     mOptions: MacOsOptions(useDataProtectionKeyChain: kReleaseMode),
   );
+  late final OfflineCare offlineCare = OfflineCare(
+    send: request,
+    read: () => storage.read(key: 'offline_care_v1'),
+    write: (value) => storage.write(key: 'offline_care_v1', value: value),
+  );
   String? token;
   String? _photoSession;
   static const baseUrl = String.fromEnvironment('API_BASE_URL',
@@ -17,6 +23,7 @@ class CareApi {
 
   Future<void> restore() async {
     token = await storage.read(key: 'session');
+    await offlineCare.restore(token);
   }
 
   Future<dynamic> request(String method, String path,
@@ -59,11 +66,16 @@ class CareApi {
   }
 
   Future<void> saveSession(String value) async {
+    if (offlineCare.pendingCount > 0 && token != value) {
+      throw const ApiError(409, 'SYNC_PENDING');
+    }
     await storage.write(key: 'session', value: value);
     token = value;
+    await offlineCare.restore(token);
   }
 
-  Future<void> clearSession() async {
+  Future<void> clearSession({bool preservePending = false}) async {
+    await offlineCare.clear(preservePending: preservePending);
     await storage.delete(key: 'session');
     token = null;
     _petPhotos.clear();
@@ -99,6 +111,7 @@ class CareApi {
   }
 
   Future<void> logout() async {
+    if (offlineCare.pendingCount > 0) throw const ApiError(409, 'SYNC_PENDING');
     try {
       await request('POST', '/auth/logout');
     } on ApiError catch (e) {
@@ -113,6 +126,49 @@ class CareApi {
     await saveSession(result['token'] as String);
   }
 
+  /// Writes are persisted before sending. Older servers remain online-only.
+  Future<Map<String, dynamic>> writeCareTask(
+      Map<String, dynamic> task,
+      String action,
+      String method,
+      String path,
+      Map<String, dynamic> body) async {
+    if (task['revision'] == null) {
+      return Map<String, dynamic>.from(
+          await request(method, path, body) as Map);
+    }
+    await offlineCare.restore(token);
+    await offlineCare.enqueue(task, action, {
+      if (body.containsKey('dueAt')) 'dueAt': body['dueAt'],
+      if (body.containsKey('memberId')) 'memberId': body['memberId'],
+      if (body.containsKey('title')) 'title': body['title'],
+      if (body.containsKey('careType')) 'careType': body['careType'],
+    });
+    if (!offlineCare.offline) await offlineCare.flush();
+    final failed = offlineCare.operations
+        .where((op) =>
+            (op['body'] as Map)['taskId'] == task['id'] && op['error'] != null)
+        .firstOrNull;
+    if (failed != null) throw ApiError(409, failed['error'] as String);
+    final snapshot = offlineCare.snapshot!;
+    final updated = (snapshot['tasks'] as List)
+        .cast<Map>()
+        .where((v) => v['id'] == task['id'])
+        .first;
+    final events = (snapshot['history'] as List? ?? [])
+        .cast<Map>()
+        .where((v) => v['taskId'] == task['id'])
+        .toList();
+    return {
+      ...updated,
+      'task': updated,
+      'events': events,
+      'reminderTasks': snapshot['reminderTasks'],
+      if (events.isNotEmpty && updated['pendingSync'] != true)
+        'lastEvent': events.first
+    };
+  }
+
   final _petPhotos = <String, Map<String, dynamic>>{};
   Future<Map<String, dynamic>> dashboard() async {
     if (_photoSession != token) {
@@ -120,8 +176,21 @@ class CareApi {
       _petPhotos.clear();
       PhotoCache.shared.clear();
     }
-    final result = Map<String, dynamic>.from(
-        await request('GET', '/dashboard?compact=true') as Map);
+    await offlineCare.restore(token);
+    Map<String, dynamic> result;
+    try {
+      await offlineCare.flush();
+      result = Map<String, dynamic>.from(
+          await request('GET', '/dashboard?compact=true') as Map);
+      await offlineCare.remember(result);
+      result = offlineCare.project(result);
+    } catch (e) {
+      if (connectionFailure(e) && offlineCare.snapshot != null) {
+        offlineCare.offline = true;
+        return offlineCare.snapshot!;
+      }
+      rethrow;
+    }
     final pets = (result['pets'] as List)
         .map((pet) => Map<String, dynamic>.from(pet as Map))
         .toList();

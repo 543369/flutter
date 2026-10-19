@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:petcare/api.dart';
 
 class MediaApi extends CareApi {
@@ -44,7 +45,10 @@ Future<Map<String, dynamic>> withPhotos(MediaApi api) async {
 }
 
 void main() {
-  test('dashboard is usable while photos stall, fail, and retry separately', () async {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUp(() => FlutterSecureStorage.setMockInitialValues({}));
+  test('dashboard is usable while photos stall, fail, and retry separately',
+      () async {
     final api = MediaApi()..token = 'one';
     final dashboard = await api.dashboard();
     expect(api.photoCalls, 0);
@@ -59,7 +63,8 @@ void main() {
     expect((await api.dashboard())['pets'], isNotEmpty);
     api.failPhotos = false;
     await api.loadPetPhotos(pet);
-    expect(((await api.dashboard())['pets'] as List).single['photos'], ['AA==']);
+    expect(
+        ((await api.dashboard())['pets'] as List).single['photos'], ['AA==']);
     expect(api.photoCalls, 2);
   });
 

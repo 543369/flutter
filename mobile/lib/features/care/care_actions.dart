@@ -55,8 +55,12 @@ extension CareActions on CareHomeState {
     await Future.wait(previousWrites);
     try {
       if (!mounted) return;
-      final response = Map<String, dynamic>.from(await widget.api
-          .request('PATCH', '/tasks/$id', {'completed': complete}) as Map);
+      final response = Map<String, dynamic>.from(await widget.api.writeCareTask(
+          tasks.where((v) => v['id'] == id).firstOrNull ?? task,
+          complete ? 'COMPLETE' : 'REOPEN',
+          'PATCH',
+          '/tasks/$id',
+          {'completed': complete}));
       if (!mounted) return;
       updateUi(() {
         final candidates = response.remove('reminderTasks');
@@ -96,8 +100,11 @@ extension CareActions on CareHomeState {
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(t(complete ? '照护已完成' : '已恢复待照护',
-              complete ? 'Care completed' : 'Care reopened')),
+          content: Text(response['pendingSync'] == true
+              ? t('已保存到本机，联网后同步',
+                  'Saved on this device. Will sync when online.')
+              : t(complete ? '照护已完成' : '已恢复待照护',
+                  complete ? 'Care completed' : 'Care reopened')),
           action: complete
               ? SnackBarAction(
                   label: t('撤销', 'Undo'),

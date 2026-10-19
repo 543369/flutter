@@ -21,12 +21,14 @@ public class CarePlans {
         Instant max = Instant.parse("2037-12-31T23:59:59Z");
         if (through.isAfter(max)) through = max;
         var plans = db.queryForList("SELECT c.* FROM care_plans c JOIN pets p ON p.id=c.pet_id WHERE p.household_id=? AND c.active=TRUE", household);
+        int inserted=0;
         for (var plan : plans) {
             var start = ((Timestamp) plan.get("starts_at")).toInstant();
             for (Instant due : Recurrence.between(start, (String) plan.get("zone_id"), (String) plan.get("frequency"), from, through)) {
-                db.update("INSERT INTO care_tasks(id,pet_id,title,due_at,plan_id,care_type,occurrence_at) VALUES (?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE plan_id=plan_id",
-                    UUID.randomUUID().toString(), plan.get("pet_id"), plan.get("title"), Timestamp.from(due), plan.get("id"), plan.get("care_type"), Timestamp.from(due));
+                inserted+=db.update("INSERT INTO care_tasks(id,pet_id,title,due_at,plan_id,care_type,occurrence_at) SELECT ?,?,?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM care_tasks WHERE plan_id=? AND occurrence_at=?)",
+                    UUID.randomUUID().toString(), plan.get("pet_id"), plan.get("title"), Timestamp.from(due), plan.get("id"), plan.get("care_type"), Timestamp.from(due),plan.get("id"),Timestamp.from(due));
             }
         }
+        if(inserted>0)db.update("INSERT INTO push_outbox(household_id) VALUES(?) ON DUPLICATE KEY UPDATE revision=revision+1,updated_at=UTC_TIMESTAMP(6)",household);
     }
 }

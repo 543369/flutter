@@ -1,5 +1,6 @@
 import '../core/theme/app_spacing.dart';
 import 'dart:async';
+import '../core/sync/push_service.dart';
 import 'package:flutter/material.dart';
 import '../core/network/care_api.dart';
 import '../features/auth/auth_panel.dart';
@@ -22,6 +23,8 @@ class CareHome extends StatefulWidget {
 
 class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
   late final ReminderService reminders = widget.reminders ?? ReminderService();
+  late final PushService push = PushService(widget.api, refreshQuietly);
+  String? pushError;
   // Keep pushed care pages in sync with mutations and background dashboard updates.
   final careChanges = ValueNotifier<int>(0);
   void updateUi(VoidCallback action) {
@@ -73,6 +76,7 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    widget.api.offlineCare.addListener(offlineChanged);
     restore();
     refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
@@ -80,6 +84,111 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
         refreshQuietly();
       }
     });
+  }
+
+  void offlineChanged() {
+    if (!mounted) return;
+    final snapshot = widget.api.offlineCare.snapshot;
+    updateUi(() {
+      if (data != null &&
+          snapshot != null &&
+          data!['householdId'] == snapshot['householdId']) {
+        for (final key in ['tasks', 'history', 'reminderTasks']) {
+          data![key] = snapshot[key];
+        }
+      }
+    });
+  }
+
+  String syncReason(String? code) => switch (code) {
+        'SYNC_CONFLICT' || 'TASK_NOT_PENDING' => t('家人已修改此事项，请核对最新记录。',
+            'This task changed on another device. Review the latest record.'),
+        'HOUSEHOLD_CHANGED' => t('所属家庭已变化，旧家庭操作不会上传。',
+            'Your household changed. Changes for the previous household will not upload.'),
+        'ACCESS_EXPIRED' || 'PERMISSION_DENIED' => t('当前照护权限不足，请联系家庭管理员。',
+            'Ask an administrator to restore your care access.'),
+        'INVALID_CARE_TIME' => t('安排时间已过，请核对后重新改期。',
+            'The selected time has passed. Choose a new time.'),
+        _ => t('此操作暂时无法同步，请核对最新记录后重新操作。',
+            'This change could not sync. Review the current record before trying again.'),
+      };
+
+  String syncAction(Map body) => switch (body['action']) {
+        'COMPLETE' => t('完成照护', 'Complete care'),
+        'REOPEN' => t('撤销完成', 'Undo completion'),
+        'RESCHEDULE' => t('改期至 ', 'Reschedule to ') +
+            dateLabel(DateTime.parse(body['dueAt'] as String).toLocal()),
+        'ASSIGN' => t('调整照护人', 'Change caregiver'),
+        'SKIP' => t('跳过本次', 'Skip occurrence'),
+        'CANCEL' => t('取消本次', 'Cancel occurrence'),
+        _ => t('编辑照护', 'Edit care'),
+      };
+
+  Future<void> startPush() async {
+    try {
+      await push.start();
+      if (mounted) updateUi(() => pushError = null);
+    } catch (_) {
+      if (mounted) updateUi(() => pushError = 'unavailable');
+    }
+  }
+
+  Future<void> openSyncQueue() async {
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (pageContext) => ListenableBuilder(
+            listenable: widget.api.offlineCare,
+            builder: (context, _) {
+              final queue = widget.api.offlineCare;
+              final groups = <String, Map<String, dynamic>>{};
+              for (final op in queue.operations) {
+                groups.putIfAbsent(
+                    (op['body'] as Map)['taskId'] as String, () => op);
+              }
+              return Scaffold(
+                  appBar: AppBar(title: Text(t('待同步操作', 'Pending changes'))),
+                  body: ListView(padding: AppSpacing.pageInsets, children: [
+                    Text(t('联网后自动同步。有冲突的操作会暂停，保留本机操作供你核对，不覆盖家人的修改。',
+                        'Changes sync when online. Conflicts pause for review without overwriting another family member.')),
+                    TextButton(
+                        onPressed: () => refreshQuietly(),
+                        child: Text(t('立即重试同步', 'Retry sync now'))),
+                    if (groups.isEmpty) Text(t('全部已同步', 'All changes synced')),
+                    for (final entry in groups.entries)
+                      Card(
+                          child: ListTile(
+                        title: Text(entry.value['title'] as String? ?? ''),
+                        subtitle: Text([
+                          for (final op in queue.operations.where((op) =>
+                              (op['body'] as Map)['taskId'] == entry.key))
+                            syncAction(op['body'] as Map),
+                          if (entry.value['error'] == null)
+                            t('等待联网同步', 'Waiting to sync')
+                          else
+                            syncReason(entry.value['error'] as String),
+                        ].join('\n')),
+                        trailing: TextButton(
+                          onPressed: busy || syncing
+                              ? null
+                              : () async {
+                                  if (!await confirm(
+                                      t('放弃此事项的待同步修改？',
+                                          'Discard pending changes for this task?'),
+                                      t('此事项尚未同步的本机操作会被移除，服务端记录保留。',
+                                          'Pending local changes for this task are removed. Server records are kept.'))) {
+                                    return;
+                                  }
+                                  await queue.discard(entry.key);
+                                  if (mounted) {
+                                    updateUi(() => data = queue.snapshot);
+                                    await syncReminders();
+                                    await refreshQuietly();
+                                  }
+                                },
+                          child: Text(t('放弃本机修改', 'Discard local changes')),
+                        ),
+                      )),
+                  ]));
+            })));
   }
 
   final _photoLoads = <String>{};
@@ -92,7 +201,8 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
     for (final pet in pets) {
       final key = photoKey(pet);
       if (pet['photosPending'] != true ||
-          _photoLoads.contains(key) || _photoFailures.contains(key)) {
+          _photoLoads.contains(key) ||
+          _photoFailures.contains(key)) {
         continue;
       }
       unawaited(loadPhoto(pet));
@@ -106,13 +216,23 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
     try {
       final photos = await widget.api.loadPetPhotos(pet);
       if (!mounted || session != widget.api.token) return false;
-      final current = pets.where((p) => p['id'] == pet['id'] &&
-          p['photoRevision'] == pet['photoRevision']).firstOrNull;
+      final current = pets
+          .where((p) =>
+              p['id'] == pet['id'] &&
+              p['photoRevision'] == pet['photoRevision'])
+          .firstOrNull;
       if (current == null) return false;
       updateUi(() {
-        data!['pets'] = pets.map((p) => p['id'] == pet['id']
-            ? {...p, 'photos': photos['photos'], 'photoData': photos['photoData'],
-               'photosPending': false} : p).toList();
+        data!['pets'] = pets
+            .map((p) => p['id'] == pet['id']
+                ? {
+                    ...p,
+                    'photos': photos['photos'],
+                    'photoData': photos['photoData'],
+                    'photosPending': false
+                  }
+                : p)
+            .toList();
         _photoFailures.remove(key);
       });
       return true;
@@ -133,7 +253,7 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
       if (widget.api.token != null) data = await widget.api.dashboard();
     } on ApiError catch (e) {
       if (e.status == 401) {
-        await widget.api.clearSession();
+        await widget.api.clearSession(preservePending: true);
         data = null;
       } else if (e.code == 'ACCESS_EXPIRED') {
         accessExpired = true;
@@ -157,6 +277,7 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
     if (mounted) {
       updateUi(() => loading = false);
       loadPhotosInBackground();
+      unawaited(startPush());
       if (pendingNotificationTap) {
         WidgetsBinding.instance
             .addPostFrameCallback((_) => openNotificationTask());
@@ -199,6 +320,8 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
   @override
   void dispose() {
     refreshTimer?.cancel();
+    push.dispose();
+    widget.api.offlineCare.removeListener(offlineChanged);
     WidgetsBinding.instance.removeObserver(this);
     careChanges.dispose();
     super.dispose();
@@ -241,8 +364,8 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
   }
 
   void mergeCare(Map<String, dynamic> result) {
-    final task = Map<String, dynamic>.from(result['task'] as Map);
-    final events = (result['events'] as List).cast<Map>();
+    final task = Map<String, dynamic>.from((result['task'] ?? result) as Map);
+    final events = (result['events'] as List? ?? []).cast<Map>();
     final eventIds = events.map((event) => event['id']).toSet();
     updateUi(() {
       data?['tasks'] = [
@@ -277,7 +400,17 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
       await syncDone?.future;
       await Future.wait(previous);
       if (!mounted) return false;
-      final result = await widget.api.request(method, path, body);
+      final task = tasks.where((v) => v['id'] == key).firstOrNull;
+      final action = path.endsWith('/schedule') || path.endsWith('/time')
+          ? 'RESCHEDULE'
+          : path.endsWith('/assignment')
+              ? 'ASSIGN'
+              : body['action'] == 'SKIPPED'
+                  ? 'SKIP'
+                  : 'CANCEL';
+      final result = task == null
+          ? await widget.api.request(method, path, body)
+          : await widget.api.writeCareTask(task, action, method, path, body);
       if (!mounted) return false;
       mergeCare(Map<String, dynamic>.from(result as Map));
       await syncReminders();
@@ -305,16 +438,17 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
       if (mounted) {
         updateUi(() {
           data = next;
-          lastSyncedAt = DateTime.now();
+          if (!widget.api.offlineCare.offline) lastSyncedAt = DateTime.now();
           accessExpired = false;
           error = null;
         });
         loadPhotosInBackground();
+        unawaited(startPush());
         await syncReminders();
       }
     } on ApiError catch (e) {
       if (e.status == 401) {
-        await widget.api.clearSession();
+        await widget.api.clearSession(preservePending: true);
         if (mounted) {
           updateUi(() => data = null);
           await syncReminders();
@@ -335,6 +469,7 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
       syncDone?.complete();
       if (mounted) {
         updateUi(() {});
+        unawaited(startPush());
         if (pendingNotificationTap) openNotificationTask();
       }
     }
@@ -354,6 +489,7 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
         });
       }
       final granted = await reminders.setEnabled(value);
+      if (granted) unawaited(startPush());
       await syncReminders();
       if (!mounted) return;
       if (value && !granted) {
@@ -385,6 +521,18 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
 
   String message(Object e) {
     if (e is ApiError) {
+      if (const {
+        'SYNC_PENDING',
+        'SYNC_CONFLICT',
+        'SYNC_REFRESH_REQUIRED',
+        'HOUSEHOLD_CHANGED',
+        'DEPENDENCY_MISSING',
+        'OPERATION_REUSED',
+        'SYNC_QUEUE_FULL'
+      }.contains(e.code)) {
+        return t('有待同步或冲突的本机操作，请在待同步操作中查看。',
+            'Review pending changes or conflicts in Pending changes.');
+      }
       if (e.code == 'ACCESS_EXPIRED') {
         return t('临时照护权限已到期，请联系家庭管理员续期。',
             'Your access has expired. Ask a household admin to renew it.');
@@ -392,6 +540,10 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
       if (e.code == 'PERMISSION_DENIED') {
         return t('当前角色没有此操作权限，请联系家庭管理员。',
             'Your role cannot perform this action. Contact a household admin.');
+      }
+      if (e.code == 'USE_LEAVE_HOUSEHOLD') {
+        return t('请使用退出家庭；最后一位管理员需先移交管理权。',
+            'Use Leave household. The last administrator must first transfer administration.');
       }
       if (e.code == 'LAST_ADMIN') {
         return t('请先指定另一位管理员，再退出或调整自己的角色。',
@@ -449,11 +601,12 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
       if (mounted) {
         updateUi(() {
           data = next;
-          lastSyncedAt = DateTime.now();
+          if (!widget.api.offlineCare.offline) lastSyncedAt = DateTime.now();
           accessExpired = false;
           error = null;
         });
         loadPhotosInBackground();
+        unawaited(startPush());
         await syncReminders();
       }
     } catch (e) {
@@ -465,7 +618,7 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
         await syncReminders();
       }
       if (e is ApiError && e.status == 401) {
-        await widget.api.clearSession();
+        await widget.api.clearSession(preservePending: true);
         if (mounted) {
           updateUi(() => data = null);
           await syncReminders();
@@ -575,42 +728,71 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
                           child: data == null
                               ? welcome()
                               : GentleSwitch(
-                                  child: RefreshIndicator(
-                                    key: ValueKey(tab),
-                                    onRefresh: () => perform(() async {}),
-                                    child: tab == 0
-                                        ? careScrollView()
-                                        : ListView(
-                                            key:
-                                                PageStorageKey('home-tab-$tab'),
-                                            physics:
-                                                const AlwaysScrollableScrollPhysics(),
-                                            padding: AppSpacing.pageInsets,
-                                            children: tab == 1
-                                                ? petView()
-                                                : familyView(),
-                                          ),
-                                  ),
+                                  child: Column(children: [
+                                    if (widget.api.offlineCare.pendingCount >
+                                            0 ||
+                                        widget.api.offlineCare.offline)
+                                      MaterialBanner(
+                                        content: Text(t(
+                                            widget.api.offlineCare.offline
+                                                ? '当前离线 · ${widget.api.offlineCare.pendingCount} 项待同步'
+                                                : '${widget.api.offlineCare.pendingCount} 项待同步',
+                                            '${widget.api.offlineCare.offline ? 'Offline · ' : ''}${widget.api.offlineCare.pendingCount} changes waiting to sync')),
+                                        actions: [
+                                          TextButton(
+                                              onPressed: openSyncQueue,
+                                              child: Text(t('查看', 'Review')))
+                                        ],
+                                      ),
+                                    if (pushError != null)
+                                      TextButton(
+                                          onPressed: startPush,
+                                          child: Text(t('远程同步连接失败，点击重试',
+                                              'Remote sync unavailable. Retry'))),
+                                    Expanded(
+                                        child: RefreshIndicator(
+                                      key: ValueKey(tab),
+                                      onRefresh: () => perform(() async {}),
+                                      child: tab == 0
+                                          ? careScrollView()
+                                          : ListView(
+                                              key: PageStorageKey(
+                                                  'home-tab-$tab'),
+                                              physics:
+                                                  const AlwaysScrollableScrollPhysics(),
+                                              padding: AppSpacing.pageInsets,
+                                              children: tab == 1
+                                                  ? petView()
+                                                  : familyView(),
+                                            ),
+                                    )),
+                                  ]),
                                 ),
                         ),
-                        if (data != null && pets.any((p) =>
-                            p['photosPending'] == true && _photoFailures.contains(photoKey(p))))
+                        if (data != null &&
+                            pets.any((p) =>
+                                p['photosPending'] == true &&
+                                _photoFailures.contains(photoKey(p))))
                           Positioned(
-                            bottom: 8, left: 12, right: 12,
+                            bottom: 8,
+                            left: 12,
+                            right: 12,
                             child: Material(
                               elevation: 2,
                               borderRadius: BorderRadius.circular(12),
                               child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 12),
                                 child: Row(children: [
-                                  Expanded(child: Text(t('照片加载失败，其他功能可正常使用',
-                                      'Photos unavailable. Other features still work.'))),
+                                  Expanded(
+                                      child: Text(t('照片加载失败，其他功能可正常使用',
+                                          'Photos unavailable. Other features still work.'))),
                                   TextButton(
-                                    onPressed: () {
-                                      updateUi(() => _photoFailures.clear());
-                                      loadPhotosInBackground(retry: true);
-                                    },
-                                    child: Text(t('重试照片', 'Retry photos'))),
+                                      onPressed: () {
+                                        updateUi(() => _photoFailures.clear());
+                                        loadPhotosInBackground(retry: true);
+                                      },
+                                      child: Text(t('重试照片', 'Retry photos'))),
                                 ]),
                               ),
                             ),

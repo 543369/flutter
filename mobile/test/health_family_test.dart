@@ -27,6 +27,7 @@ class HealthFamilyApi extends FakeApi {
   ];
   bool advanced = true, failHealth = false;
   Map<String, dynamic>? savedRole;
+  int removals = 0;
   @override
   Future<dynamic> request(String method, String path,
       [Map<String, dynamic>? body]) async {
@@ -73,6 +74,11 @@ class HealthFamilyApi extends FakeApi {
     if (path == '/pets/pet/health/health-1') return health.single;
     if (path == '/family/members') {
       return {'items': members, 'canManage': true, 'advanced': advanced};
+    }
+    if (path == '/family/members/member' && method == 'DELETE') {
+      removals++;
+      members.removeWhere((m) => m['id'] == 'member');
+      return {'removed': true};
     }
     if (path == '/family/members/member' && method == 'PATCH') {
       savedRole = body;
@@ -172,6 +178,29 @@ void main() {
     await tester.scrollUntilVisible(find.text('View health record'), 200,
         scrollable: find.byType(Scrollable).last);
     expect(find.text('View health record'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
+  testWidgets('removing a member requires confirmation and refreshes the list',
+      (tester) async {
+    final api = HealthFamilyApi();
+    await showCare(tester, api);
+    await tester.tap(find.text('Family'));
+    await tester.pumpAndSettle();
+    await tapVisible(tester, find.text('People and permissions'));
+    expect(find.byKey(const ValueKey('remove-member-owner')), findsNothing);
+    await tapVisible(
+        tester, find.byKey(const ValueKey('remove-member-member')));
+    expect(api.removals, 0);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(api.removals, 0);
+    await tapVisible(
+        tester, find.byKey(const ValueKey('remove-member-member')));
+    await tester.tap(find.text('Confirm'));
+    await tester.pumpAndSettle();
+    expect(api.removals, 1);
+    expect(find.byKey(const ValueKey('remove-member-member')), findsNothing);
+    expect(api.members.single['id'], 'owner');
     await tester.pumpWidget(const SizedBox());
   });
   testWidgets('weekly report and temporary role permissions can be configured',

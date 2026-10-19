@@ -82,6 +82,34 @@ class _HouseholdMembersPageState extends State<HouseholdMembersPage> {
     }
   }
 
+  Future<void> removeMember(Map<String, dynamic> member) async {
+    if (!await widget.home.confirm(
+            t('移除 ${member['name']}？', 'Remove ${member['name']}?'),
+            t('对方将失去当前家庭的访问权限，并获得新的空家庭。账号保留，原家庭的宠物与记录保留，分配给对方的照护事项将取消分配，未使用的邀请码会失效。',
+                'This person loses access and gets a new empty household. Their account and this household’s pets and records stay. Their tasks become unassigned and unused invitations expire.')) ||
+        !mounted) {
+      return;
+    }
+    setState(() {
+      busy = true;
+      error = null;
+    });
+    try {
+      await widget.home.widget.api
+          .request('DELETE', '/family/members/${member['id']}');
+      if (!mounted) return;
+      await load();
+      await widget.home.perform(() async {});
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          busy = false;
+          error = widget.home.message(e);
+        });
+      }
+    }
+  }
+
   Future<void> leave() async {
     if (!await widget.home.confirm(
             t('退出当前家庭？', 'Leave this household?'),
@@ -170,7 +198,23 @@ class _HouseholdMembersPageState extends State<HouseholdMembersPage> {
                               subtitle: Text(
                                   '${t(role.$1, role.$2)}${expires == null ? '' : '\n${t('到期', 'Expires')}: ${expires.toLocal().toString().substring(0, 16)}${expires.isBefore(DateTime.now()) ? t(' · 已到期', ' · Expired') : ''}'}\n${(m['permissions'] as List).map((p) => t(permissionNames[p]!.$1, permissionNames[p]!.$2)).join(' · ')}'),
                               trailing: data!['canManage'] == true
-                                  ? const Icon(Icons.edit_outlined)
+                                  ? Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                          const Icon(Icons.edit_outlined),
+                                          if (m['isMe'] != true)
+                                            IconButton(
+                                              key: ValueKey(
+                                                  'remove-member-${m['id']}'),
+                                              tooltip:
+                                                  t('移除成员', 'Remove member'),
+                                              icon: const Icon(
+                                                  Icons.person_remove_outlined),
+                                              onPressed: busy
+                                                  ? null
+                                                  : () => removeMember(m),
+                                            ),
+                                        ])
                                   : null,
                               onTap: data!['canManage'] == true && !busy
                                   ? () => edit(m)

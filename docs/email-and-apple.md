@@ -43,7 +43,7 @@
 
 后端 `APPLE_CLIENT_ID` 必须与 iOS Runner 的 Bundle Identifier 一致；Apple Developer 中为该 App ID 启用 Sign in with Apple，重新生成带该权限的签名描述文件。Runner.entitlements 已添加对应权限。
 
-服务端使用 Apple 公钥验证 RS256 JWT，校验 issuer、audience、时间和一次性 nonce。不会根据客户端传来的邮箱匹配账号，也不会按相同邮箱自动合并。Apple 用户使用独立 subject；当前不请求邮箱及姓名，默认称呼可以在家庭页修改。暂未提供 Apple 与密码账号合并，以及 Android 的 Apple 网页授权流程。
+服务端使用 Apple 公钥验证 RS256 JWT，校验 issuer、audience、时间和一次性 nonce。不会根据客户端传来的邮箱匹配账号，也不会按相同邮箱自动合并。Apple 用户使用独立 subject；当前不请求邮箱及姓名，默认称呼可以在家庭页修改。已支持为经过邮箱验证的密码账号绑定尚未被占用的 Apple 身份：在账号安全页验证当前密码，取得账号及当前会话绑定的独立 nonce，再进行 iOS Apple 授权。绑定后两种登录方式进入同一账号，保留家庭和宠物资料。不按邮箱自动合并，也不合并两个已有账号；已有其他账号占用的 Apple 身份不能转移或覆盖。Android 的 Apple 网页授权流程仍未提供。
 
 尚需配置后在签名真机上完成真实 Apple 授权验收。当前实现本地账号删除；App Store 发布前还需接入 Apple authorization code 交换、Apple 授权撤销及服务端撤销通知生命周期，不能把本次基础登录接入当作完整上架验收。
 
@@ -73,3 +73,30 @@
 私有 `.local/backend.env` 已配置 Resend API Key 和 `PetCare <onboarding@resend.dev>`。本地后端在 18080 加载配置，V18 迁移已执行。
 
 没有自有域名时，此地址只能发送到 Resend 账号所关联的本人邮箱；请用该邮箱测试注册／验证。其他地址会被服务商拒绝。面向真实用户上线前，须验证自有域名并替换 `PETCARE_MAIL_FROM`。参见 [Resend 测试域名限制](https://resend.com/docs/knowledge-base/403-error-resend-dev-domain)。本次只检查服务健康及配置加载，没有发送邮件，也没有验证真实送达。
+
+## 2026-10-19 更换登录邮箱与绑定 Apple
+
+### 更换邮箱
+
+入口：家庭 → 账号安全 → 更换登录邮箱。仅已验证的密码账号可使用。输入当前密码与新邮箱，服务端向新邮箱发送 15 分钟有效的单次验证码；确认后保留账号 ID、密码、家庭和所有宠物资料，当前会话保留，其他会话撤销，旧邮箱收到安全通知。
+
+验证码绑定发起账号、具体会话、原邮箱及当时的密码凭据。其他设备不能拿同一码确认；密码或邮箱变化、到期、重发和已使用的码均不能再次使用。请求有来源 IP 限流及账号 60 秒发送冷却；只存验证码摘要，邮件失败回滚，不提供假发送或离线修改。
+
+新邮箱在请求和最终写入时都校验占用；不会合并已有账号。确认时旧邮箱通知若被邮件提供商拒绝，事务回滚，旧登录邮箱不变，验证码仍可重试。邮件被提供商接受不等于最终收件箱送达。
+
+- POST `/api/auth/email/change/request`：`{email,password}`。
+- POST `/api/auth/email/change/confirm`：`{code}`。
+
+正式服务仍需自有发信域名及真实投递验收；Resend 测试发件地址受收件人限制，不能据此面向任意用户开放更换邮箱。
+
+### 绑定 Apple
+
+入口：iOS 家庭 → 账号安全 → Apple 登录。验证当前爪伴密码后完成系统 Apple 授权，不输入 Apple 密码到爪伴表单。后台验证 Apple JWT 签名、issuer、audience、有效期和 nonce；绑定凭证同时绑定当前账号、会话及密码凭据，5 分钟有效且只能使用一次，与普通 Apple 登录的 nonce 相互隔离。
+
+- POST `/api/auth/apple/link/challenge`：`{password}`，返回 nonce。
+- POST `/api/auth/apple/link`：`{identityToken,nonce}`。
+- GET `/api/auth/email/status` 增加 `appleLinked` 状态，不返回 Apple subject。
+
+已绑定的身份不能被替换；Apple 身份已被另一个账号占用时明确拒绝。不涉及两个已有账号的数据合并，也未新增解绑入口。真正启用仍需 `APPLE_CLIENT_ID`、Apple 开发者签名配置及真机授权验收；现有 Apple 授权撤销和服务端通知生命周期仍待完成。
+
+Apple 官方：[验证用户身份](https://developer.apple.com/documentation/signinwithapple/verifying-a-user)、[关联既有账号的认证流程](https://developer.apple.com/documentation/signinwithapple/authenticating-users-with-sign-in-with-apple)。

@@ -1,4 +1,5 @@
 import 'care_day.dart';
+import 'care_snapshot.dart';
 import '../../core/theme/app_spacing.dart';
 import 'package:flutter/material.dart';
 import '../../app/home_shell.dart';
@@ -587,28 +588,17 @@ extension CareView on CareHomeState {
               (event['petId'] == null && event['petName'] == petName),
         )
         .toList();
-    final pending = petTasks
-        .where((v) =>
-            actionableCare(v) &&
-            !DateTime.parse(v['dueAt'] as String).toLocal().isAfter(DateTime(
-                    DateTime.now().year,
-                    DateTime.now().month,
-                    DateTime.now().day + 1)
-                .subtract(const Duration(microseconds: 1))))
-        .toList()
-      ..sort(
-        (a, b) => DateTime.parse(
-          a['dueAt'] as String,
-        ).compareTo(DateTime.parse(b['dueAt'] as String)),
-      );
-    final overdue = pending
-        .where((task) =>
-            DateTime.parse(task['dueAt'] as String).isBefore(DateTime.now()))
-        .toList();
-    final laterToday = pending
-        .where((task) =>
-            !DateTime.parse(task['dueAt'] as String).isBefore(DateTime.now()))
-        .toList();
+    final snapshot = CareSnapshot(
+        petId: petId as String?,
+        now: DateTime.now(),
+        tasks: petTasks,
+        history: petHistory);
+    final pending = snapshot.todayPending;
+    final overdue = snapshot.overdue;
+    // Keep every one-off overdue reminder visible, including medical care
+    // entered under a custom title, without guessing from its wording.
+    final importantOverdue =
+        overdue.where((task) => task['planId'] == null).toList();
     final todayHistory = petHistory
         .where((e) => careOnDay(e['at'] as String, DateTime.now()))
         .toList();
@@ -680,26 +670,35 @@ extension CareView on CareHomeState {
                   _emptyNext()
                 else ...[
                   _nextCare(pending.first),
-                  for (final task in (overdue.isNotEmpty ? overdue : laterToday)
-                      .skip(1)
-                      .take(2))
-                    _taskRow(task),
-                  if (overdue.isNotEmpty && laterToday.isNotEmpty) ...[
-                    Padding(
-                        padding: const EdgeInsets.fromLTRB(AppSpacing.page,
-                            AppSpacing.section, AppSpacing.page, 0),
-                        child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(t('今天接下来', 'Later today'),
-                                style:
-                                    Theme.of(context).textTheme.titleMedium))),
-                    for (final task in laterToday.take(2)) _taskRow(task),
-                  ],
-                  if (overdue.length > 3 ||
-                      laterToday.length > (overdue.isEmpty ? 3 : 2))
+                  for (final task in pending.skip(1).take(2)) _taskRow(task),
+                  if (pending.length > 3)
                     TextButton(
                         onPressed: openSchedules,
                         child: Text(t('查看今天的全部待办', 'View all pending care'))),
+                ],
+                if (overdue.isNotEmpty) ...[
+                  Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: AppSpacing.page),
+                    child: Card(
+                        child: ListTile(
+                      leading: const Icon(Icons.history_rounded),
+                      title: Text(t('逾期事项 · ${overdue.length}',
+                          'Overdue · ${overdue.length}')),
+                      subtitle: Text(t('查看并处理过去未完成的照护',
+                          'Review unfinished care from previous days')),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: openOverdueCare,
+                    )),
+                  ),
+                  if (importantOverdue.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.page),
+                      child: Text(t(
+                          '有 ${importantOverdue.length} 项单次照护已逾期，请确认用药、就诊等重要安排。',
+                          '${importantOverdue.length} one-off reminders are overdue. Review important care, including medication and appointments.')),
+                    ),
                 ],
                 if (futureCount > 0)
                   Padding(

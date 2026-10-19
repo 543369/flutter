@@ -1,0 +1,8 @@
+{
+  "PUSH_ENABLED": "true",
+  "FIREBASE_API_KEY": "填写对应Firebase应用的公开apiKey",
+  "FIREBASE_APP_ID": "填写对应Android或iOS应用的appId",
+  "FIREBASE_MESSAGING_SENDER_ID": "填写项目messagingSenderId",
+  "FIREBASE_PROJECT_ID": "填写Firebase项目ID",
+  "FIREBASE_IOS_BUNDLE_ID": "填写iOS正式BundleID，Android可留空"
+}

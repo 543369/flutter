@@ -14,7 +14,7 @@ public class CareQueries {
  private static final String TASKS="SELECT t.*,p.name pet_name,(SELECT MAX(e.happened_at) FROM care_events e WHERE e.task_id=t.id AND e.action='COMPLETED') completed_at FROM care_tasks t JOIN pets p ON p.id=t.pet_id WHERE p.household_id=?";
  private Map<String,Object> taskRow(ResultSet r,int n) throws SQLException {
   Map<String,Object> m=new LinkedHashMap<>();
-  m.put("id",r.getString("id"));m.put("petId",r.getString("pet_id"));m.put("petName",r.getString("pet_name"));
+  m.put("revision",r.getLong("revision"));m.put("id",r.getString("id"));m.put("petId",r.getString("pet_id"));m.put("petName",r.getString("pet_name"));
   m.put("title",r.getString("title"));m.put("dueAt",r.getTimestamp("due_at").toInstant().toString());
   m.put("completedAt",r.getTimestamp("completed_at")==null?null:r.getTimestamp("completed_at").toInstant().toString());m.put("completed",r.getBoolean("completed"));m.put("cancelled",r.getBoolean("cancelled"));m.put("skipped",r.getBoolean("skipped"));
   m.put("planId",r.getString("plan_id"));m.put("careType",r.getString("care_type"));m.put("assignedTo",r.getString("assigned_to"));m.put("healthRecordId",r.getString("health_record_id"));return m;

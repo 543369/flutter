@@ -53,7 +53,7 @@ class CareController extends ApiSupport {
   var states = db.queryForList("SELECT t.completed FROM care_tasks t JOIN pets p ON p.id=t.pet_id WHERE t.id=? AND p.household_id=? AND t.cancelled=FALSE AND t.skipped=FALSE FOR UPDATE",Boolean.class,taskId,home);
   if (states.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
   if (!states.getFirst().equals(input.completed())) {
-   db.update("UPDATE care_tasks SET completed=? WHERE id=?",input.completed(),taskId);
+   db.update("UPDATE care_tasks SET revision=revision+1,completed=? WHERE id=?",input.completed(),taskId);
    db.update("INSERT INTO care_events(id,task_id,actor_id,action,happened_at) VALUES (?,?,?,?,?)",id(),taskId,auth.getName(),input.completed()?"COMPLETED":"REOPENED",Timestamp.from(Instant.now()));
   }
   var result=task(home,taskId);
@@ -85,10 +85,10 @@ class CareController extends ApiSupport {
   String next=taskId;
   if(old.get("planId")!=null) {
    // Keep the original occurrence as a tombstone so materialize cannot recreate it.
-   db.update("UPDATE care_tasks SET cancelled=TRUE WHERE id=?",taskId);
+   db.update("UPDATE care_tasks SET revision=revision+1,cancelled=TRUE WHERE id=?",taskId);
    next=id();
    db.update("INSERT INTO care_tasks(id,pet_id,title,due_at,care_type,assigned_to) VALUES (?,?,?,?,?,?)",next,old.get("petId"),old.get("title"),Timestamp.from(input.dueAt()),old.get("careType"),old.get("assignedTo"));
-  } else db.update("UPDATE care_tasks SET due_at=? WHERE id=?",Timestamp.from(input.dueAt()),taskId);
+  } else db.update("UPDATE care_tasks SET revision=revision+1,due_at=? WHERE id=?",Timestamp.from(input.dueAt()),taskId);
   db.update("INSERT INTO care_events(id,task_id,actor_id,action,happened_at) VALUES (?,?,?,?,?)",id(),taskId,auth.getName(),"RESCHEDULED",Timestamp.from(Instant.now()));
   return task(home,next);
  }
@@ -98,7 +98,7 @@ class CareController extends ApiSupport {
   String home=permission(auth,"CARE");var old=task(home,taskId);
   if(Boolean.TRUE.equals(old.get("completed"))) throw new ResponseStatusException(HttpStatus.CONFLICT,"TASK_NOT_PENDING");
   if(!Boolean.TRUE.equals(old.get("cancelled"))) {
-   db.update("UPDATE care_tasks SET cancelled=TRUE WHERE id=?",taskId);
+   db.update("UPDATE care_tasks SET revision=revision+1,cancelled=TRUE WHERE id=?",taskId);
    db.update("INSERT INTO care_events(id,task_id,actor_id,action,happened_at) VALUES (?,?,?,?,?)",id(),taskId,auth.getName(),input.action(),Timestamp.from(Instant.now()));
   }
   return task(home,taskId);
@@ -122,7 +122,7 @@ class CareController extends ApiSupport {
   String home=permission(auth,"CARE");
   if(input.memberId()!=null && db.queryForObject("SELECT COUNT(*) FROM accounts WHERE id=? AND household_id=? AND (access_until IS NULL OR access_until>CURRENT_TIMESTAMP(6)) AND (family_role='ADMIN' OR FIND_IN_SET('CARE',permissions)>0)",Integer.class,input.memberId(),home)!=1)
    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"INVALID_ASSIGNEE");
-  require(db.update("UPDATE care_tasks t JOIN pets p ON p.id=t.pet_id SET t.assigned_to=? WHERE t.id=? AND p.household_id=? AND t.cancelled=FALSE",input.memberId(),taskId,home));
+  require(db.update("UPDATE care_tasks t JOIN pets p ON p.id=t.pet_id SET t.revision=t.revision+1,t.assigned_to=? WHERE t.id=? AND p.household_id=? AND t.cancelled=FALSE",input.memberId(),taskId,home));
   return queries.mutation(home,taskId);
  }
  @GetMapping("/tasks/{taskId}") @Transactional
@@ -142,7 +142,7 @@ class CareController extends ApiSupport {
   String home=permission(auth,"CARE");var task=queries.task(home,taskId);editable(task);
   if(input.dueAt().isBefore(Instant.parse("2000-01-01T00:00:00Z"))||input.dueAt().isAfter(Instant.parse("2037-12-31T23:59:59Z")))throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
   if(!Instant.parse((String)task.get("dueAt")).equals(input.dueAt())) {
-   db.update("UPDATE care_tasks SET due_at=? WHERE id=?",Timestamp.from(input.dueAt()),taskId);event(auth,taskId,"RESCHEDULED");
+   db.update("UPDATE care_tasks SET revision=revision+1,due_at=? WHERE id=?",Timestamp.from(input.dueAt()),taskId);event(auth,taskId,"RESCHEDULED");
   }
   return queries.mutation(home,taskId);
  }
@@ -153,7 +153,7 @@ class CareController extends ApiSupport {
   boolean skip=input.action().equals("SKIPPED");
   if(Boolean.TRUE.equals(task.get(skip?"skipped":"cancelled")))return queries.mutation(home,taskId);
   editable(task);if(skip && task.get("planId")==null)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"RECURRING_REQUIRED");
-  db.update("UPDATE care_tasks SET cancelled=?,skipped=? WHERE id=?",!skip,skip,taskId);event(auth,taskId,input.action());return queries.mutation(home,taskId);
+  db.update("UPDATE care_tasks SET revision=revision+1,cancelled=?,skipped=? WHERE id=?",!skip,skip,taskId);event(auth,taskId,input.action());return queries.mutation(home,taskId);
  }
  private void editable(Map<String,Object> task) {
   if(Boolean.TRUE.equals(task.get("completed"))||Boolean.TRUE.equals(task.get("cancelled"))||Boolean.TRUE.equals(task.get("skipped")))throw new ResponseStatusException(HttpStatus.CONFLICT,"TASK_NOT_PENDING");
@@ -164,7 +164,7 @@ class CareController extends ApiSupport {
   String home = permission(auth,"CARE");
   require(db.update("UPDATE care_plans c JOIN pets p ON p.id=c.pet_id SET c.active=FALSE WHERE c.id=? AND p.household_id=?",planId,home));
   // Preserve overdue occurrences and all completed care/history.
-  db.update("UPDATE care_tasks SET cancelled=TRUE WHERE plan_id=? AND completed=FALSE AND due_at>?",planId,Timestamp.from(Instant.now()));
+  db.update("UPDATE care_tasks SET revision=revision+1,cancelled=TRUE WHERE plan_id=? AND completed=FALSE AND due_at>?",planId,Timestamp.from(Instant.now()));
  }
 
 }

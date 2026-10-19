@@ -38,6 +38,22 @@ public class FamilyRolesController extends ApiSupport {
   db.update("DELETE FROM invites WHERE household_id=?",home);
   return Map.of("saved",true);
  }
+ @DeleteMapping("/members/{memberId}") @Transactional
+ public Map<String,Boolean> remove(Authentication auth,@PathVariable String memberId) {
+  String home=permission(auth,"ADMIN");
+  if(auth.getName().equals(memberId))throw new ResponseStatusException(HttpStatus.CONFLICT,"USE_LEAVE_HOUSEHOLD");
+  var roles=db.queryForList("SELECT family_role FROM accounts WHERE id=? AND household_id=? FOR UPDATE",String.class,memberId,home);
+  if(roles.isEmpty())throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+  if(roles.getFirst().equals("ADMIN") && db.queryForObject("SELECT COUNT(*) FROM accounts WHERE household_id=? AND family_role='ADMIN'",Integer.class,home)<=1)throw new ResponseStatusException(HttpStatus.CONFLICT,"LAST_ADMIN");
+  String next=id();db.update("INSERT INTO households(id) VALUES(?)",next);
+  db.update("UPDATE care_tasks t JOIN pets p ON p.id=t.pet_id SET t.revision=t.revision+1,t.assigned_to=NULL WHERE t.assigned_to=? AND p.household_id=?",memberId,home);
+  db.update("UPDATE accounts SET household_id=?,family_role='ADMIN',permissions=?,access_until=NULL WHERE id=?",next,RoleRules.FULL,memberId);
+  db.update("DELETE FROM invites WHERE household_id=?",home);
+  // Keep the account and sessions. Their next authorized read is scoped to the
+  // new empty home; a background invalidation clears old local reminders.
+  db.update("INSERT INTO push_outbox(household_id) VALUES(?)",next);
+  return Map.of("removed",true);
+ }
  @PostMapping("/leave") @Transactional
  public Map<String,Boolean> leave(Authentication auth){
   String home=household(auth);
@@ -45,7 +61,7 @@ public class FamilyRolesController extends ApiSupport {
   String role=db.queryForObject("SELECT family_role FROM accounts WHERE id=?",String.class,auth.getName());
   if(role.equals("ADMIN")&&db.queryForObject("SELECT COUNT(*) FROM accounts WHERE household_id=? AND family_role='ADMIN'",Integer.class,home)<=1)throw new ResponseStatusException(HttpStatus.CONFLICT,"LAST_ADMIN");
   String next=id();db.update("INSERT INTO households(id) VALUES (?)",next);
-  db.update("UPDATE care_tasks SET assigned_to=NULL WHERE assigned_to=?",auth.getName());
+  db.update("UPDATE care_tasks SET revision=revision+1,assigned_to=NULL WHERE assigned_to=?",auth.getName());
   db.update("UPDATE accounts SET household_id=?,family_role='ADMIN',permissions=?,access_until=NULL WHERE id=?",next,RoleRules.FULL,auth.getName());return Map.of("left",true);
  }
 }

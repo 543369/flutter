@@ -97,7 +97,7 @@ public class HealthRecordController extends ApiSupport {
   }else {
    var old=db.queryForObject("SELECT due_at FROM care_tasks WHERE id=?",java.sql.Timestamp.class,task);
    if(!old.toInstant().equals(input.dueAt())) {
-    db.update("UPDATE care_tasks SET due_at=? WHERE id=?",java.sql.Timestamp.from(input.dueAt()),task);
+    db.update("UPDATE care_tasks SET revision=revision+1,due_at=? WHERE id=?",java.sql.Timestamp.from(input.dueAt()),task);
     db.update("INSERT INTO care_events(id,task_id,actor_id,action,happened_at) VALUES (?,?,?,?,CURRENT_TIMESTAMP(6))",id(),task,auth.getName(),"RESCHEDULED");
    }
   }

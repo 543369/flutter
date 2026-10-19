@@ -24,7 +24,9 @@ class EmailIdentityController {
  record Code(@NotBlank @Size(max=128) String code) {}
  record Reset(@NotBlank @Size(max=128) String code,@NotBlank @Size(min=10,max=72) String password) {}
  @GetMapping("/email/status") Map<String,Object> status(Authentication user) {
-  return db.queryForMap("SELECT email, email_verified AS verified, password_hash IS NOT NULL AS hasPassword FROM accounts WHERE id=?",user.getName());
+  return db.query("SELECT email,email_verified,password_hash IS NOT NULL,apple_subject IS NOT NULL FROM accounts WHERE id=?",(r,n)->{
+   Map<String,Object> row=new LinkedHashMap<>();row.put("email",r.getString(1));row.put("verified",r.getBoolean(2));row.put("hasPassword",r.getBoolean(3));row.put("appleLinked",r.getBoolean(4));return row;
+  },user.getName()).getFirst();
  }
  private void send(String account,String address,String purpose) {
   mail.requireConfigured();

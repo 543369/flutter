@@ -33,6 +33,8 @@ class EmailIdentityTests {
   String code=messages.getValue().getText().split("\n\n")[1];
   controller.verify(user,new EmailIdentityController.Code(code),request);
   assertEquals(true,controller.status(user).get("verified"));
+  assertEquals(true,controller.status(user).get("hasPassword"));
+  assertEquals(false,controller.status(user).get("appleLinked"));
   assertThrows(ResponseStatusException.class,()->controller.verify(user,new EmailIdentityController.Code(code),request));
   reset(mail);
   controller.recovery(new EmailIdentityController.Email(email),request);

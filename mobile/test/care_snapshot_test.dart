@@ -44,11 +44,15 @@ void main() {
         CareSnapshot(petId: 'a', now: now, tasks: tasks, history: history);
     expect(view.due.map((v) => v['id']), ['overdue', 'today']);
     expect(view.pending.length, 3);
+    expect(view.todayPending.map((v) => v['id']), ['today']);
+    expect(view.overdue.map((v) => v['id']), ['overdue']);
     expect(view.todayCompleted, 1);
     expect(view.todayEvents.map((v) => v['id']), ['one']);
     final next = CareSnapshot(
         petId: 'a', now: DateTime(2026, 9, 18), tasks: tasks, history: history);
     expect(next.due.length, 3);
+    expect(next.todayPending.map((v) => v['id']), ['future']);
+    expect(next.overdue.map((v) => v['id']), ['overdue', 'today']);
     expect(next.todayEvents, isEmpty);
     expect(next.todayCompleted, 0);
   });

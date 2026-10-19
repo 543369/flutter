@@ -16,6 +16,10 @@ class CareSnapshot {
     due = pending
         .where((v) => DateTime.parse(v['dueAt'] as String).isBefore(end))
         .toList();
+    todayPending = pending.where((v) => today(v['dueAt'] as String)).toList();
+    overdue = pending
+        .where((v) => DateTime.parse(v['dueAt'] as String).isBefore(start))
+        .toList();
     completed = own.where((v) => v['completed'] == true).toList();
     todayCompleted = completed
         .where((v) => today((v['completedAt'] ?? v['dueAt']) as String))
@@ -29,6 +33,8 @@ class CareSnapshot {
   late final DateTime start, end;
   late final List<Map<String, dynamic>> pending,
       due,
+      todayPending,
+      overdue,
       completed,
       events,
       todayEvents;

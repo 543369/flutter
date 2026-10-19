@@ -37,11 +37,11 @@ class DashboardController extends ApiSupport {
    row.put("createdAt",r.getTimestamp(7)==null?null:r.getTimestamp(7).toInstant().toString()); row.put("memoryCount",r.getInt(8)); row.put("photoVersion",r.getString(9)); return row;
   }, home);
   plans.materialize(home);
-  var tasks = db.query("SELECT t.id,t.pet_id,t.title,t.due_at,t.completed,p.name,t.plan_id,t.care_type,t.assigned_to,t.skipped,t.health_record_id,(SELECT MAX(e.happened_at) FROM care_events e WHERE e.task_id=t.id AND e.action='COMPLETED') completed_at FROM care_tasks t JOIN pets p ON p.id=t.pet_id WHERE p.household_id=? AND t.cancelled=FALSE AND t.skipped=FALSE ORDER BY t.completed,t.due_at,t.id"+(compact ? " LIMIT 301" : ""), (r,n) -> {
+  var tasks = db.query("SELECT t.id,t.pet_id,t.title,t.due_at,t.completed,p.name,t.plan_id,t.care_type,t.assigned_to,t.skipped,t.health_record_id,(SELECT MAX(e.happened_at) FROM care_events e WHERE e.task_id=t.id AND e.action='COMPLETED') completed_at,t.revision FROM care_tasks t JOIN pets p ON p.id=t.pet_id WHERE p.household_id=? AND t.cancelled=FALSE AND t.skipped=FALSE ORDER BY t.completed,t.due_at,t.id"+(compact ? " LIMIT 301" : ""), (r,n) -> {
    Map<String,Object> row = new LinkedHashMap<>();
    row.put("id",r.getString(1)); row.put("petId",r.getString(2)); row.put("title",r.getString(3));
    row.put("dueAt",r.getTimestamp(4).toInstant().toString()); row.put("completed",r.getBoolean(5));
-   row.put("petName",r.getString(6)); row.put("planId",r.getString(7)); row.put("careType",r.getString(8)); row.put("assignedTo",r.getString(9)); row.put("skipped",r.getBoolean(10)); row.put("healthRecordId",r.getString(11)); row.put("completedAt",r.getTimestamp(12)==null?null:r.getTimestamp(12).toInstant().toString()); return row;
+   row.put("petName",r.getString(6)); row.put("planId",r.getString(7)); row.put("careType",r.getString(8)); row.put("assignedTo",r.getString(9)); row.put("skipped",r.getBoolean(10)); row.put("healthRecordId",r.getString(11)); row.put("revision",r.getLong(13)); row.put("completedAt",r.getTimestamp(12)==null?null:r.getTimestamp(12).toInstant().toString()); return row;
   }, home);
   var history = db.query("SELECT e.id,e.task_id,e.action,e.happened_at,a.display_name,t.title,p.name,p.id,t.care_type FROM care_events e JOIN care_tasks t ON t.id=e.task_id JOIN pets p ON p.id=t.pet_id LEFT JOIN accounts a ON a.id=e.actor_id WHERE p.household_id=? ORDER BY e.happened_at DESC,e.id DESC LIMIT "+(compact ? 30 : 100), (r,n) -> {
    Map<String,Object> row = new LinkedHashMap<>();
@@ -57,6 +57,8 @@ class DashboardController extends ApiSupport {
   Map<String,Object> result = new LinkedHashMap<>(Map.of("access",access,"memberProfiles",memberProfiles,"registered",db.queryForObject("SELECT (email IS NOT NULL OR apple_subject IS NOT NULL) FROM accounts WHERE id=?",Boolean.class,auth.getName()),"pets",pets,"tasks",compact ? tasks.stream().limit(300).toList() : tasks,"history",history,"plans",recurring,
    "me",db.queryForObject("SELECT display_name FROM accounts WHERE id=?",String.class,auth.getName()),
    "members",db.queryForObject("SELECT COUNT(*) FROM accounts WHERE household_id=?", Integer.class, home)));
+  result.put("householdId",home);
+  result.put("accountId",auth.getName());
   result.put("reminderTasks",com.petcare.care.CareReminders.list(db,home));
   result.put("tasksTruncated",compact && tasks.size()>300);
   return result;

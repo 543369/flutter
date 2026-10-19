@@ -68,6 +68,16 @@ public class AuthService extends ApiSupport {
    throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
  }
  @Transactional
+ public void requirePassword(Authentication user,String token,String password) {
+  verifyCurrentSession(user,token);
+  if(password==null || password.getBytes(java.nio.charset.StandardCharsets.UTF_8).length>72)
+   throw new ResponseStatusException(HttpStatus.FORBIDDEN,"CURRENT_PASSWORD_INVALID");
+  var row=db.queryForMap("SELECT password_hash,email_verified FROM accounts WHERE id=?",user.getName());
+  if(row.get("password_hash")==null)throw new ResponseStatusException(HttpStatus.CONFLICT,"PASSWORD_ACCOUNT_REQUIRED");
+  if(!Boolean.TRUE.equals(row.get("email_verified")))throw new ResponseStatusException(HttpStatus.FORBIDDEN,"EMAIL_VERIFICATION_REQUIRED");
+  if(!passwords.matches(password,(String)row.get("password_hash")))throw new ResponseStatusException(HttpStatus.FORBIDDEN,"CURRENT_PASSWORD_INVALID");
+ }
+ @Transactional
  public void changePassword(Authentication user,String token,String oldPassword,String newPassword) {
   verifyCurrentSession(user,token);
   validatePassword(oldPassword); validatePassword(newPassword);

@@ -4,3 +4,9 @@
 *.log
 __pycache__/
 *.pyc
+
+# Firebase private configuration and credentials
+**/google-services.json
+**/GoogleService-Info.plist
+**/*service-account*.json
+mobile/ios/Flutter/Push.xcconfig

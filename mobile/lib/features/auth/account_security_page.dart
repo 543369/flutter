@@ -1,6 +1,9 @@
 import '../../core/theme/app_spacing.dart';
 import 'dart:convert';
 import 'email_action_page.dart';
+import 'change_email_page.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import '../../core/network/care_api.dart';
 
@@ -47,6 +50,25 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
       await action();
     } on ApiError catch (e) {
       if (!mounted) return;
+      if (e.code == 'APPLE_ALREADY_LINKED' ||
+          e.code == 'APPLE_LINK_EXPIRED' ||
+          e.code == 'APPLE_IDENTITY_INVALID' ||
+          e.code == 'CURRENT_PASSWORD_INVALID') {
+        setState(() => error = switch (e.code) {
+              'APPLE_ALREADY_LINKED' => t('此 Apple 身份已绑定账号，不能覆盖或合并已有账号。',
+                  'This Apple identity is already linked. Existing accounts cannot be overwritten or merged.'),
+              'CURRENT_PASSWORD_INVALID' =>
+                t('当前密码不正确', 'Current password is incorrect'),
+              _ => t('Apple 授权无效或已过期，请重新绑定。',
+                  'Apple authorization is invalid or expired. Try linking again.'),
+            });
+        return;
+      }
+      if (e.status == 503) {
+        setState(() => error = t('Apple 登录尚未配置完成，请稍后再试。',
+            'Apple sign-in is not configured yet. Please try later.'));
+        return;
+      }
       if (e.status == 401) {
         Navigator.pop(context);
         return;
@@ -136,6 +158,42 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
                 'Password changed. Other sessions have been signed out.'))));
       }
       await load();
+    });
+  }
+
+  Future<void> changeEmail() async {
+    final changed = await Navigator.of(context).push<bool>(MaterialPageRoute(
+        builder: (_) =>
+            ChangeEmailPage(api: widget.api, translate: widget.translate)));
+    if (mounted && changed == true) {
+      await refresh();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(t('登录邮箱已更换，其他会话已退出。',
+                'Email changed. Other sessions have been signed out.'))));
+      }
+    }
+  }
+
+  Future<void> linkApple() async {
+    final value = await showDialog<String>(
+        context: context,
+        builder: (_) => _ApplePasswordDialog(translate: widget.translate));
+    if (value == null || !mounted) return;
+    await run(() async {
+      final challenge = await widget.api
+          .request('POST', '/auth/apple/link/challenge', {'password': value});
+      final identityToken = await const MethodChannel('petcare/apple')
+          .invokeMethod<String>('signIn', challenge['nonce']);
+      if (identityToken == null) return;
+      await widget.api.request('POST', '/auth/apple/link',
+          {'identityToken': identityToken, 'nonce': challenge['nonce']});
+      await load();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(t('Apple 已绑定，以后可使用 Apple 登录当前账号。',
+                'Apple linked. You can now use Apple to sign into this account.'))));
+      }
     });
   }
 
@@ -319,6 +377,39 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
                     ),
                   ],
                   const SizedBox(height: AppSpacing.section),
+                  if (identity?['hasPassword'] == true &&
+                      identity?['email'] != null)
+                    Card(
+                        child: ListTile(
+                      leading: const Icon(Icons.alternate_email),
+                      title: Text(t('更换登录邮箱', 'Change sign-in email')),
+                      subtitle: Text(identity!['email'] as String),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: busy || identity?['verified'] != true
+                          ? null
+                          : changeEmail,
+                    )),
+                  if (identity?['appleLinked'] == true ||
+                      (!kIsWeb &&
+                          defaultTargetPlatform == TargetPlatform.iOS &&
+                          identity?['hasPassword'] == true))
+                    Card(
+                        child: ListTile(
+                      leading: const Icon(Icons.apple),
+                      title: Text(t('Apple 登录', 'Apple sign-in')),
+                      subtitle: Text(identity?['appleLinked'] == true
+                          ? t('已绑定当前账号', 'Linked to this account')
+                          : t('绑定后可用 Apple 登录同一账号',
+                              'Link Apple to sign into this same account')),
+                      trailing: identity?['appleLinked'] == true
+                          ? const Icon(Icons.check_circle_outline)
+                          : const Icon(Icons.chevron_right),
+                      onTap: busy ||
+                              identity?['appleLinked'] == true ||
+                              identity?['verified'] != true
+                          ? null
+                          : linkApple,
+                    )),
                   Row(children: [
                     Expanded(
                         child: Text(t('登录会话', 'Sign-in sessions'),
@@ -358,5 +449,49 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
                       child:
                           Text(t('退出其他所有会话', 'Sign out all other sessions'))),
                 ]))),
+      );
+}
+
+class _ApplePasswordDialog extends StatefulWidget {
+  const _ApplePasswordDialog({required this.translate});
+  final String Function(String, String) translate;
+  @override
+  State<_ApplePasswordDialog> createState() => _ApplePasswordDialogState();
+}
+
+class _ApplePasswordDialogState extends State<_ApplePasswordDialog> {
+  final password = TextEditingController();
+  String t(String z, String e) => widget.translate(z, e);
+  @override
+  void dispose() {
+    password.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: Text(t('绑定 Apple 登录', 'Link Apple sign-in')),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text(t('请输入当前爪伴密码，再完成 Apple 授权。绑定后两种方式登录同一账号，家庭资料保留。',
+              'Enter your current PetCare password, then authorize Apple. Both methods will sign into this account and keep your household.')),
+          TextField(
+              controller: password,
+              obscureText: true,
+              autocorrect: false,
+              enableSuggestions: false,
+              onChanged: (_) => setState(() {}),
+              decoration:
+                  InputDecoration(labelText: t('当前密码', 'Current password'))),
+        ]),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(t('取消', 'Cancel'))),
+          FilledButton(
+              onPressed: password.text.isEmpty
+                  ? null
+                  : () => Navigator.pop(context, password.text),
+              child: Text(t('继续绑定', 'Continue linking')))
+        ],
       );
 }
