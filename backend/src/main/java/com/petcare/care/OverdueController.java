@@ -95,16 +95,80 @@ public class OverdueController extends ApiSupport {
   int total=db.queryForObject("SELECT COUNT(*) FROM overdue_batch_items WHERE batch_id=?",Integer.class,batch);
   if(total>5000)throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE,"BATCH_TOO_LARGE");
   if(total==0)throw new ResponseStatusException(HttpStatus.CONFLICT,"OVERDUE_SELECTION_EMPTY");
+  db.update("UPDATE overdue_batch_items i JOIN care_tasks t ON t.id=i.task_id SET i.title=t.title,i.due_at=t.due_at WHERE i.batch_id=?",batch);
   return stats(batch);
  }
  private Map<String,Object> stats(String batch) {
-  var result=new LinkedHashMap<String,Object>(db.queryForMap("SELECT COUNT(*) total,COALESCE(SUM(status='SUCCESS'),0) success,COALESCE(SUM(status='CHANGED'),0) changed,COALESCE(SUM(status='FAILED'),0) failed,COALESCE(SUM(status='PENDING'),0) remaining FROM overdue_batch_items WHERE batch_id=?",batch));
-  result.put("id",batch);String state=db.queryForObject("SELECT state FROM overdue_batches WHERE id=?",String.class,batch);result.put("state",state);result.put("finished",state.equals("COMPLETE"));return result;
+  var result=new LinkedHashMap<String,Object>(db.queryForMap("SELECT COUNT(*) total,COALESCE(SUM(status='SUCCESS'),0) success,COALESCE(SUM(status='CHANGED'),0) changed,COALESCE(SUM(status='FAILED'),0) failed,COALESCE(SUM(status='PENDING'),0) remaining,COALESCE(SUM(status='STOPPED'),0) stopped FROM overdue_batch_items WHERE batch_id=?",batch));
+  result.put("id",batch);String state=db.queryForObject("SELECT state FROM overdue_batches WHERE id=?",String.class,batch);result.put("state",state);result.put("finished",state.equals("COMPLETE") || state.equals("ENDED"));result.put("createdAt",db.queryForObject("SELECT created_at FROM overdue_batches WHERE id=?",Timestamp.class,batch).toInstant().toString());return result;
  }
  @GetMapping("/batches/current") @Transactional
  public Map<String,Object> current(Authentication auth,@RequestParam String petId) {
-  String home=permission(auth,"READ");var rows=db.queryForList("SELECT id FROM overdue_batches WHERE account_id=? AND household_id=? AND pet_id=? AND state IN ('RUNNING','COMPLETE') ORDER BY created_at DESC,id DESC LIMIT 1",String.class,auth.getName(),home,petId);
+  String home=permission(auth,"READ");var rows=db.queryForList("SELECT id FROM overdue_batches WHERE account_id=? AND household_id=? AND pet_id=? AND state IN ('RUNNING','COMPLETE') ORDER BY (state='RUNNING') DESC,created_at DESC,id DESC LIMIT 1",String.class,auth.getName(),home,petId);
   return rows.isEmpty()?Map.of():stats(rows.getFirst());
+ }
+ private Map<String,Object> owned(Authentication auth,String batchId,String access,boolean lock) {
+  String home=permission(auth,access);
+  var rows=db.queryForList("SELECT * FROM overdue_batches WHERE id=? AND account_id=? AND household_id=?"+(lock?" FOR UPDATE":""),batchId,auth.getName(),home);
+  if(rows.isEmpty())throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+  return rows.getFirst();
+ }
+ @GetMapping("/batches") @Transactional
+ public Map<String,Object> batches(Authentication auth,@RequestParam String petId,@RequestParam(defaultValue="false") boolean unfinished,@RequestParam(defaultValue="") String cursor) {
+  String home=permission(auth,"READ");var args=new ArrayList<Object>(List.of(auth.getName(),home,petId));
+  String where="";
+  if(!cursor.isEmpty())try{
+   var parts=new String(Base64.getUrlDecoder().decode(cursor),StandardCharsets.UTF_8).split("\\|",-1);
+   if(parts.length!=2)throw new IllegalArgumentException();
+   var at=Timestamp.from(Instant.parse(parts[0]));UUID.fromString(parts[1]);
+   where=" AND (created_at<? OR (created_at=? AND id<?))";args.add(at);args.add(at);args.add(parts[1]);
+  }catch(Exception e){bad();}
+  var rows=db.queryForList("SELECT id,created_at FROM overdue_batches WHERE account_id=? AND household_id=? AND pet_id=? AND state IN ("+(unfinished?"'RUNNING'":"'RUNNING','COMPLETE','ENDED'")+")"+where+" ORDER BY created_at DESC,id DESC LIMIT 21",args.toArray());
+  var visible=rows.stream().limit(20).toList();String next="";
+  if(rows.size()>20){var last=visible.getLast();next=Base64.getUrlEncoder().withoutPadding().encodeToString((((Timestamp)last.get("created_at")).toInstant()+"|"+last.get("id")).getBytes(StandardCharsets.UTF_8));}
+  return Map.of("items",visible.stream().map(r->stats((String)r.get("id"))).toList(),"hasMore",rows.size()>20,"nextCursor",next);
+ }
+ @GetMapping("/batches/{batchId}/items") @Transactional
+ public Map<String,Object> results(Authentication auth,@PathVariable String batchId,@RequestParam(defaultValue="") String status,@RequestParam(defaultValue="") String cursor) {
+  owned(auth,batchId,"READ",false);
+  if(!status.isEmpty() && !Set.of("PENDING","SUCCESS","CHANGED","FAILED","STOPPED").contains(status))bad();
+  if(!cursor.isEmpty())try{UUID.fromString(cursor);}catch(Exception e){bad();}
+  var args=new ArrayList<Object>(List.of(batchId,cursor));String where="";
+  if(!status.isEmpty()){where=" AND status=?";args.add(status);}
+  var rows=db.query("SELECT task_id,title,due_at,status,reason,attempts FROM overdue_batch_items WHERE batch_id=? AND task_id>?"+where+" ORDER BY task_id LIMIT 51",(r,n)->{
+   Map<String,Object> row=new LinkedHashMap<>();row.put("id",r.getString(1));row.put("title",r.getString(2));row.put("dueAt",r.getTimestamp(3)==null?null:r.getTimestamp(3).toInstant().toString());row.put("status",r.getString(4));row.put("reason",r.getString(5));row.put("attempts",r.getInt(6));return row;
+  },args.toArray());
+  return Map.of("batch",stats(batchId),"items",rows.stream().limit(50).toList(),"hasMore",rows.size()>50,"nextCursor",rows.size()>50?rows.get(49).get("id"):"");
+ }
+ public record RetryItem(@NotBlank String id,@Min(0) int attempts) {}
+ public record RetryInput(@NotEmpty @Size(max=1000) List<@Valid RetryItem> items) {}
+ @PostMapping("/batches/{batchId}/retry") @Transactional
+ public Map<String,Object> retry(Authentication auth,@PathVariable String batchId,@Valid @RequestBody RetryInput input) {
+  var job=owned(auth,batchId,"CARE",true);
+  if(job.get("state").equals("ENDED"))throw new ResponseStatusException(HttpStatus.CONFLICT,"OVERDUE_BATCH_ENDED");
+  if(job.get("state").equals("RUNNING"))throw new ResponseStatusException(HttpStatus.CONFLICT,"OVERDUE_BATCH_RUNNING");
+  if(!job.get("state").equals("COMPLETE"))throw new ResponseStatusException(HttpStatus.CONFLICT,"OVERDUE_BATCH_NOT_COMPLETE");
+  // Compare attempt numbers so a delayed/repeated retry cannot requeue a newer failure.
+  for(var item:input.items)db.update("UPDATE overdue_batch_items SET status='PENDING',reason=NULL WHERE batch_id=? AND task_id=? AND status='FAILED' AND attempts=?",batchId,item.id,item.attempts);
+  if(db.queryForObject("SELECT COUNT(*) FROM overdue_batch_items WHERE batch_id=? AND status='PENDING'",Integer.class,batchId)>0)db.update("UPDATE overdue_batches SET state='RUNNING',finished_at=NULL WHERE id=?",batchId);
+  return stats(batchId);
+ }
+ @PostMapping("/batches/{batchId}/end") @Transactional
+ public Map<String,Object> end(Authentication auth,@PathVariable String batchId) {
+  var job=owned(auth,batchId,"CARE",true);
+  if(job.get("state").equals("RUNNING")) {
+   db.update("UPDATE overdue_batch_items SET status='STOPPED',reason='USER_ENDED' WHERE batch_id=? AND status='PENDING'",batchId);
+   db.update("UPDATE overdue_batches SET state='ENDED',finished_at=UTC_TIMESTAMP(6) WHERE id=?",batchId);
+  }
+  return stats(batchId);
+ }
+ private String changedReason(String task,String home,Map<String,Object> job,Object revision) {
+  var rows=db.queryForList("SELECT t.revision,t.completed,t.skipped,t.cancelled,t.due_at FROM care_tasks t JOIN pets p ON p.id=t.pet_id WHERE t.id=? AND p.household_id=? AND t.pet_id=?",task,home,job.get("pet_id"));
+  if(rows.isEmpty())return "UNAVAILABLE";
+  var row=rows.getFirst();
+  if(Boolean.TRUE.equals(row.get("completed")) || Boolean.TRUE.equals(row.get("skipped")) || Boolean.TRUE.equals(row.get("cancelled")))return "STATE_CHANGED";
+  if(((Number)row.get("revision")).longValue()!=((Number)revision).longValue())return "REVISION_CHANGED";
+  return "DATE_CHANGED";
  }
  @PostMapping("/batches/{batchId}/apply") @Transactional
  public Map<String,Object> apply(Authentication auth,@PathVariable String batchId) {
@@ -113,31 +177,32 @@ public class OverdueController extends ApiSupport {
   if(jobs.isEmpty())throw new ResponseStatusException(HttpStatus.NOT_FOUND);
   var job=jobs.getFirst();
   if(job.get("state").equals("PREVIEW") && ((Timestamp)job.get("expires_at")).toInstant().isBefore(Instant.now()))throw new ResponseStatusException(HttpStatus.CONFLICT,"OVERDUE_PREVIEW_EXPIRED");
-  if(job.get("state").equals("COMPLETE"))return stats(batchId);
-  db.update("UPDATE overdue_batches SET state='RUNNING' WHERE id=?",batchId);
+  if(job.get("state").equals("COMPLETE") || job.get("state").equals("ENDED"))return stats(batchId);
+  db.update("UPDATE overdue_batches SET state='RUNNING',finished_at=NULL WHERE id=?",batchId);
   var entries=db.queryForList("SELECT task_id,revision FROM overdue_batch_items WHERE batch_id=? AND status='PENDING' ORDER BY task_id LIMIT 100 FOR UPDATE",batchId);
   for(var entry:entries) {
    String task=(String)entry.get("task_id");
    var tx=org.springframework.transaction.interceptor.TransactionAspectSupport.currentTransactionStatus();
-   Object savepoint=tx.createSavepoint();String status;
+   Object savepoint=tx.createSavepoint();String status,reason=null;
    try {
     int changed=db.update("UPDATE care_tasks t JOIN pets p ON p.id=t.pet_id SET t.skipped=TRUE,t.revision=t.revision+1 WHERE t.id=? AND p.household_id=? AND t.pet_id=? AND t.revision=? AND t.completed=FALSE AND t.cancelled=FALSE AND t.skipped=FALSE AND t.due_at<?",task,home,job.get("pet_id"),entry.get("revision"),job.get("before_at"));
     if(changed==1)db.update("INSERT INTO care_events(id,task_id,actor_id,action,happened_at) VALUES(?,?,?,'SKIPPED',UTC_TIMESTAMP(6))",id(),task,auth.getName());
     status=changed==1?"SUCCESS":"CHANGED";
+    if(changed==0)reason=changedReason(task,home,job,entry.get("revision"));
    } catch(org.springframework.dao.DataIntegrityViolationException e) {
-    tx.rollbackToSavepoint(savepoint);status="FAILED";
+    tx.rollbackToSavepoint(savepoint);status="FAILED";reason="INTEGRITY_ERROR";
    } finally {tx.releaseSavepoint(savepoint);}
-   db.update("UPDATE overdue_batch_items SET status=? WHERE batch_id=? AND task_id=?",status,batchId,task);
+   db.update("UPDATE overdue_batch_items SET status=?,reason=?,attempts=attempts+1 WHERE batch_id=? AND task_id=?",status,reason,batchId,task);
 
   }
-  if(db.queryForObject("SELECT COUNT(*) FROM overdue_batch_items WHERE batch_id=? AND status='PENDING'",Integer.class,batchId)==0)db.update("UPDATE overdue_batches SET state='COMPLETE' WHERE id=?",batchId);
+  if(db.queryForObject("SELECT COUNT(*) FROM overdue_batch_items WHERE batch_id=? AND status='PENDING'",Integer.class,batchId)==0)db.update("UPDATE overdue_batches SET state='COMPLETE',finished_at=UTC_TIMESTAMP(6) WHERE id=?",batchId);
   return stats(batchId);
  }
  @org.springframework.scheduling.annotation.Scheduled(cron="${petcare.overdue.cleanup-cron:0 0 * * * *}")
  @Transactional
  public void cleanup(){
   db.update("DELETE FROM overdue_batches WHERE state='PREVIEW' AND expires_at<UTC_TIMESTAMP(6)");
-  db.update("DELETE FROM overdue_batches WHERE state='COMPLETE' AND created_at<DATE_SUB(UTC_TIMESTAMP(6),INTERVAL 30 DAY)");
+  db.update("DELETE FROM overdue_batches WHERE state IN ('COMPLETE','ENDED') AND COALESCE(finished_at,created_at)<DATE_SUB(UTC_TIMESTAMP(6),INTERVAL 30 DAY)");
  }
 
 }

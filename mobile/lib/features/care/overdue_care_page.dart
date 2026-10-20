@@ -3,6 +3,7 @@ import '../../app/home_shell.dart';
 import '../../core/network/care_api.dart';
 import '../../core/theme/app_spacing.dart';
 import 'care_pages.dart';
+import 'overdue_batches_page.dart';
 
 /// Server-paged backlog. Group selections are scopes, never a list of every ID.
 class OverdueCarePage extends StatefulWidget {
@@ -55,6 +56,25 @@ class _OverdueCarePageState extends State<OverdueCarePage> {
       individual.containsKey(item['id']) ||
       (whole(item['planId'] as String? ?? 'single') &&
           !excludedItems.containsKey(item['id']));
+  int groupSelected(Map<String, dynamic> group) {
+    final id = group['id'] as String;
+    return whole(id)
+        ? number(group['count']) -
+            excludedItems.values.where((v) => v == id).length
+        : individual.values.where((v) => v['planId'] == id).length;
+  }
+
+  Future<void> openBatches({String? batchId}) async {
+    await Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => batchId == null
+            ? OverdueBatchesPage(home: home, petId: widget.petId)
+            : OverdueBatchDetailsPage(home: home, batchId: batchId)));
+    if (mounted) {
+      await loadGroups(reset: true);
+      await loadJob();
+    }
+  }
+
   void clearSelection() {
     allRecurring = false;
     selectedGroups.clear();
@@ -176,7 +196,7 @@ class _OverdueCarePageState extends State<OverdueCarePage> {
       final result = Map<String, dynamic>.from(
           await get('/care/overdue/batches/current', {'petId': widget.petId})
               as Map);
-      if (mounted && result.isNotEmpty) setState(() => job = result);
+      if (mounted) setState(() => job = result.isEmpty ? null : result);
     } catch (e) {
       if (mounted) setState(() => error = failure(e));
     }
@@ -195,7 +215,7 @@ class _OverdueCarePageState extends State<OverdueCarePage> {
       return;
     }
     setState(() {
-      final was = whole(id);
+      final was = groupSelected(group) == number(group['count']);
       individual.removeWhere((_, v) => v['planId'] == id);
       excludedItems.removeWhere((_, value) => value == id);
       if (allRecurring) {
@@ -267,6 +287,11 @@ class _OverdueCarePageState extends State<OverdueCarePage> {
 
   Future<void> startBatch() async {
     if (writing || selectedCount <= 0) return;
+    if (selectedCount > 5000) {
+      setState(() => error = t('已选超过 5000 项，请缩小日期范围。',
+          'More than 5,000 selected. Choose a smaller date range.'));
+      return;
+    }
     if (home.widget.api.offlineCare.pendingCount > 0) {
       setState(() => error = t('请先同步或处理本机待同步操作，再批量跳过。',
           'Resolve pending local changes before running a batch.'));
@@ -328,7 +353,12 @@ class _OverdueCarePageState extends State<OverdueCarePage> {
   }
 
   Future<void> resume() async {
-    if (writing) return;
+    if (writing || !home.can('CARE')) return;
+    if (home.widget.api.offlineCare.pendingCount > 0) {
+      setState(() =>
+          error = t('请先同步或处理本机待同步操作。', 'Resolve pending local changes first.'));
+      return;
+    }
     setState(() {
       writing = true;
       error = null;
@@ -374,7 +404,12 @@ class _OverdueCarePageState extends State<OverdueCarePage> {
       initiallyExpanded: expanded.contains(id),
       leading: Checkbox(
           key: ValueKey('select-overdue-group-$id'),
-          value: whole(id),
+          tristate: true,
+          value: groupSelected(group) == 0
+              ? false
+              : groupSelected(group) == number(group['count'])
+                  ? true
+                  : null,
           onChanged: writing ? null : (_) => toggleGroup(group)),
       title: Text(group['title'] as String),
       subtitle: Text(t(
@@ -391,7 +426,7 @@ class _OverdueCarePageState extends State<OverdueCarePage> {
       children: [
         TextButton(
             onPressed: writing ? null : () => toggleGroup(group),
-            child: Text(whole(id)
+            child: Text(groupSelected(group) == number(group['count'])
                 ? t('取消本组全选', 'Deselect group')
                 : t('本组全选', 'Select entire group'))),
         ...itemWidgets(id),
@@ -401,7 +436,11 @@ class _OverdueCarePageState extends State<OverdueCarePage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: Text(t('逾期事项', 'Overdue care'))),
+        appBar: AppBar(title: Text(t('逾期事项', 'Overdue care')), actions: [
+          TextButton(
+              onPressed: writing ? null : () => openBatches(),
+              child: Text(t('批次管理', 'Batches')))
+        ]),
         body: RefreshIndicator(
           onRefresh: () => writing ? Future.value() : loadGroups(reset: true),
           child: Center(
@@ -462,6 +501,16 @@ class _OverdueCarePageState extends State<OverdueCarePage> {
                                         : () => setState(clearSelection),
                                     child: Text(t('清空选择', 'Clear selection'))),
                             ]),
+                        if (selectedCount > 5000)
+                          Padding(
+                              padding: AppSpacing.cardInsets,
+                              child: Text(
+                                  t('已选 $selectedCount 项，单批最多 5000 项。请缩小日期范围后处理。',
+                                      '$selectedCount selected. The limit is 5,000 per batch. Choose a smaller date range.'),
+                                  style: TextStyle(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .error))),
                         if (loading) const LinearProgressIndicator(),
                         if (error != null)
                           Padding(
@@ -472,6 +521,10 @@ class _OverdueCarePageState extends State<OverdueCarePage> {
                                       color: Theme.of(context)
                                           .colorScheme
                                           .error))),
+                        if (error != null)
+                          TextButton(
+                              onPressed: writing || loading ? null : initialize,
+                              child: Text(t('重新加载', 'Reload'))),
                         if (job != null && job!['state'] != 'PREVIEW')
                           Card(
                               child: Padding(
@@ -483,6 +536,14 @@ class _OverdueCarePageState extends State<OverdueCarePage> {
                                         Text(t(
                                             '跳过成功 ${job!['success']} 项 · 状态已变化 ${job!['changed']} 项 · 失败 ${job!['failed']} 项',
                                             '${job!['success']} skipped · ${job!['changed']} changed · ${job!['failed']} failed')),
+                                        TextButton(
+                                            onPressed: writing
+                                                ? null
+                                                : () => openBatches(
+                                                    batchId:
+                                                        job!['id'] as String),
+                                            child: Text(
+                                                t('查看处理详情', 'View results'))),
                                         if (job!['finished'] != true)
                                           Text(t(
                                               '剩余 ${job!['remaining']} 项，可继续处理。',
@@ -545,13 +606,15 @@ class _OverdueCarePageState extends State<OverdueCarePage> {
                     ),
                     const SizedBox(width: AppSpacing.item),
                     FilledButton(
-                        onPressed: writing || loading
+                        onPressed: writing || loading || !home.can('CARE')
                             ? null
                             : job != null &&
                                     job!['finished'] != true &&
                                     job!['state'] != 'PREVIEW'
                                 ? resume
-                                : selectedCount > 0 && home.can('CARE')
+                                : selectedCount > 0 &&
+                                        selectedCount <= 5000 &&
+                                        home.can('CARE')
                                     ? startBatch
                                     : null,
                         child: Text(writing

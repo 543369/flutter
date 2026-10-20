@@ -45,3 +45,13 @@
 - `POST /api/care/overdue/batches/{id}/apply`：每次最多处理 100 条，重复调用到 `finished=true`，网络失败后使用同一 ID 继续。返回 `id,state,finished,total,success,changed,failed,remaining`。状态已变化或已删除计入 changed；不会覆盖更新后的记录。
 - `GET /api/care/overdue/batches/current?petId=...`：获取本人在当前家庭该宠物的最近已开始/完成批次，支持恢复处理及结果查看。
 - `GET /api/dashboard?compact=true&overdueBefore=...`：提供每只宠物准确的 `overdueSummary[{petId,count,singleCount}]`，并优先返回当天及未来任务。批量接口需要 CARE 权限，读接口需要 READ 权限。
+
+
+### 批次结果与恢复（V22）
+
+- `GET /api/care/overdue/batches?petId=...&unfinished=true&cursor=...`：本人、当前家庭、指定宠物的未完成批次；`unfinished=false`（默认）包括已处理／已结束，每页 20 个，按创建时间与 ID 倒序。未确认预览不列入管理列表。
+- `GET /api/care/overdue/batches/{id}/items?status=FAILED&cursor=...`：每页 50 条；状态可省略或为 `PENDING / SUCCESS / CHANGED / FAILED / STOPPED`。返回 `batch,items,hasMore,nextCursor`；每条包含 `id,title,dueAt,status,reason,attempts`。名称与时间为批次快照，旧记录可能为空。
+- `POST /api/care/overdue/batches/{id}/retry`：`{items:[{id,attempts}]}`，最多 1000 个，只将已完成批次里匹配尝试次数的 FAILED 记录重新排队；成功、变化、未处理项不重试。随后调用原 apply 分块接口。已有待处理项返回 `OVERDUE_BATCH_RUNNING`，已结束批次返回 `OVERDUE_BATCH_ENDED`。重试继续使用原任务 revision，不接受新版本覆盖。
+- `POST /api/care/overdue/batches/{id}/end`：结束运行中批次，剩余 PENDING → STOPPED，批次 → ENDED；重复调用幂等，已成功事项保留。apply 对 ENDED 不再执行写入。
+- 汇总新增 `stopped,createdAt`，ENDED 的 `finished=true`。总数为 success+changed+failed+remaining+stopped。
+- reason 包括 `INTEGRITY_ERROR`（保存完整性冲突）、`STATE_CHANGED`、`REVISION_CHANGED`、`DATE_CHANGED`、`UNAVAILABLE`（已删除或不再可访问）、`USER_ENDED`；不返回原始数据库异常。

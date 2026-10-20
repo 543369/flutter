@@ -158,6 +158,12 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('overdue-item-plan-a-0')));
     await tester.pumpAndSettle();
     expect(find.text('345 selected'), findsOneWidget);
+    expect(
+        tester
+            .widget<Checkbox>(
+                find.byKey(const ValueKey('select-overdue-group-plan-a')))
+            .value,
+        isNull);
     await tester.tap(find.text('Skip selected'));
     await tester.pumpAndSettle();
     expect(api.previewBody!['excludedIds'], ['plan-a-0']);

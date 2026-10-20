@@ -109,8 +109,12 @@ class _PetCareAppState extends State<PetCareApp> {
             disabledColor: const Color(0xfff3efe9),
             side: BorderSide.none,
             shape: const StadiumBorder(),
-            labelStyle: const TextStyle(color: Color(0xff655044), fontSize: 14),
+            labelStyle: const TextStyle(
+                fontFamily: 'SF Pro Display',
+                color: Color(0xff655044),
+                fontSize: 14),
             secondaryLabelStyle: const TextStyle(
+                fontFamily: 'SF Pro Display',
                 color: Color(0xff4d3529),
                 fontSize: 14,
                 fontWeight: FontWeight.w600),
