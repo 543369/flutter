@@ -83,4 +83,21 @@ class HealthAndRolesTests {
   assertEquals(8,((List<?>)report.get("trends")).size());
   assertThrows(ResponseStatusException.class,()->new WeeklyReportController(db,benefits(false)).report(auth(owner),start,"Asia/Shanghai",false));
  }
+
+ @Test void foldersCombineCategoriesAndFilterBeforePaginationWithoutChangingKind(){
+  String home=home(),owner=account(home,"ADMIN","CARE,HEALTH,MEMORIES,PETS,REPORTS"),pet=pet(home);
+  var c=new HealthRecordController(db,benefits(true));var ids=new ArrayList<String>();
+  for(int n=0;n<23;n++)ids.add(c.create(auth(owner),pet,new HealthRecordController.Input(n%2==0?"WEIGHT":"VACCINE","Check "+n,"",LocalDate.now(),n%2==0?new BigDecimal("4.5"):null,List.of())).get("id"));
+  c.organize(auth(owner),pet,new HealthRecordController.Batch(ids,"体检 & 复查"));
+  String unfiled=c.create(auth(owner),pet,new HealthRecordController.Input("VISIT","Other","",LocalDate.now(),null,List.of())).get("id");
+  var first=c.list(auth(owner),pet,0,"","体检 & 复查");var next=c.list(auth(owner),pet,20,"","体检 & 复查");
+  assertEquals(23,first.get("total"));assertEquals(20,((List<?>)first.get("items")).size());assertEquals(3,((List<?>)next.get("items")).size());
+  assertEquals(12,c.list(auth(owner),pet,0,"WEIGHT","体检 & 复查").get("total"));
+  assertEquals(1,c.list(auth(owner),pet,0,"","").get("total"));assertEquals(24,c.list(auth(owner),pet,0,"",null).get("total"));
+  var folders=(List<Map<String,Object>>)c.list(auth(owner),pet,0,"WEIGHT","体检 & 复查").get("folders");
+  assertEquals(2,folders.size());assertEquals(23L,folders.stream().filter(v->v.get("name").equals("体检 & 复查")).findFirst().orElseThrow().get("count"));
+  c.organize(auth(owner),pet,new HealthRecordController.Batch(List.of(ids.getFirst()),""));
+  assertEquals(22,c.list(auth(owner),pet,0,"","体检 & 复查").get("total"));assertEquals("WEIGHT",c.get(auth(owner),pet,ids.getFirst()).get("kind"));
+  assertThrows(ResponseStatusException.class,()->c.list(auth(account(home(),"ADMIN","")),pet,0,"","体检 & 复查"));
+ }
 }

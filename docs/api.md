@@ -55,3 +55,8 @@
 - `POST /api/care/overdue/batches/{id}/end`：结束运行中批次，剩余 PENDING → STOPPED，批次 → ENDED；重复调用幂等，已成功事项保留。apply 对 ENDED 不再执行写入。
 - 汇总新增 `stopped,createdAt`，ENDED 的 `finished=true`。总数为 success+changed+failed+remaining+stopped。
 - reason 包括 `INTEGRITY_ERROR`（保存完整性冲突）、`STATE_CHANGED`、`REVISION_CHANGED`、`DATE_CHANGED`、`UNAVAILABLE`（已删除或不再可访问）、`USER_ENDED`；不返回原始数据库异常。
+
+
+### 健康记录文件夹查看
+
+`GET /api/pets/{petId}/health?offset=0&kind=&folder=...` 支持文件夹筛选：不带 `folder` 为全部记录，`folder=` 为未整理，其他值按文件夹名称匹配；可与 kind 叠加，筛选后每页 20 条。文件夹名须 URL 编码。返回 `folders:[{name,count}]`，为该宠物全部健康记录的文件夹计数（不受当前筛选或分页影响）。整理只改变 folder，原 kind 保留，读取仍校验 HEALTH 权限和宠物家庭归属。

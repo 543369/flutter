@@ -33,6 +33,8 @@ class _HealthRecordsPageState extends State<HealthRecordsPage> {
   final items = <Map<String, dynamic>>[];
   final selected = <String>{};
   String kind = '', loadedKind = '', error = '';
+  String? folder, loadedFolder;
+  List<Map<String, dynamic>> folders = [];
   bool loading = false, more = false, advanced = false;
   int limit = 2;
   String t(String z, String e) => widget.home.t(z, e);
@@ -51,7 +53,12 @@ class _HealthRecordsPageState extends State<HealthRecordsPage> {
     });
     try {
       final result = await widget.home.widget.api.request(
-          'GET', '$path?offset=${reset ? 0 : items.length}&kind=$kind');
+          'GET',
+          Uri(path: path, queryParameters: {
+            'offset': '${reset ? 0 : items.length}',
+            'kind': kind,
+            if (folder != null) 'folder': folder!
+          }).toString());
       if (mounted) {
         setState(() {
           if (reset) {
@@ -61,6 +68,10 @@ class _HealthRecordsPageState extends State<HealthRecordsPage> {
           items.addAll((result['items'] as List)
               .map((e) => Map<String, dynamic>.from(e as Map)));
           loadedKind = kind;
+          loadedFolder = folder;
+          folders = (result['folders'] as List? ?? [])
+              .map((v) => Map<String, dynamic>.from(v as Map))
+              .toList();
           more = result['hasMore'] as bool;
           advanced = result['advanced'] as bool;
           limit = result['attachmentLimit'] as int;
@@ -70,6 +81,7 @@ class _HealthRecordsPageState extends State<HealthRecordsPage> {
       if (mounted) {
         setState(() {
           kind = loadedKind;
+          folder = loadedFolder;
           error = widget.home.message(e);
         });
       }
@@ -99,25 +111,90 @@ class _HealthRecordsPageState extends State<HealthRecordsPage> {
     if (mounted) await load();
   }
 
+  String folderLabel(String? name) => name == null
+      ? t('全部记录', 'All records')
+      : name.isEmpty
+          ? t('未整理', 'Unfiled')
+          : name;
+  Future<void> chooseFolder() async {
+    // A wrapper distinguishes cancelling the dialog from choosing all records.
+    final result = await showDialog<Map<String, dynamic>>(
+        context: context,
+        builder: (c) => AlertDialog(
+              title: Text(t('健康记录文件夹', 'Health record folders')),
+              content: SizedBox(
+                  width: 420,
+                  height: 360,
+                  child: ListView(children: [
+                    ListTile(
+                        leading: const Icon(Icons.list_alt),
+                        title: Text(t('全部记录', 'All records')),
+                        selected: folder == null,
+                        onTap: () => Navigator.pop(c, {'folder': null})),
+                    ListTile(
+                        leading: const Icon(Icons.folder_open),
+                        title: Text(t('未整理', 'Unfiled')),
+                        trailing: Text(
+                            '${folders.where((v) => v['name'] == '').fold<int>(0, (n, v) => n + (v['count'] as num).toInt())}'),
+                        selected: folder == '',
+                        onTap: () => Navigator.pop(c, {'folder': ''})),
+                    for (final entry in folders.where((v) => v['name'] != ''))
+                      ListTile(
+                          leading: const Icon(Icons.folder_outlined),
+                          title: Text(entry['name'] as String),
+                          trailing: Text('${entry['count']}'),
+                          selected: folder == entry['name'],
+                          onTap: () =>
+                              Navigator.pop(c, {'folder': entry['name']})),
+                    if (folders.every((v) => v['name'] == ''))
+                      Padding(
+                          padding: AppSpacing.cardInsets,
+                          child: Text(t('还没有文件夹，勾选记录后可整理到文件夹。',
+                              'No folders yet. Select records to organize them.'))),
+                  ])),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(c),
+                    child: Text(t('关闭', 'Close')))
+              ],
+            ));
+    if (result == null || !mounted) return;
+    setState(() {
+      folder = result['folder'] as String?;
+      kind = '';
+    });
+    await load();
+  }
+
   Future<void> organize() async {
     final controller = TextEditingController();
     final folder = await showDialog<String>(
         context: context,
         builder: (c) => AlertDialog(
-                title: Text(t('批量归档', 'Organize records')),
-                content: TextField(
-                    controller: controller,
-                    maxLength: 60,
-                    decoration: InputDecoration(
-                        labelText:
-                            t('文件夹名称（留空移出文件夹）', 'Folder (empty to clear)'))),
+                title: Text(t('整理到文件夹', 'Organize into a folder')),
+                content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(t(
+                          '同一文件夹可整理体重、疫苗、用药等不同类别的记录。整理后可从“文件夹”入口集中查看，也仍会显示在“全部记录”中，不会删除。',
+                          'A folder can contain different record categories. Open Folders to view them together; they also remain in All records and are not deleted.')),
+                      const SizedBox(height: AppSpacing.item),
+                      TextField(
+                          controller: controller,
+                          maxLength: 60,
+                          decoration: InputDecoration(
+                              labelText: t('文件夹名称', 'Folder name'),
+                              helperText: t('留空可移出文件夹，记录仍保留。',
+                                  'Leave empty to remove the folder label.'))),
+                    ]),
                 actions: [
                   TextButton(
                       onPressed: () => Navigator.pop(c),
                       child: Text(t('取消', 'Cancel'))),
                   FilledButton(
                       onPressed: () => Navigator.pop(c, controller.text.trim()),
-                      child: Text(t('归档', 'Organize')))
+                      child: Text(t('保存分类', 'Save folder')))
                 ]));
     if (folder == null || !mounted) return;
     setState(() => loading = true);
@@ -176,6 +253,13 @@ class _HealthRecordsPageState extends State<HealthRecordsPage> {
                           icon: const Icon(Icons.show_chart, size: 18),
                           label: Text(t('体重趋势', 'Weight trend'))),
                     ]),
+                    const SizedBox(height: AppSpacing.item),
+                    OutlinedButton.icon(
+                      onPressed: loading ? null : chooseFolder,
+                      icon: const Icon(Icons.folder_open),
+                      label: Text(t('文件夹：${folderLabel(folder)}',
+                          'Folder: ${folderLabel(folder)}')),
+                    ),
                     const SizedBox(height: AppSpacing.section),
                     Wrap(
                         spacing: AppSpacing.inline,
@@ -206,13 +290,13 @@ class _HealthRecordsPageState extends State<HealthRecordsPage> {
                     if (advanced)
                       Row(children: [
                         Expanded(
-                            child: Text(
-                                t('勾选记录可批量归档', 'Select records to organize'))),
+                            child: Text(t('勾选记录可整理到文件夹',
+                                'Select records to organize into a folder'))),
                         const Spacer(),
                         TextButton(
                             onPressed:
                                 selected.isEmpty || loading ? null : organize,
-                            child: Text(t('归档 ${selected.length} 项',
+                            child: Text(t('整理 ${selected.length} 项',
                                 'Organize ${selected.length}')))
                       ]),
                     if (error.isNotEmpty)
@@ -228,8 +312,11 @@ class _HealthRecordsPageState extends State<HealthRecordsPage> {
                     if (items.isEmpty && !loading && error.isEmpty)
                       Padding(
                           padding: const EdgeInsets.all(32),
-                          child: Text(t('还没有健康记录，记下第一次照顾吧。',
-                              'No health records yet. Add the first one.'))),
+                          child: Text(folder != null || kind.isNotEmpty
+                              ? t('当前筛选下没有记录，可切换文件夹或类别查看。',
+                                  'No records match. Choose another folder or category.')
+                              : t('还没有健康记录，记下第一次照顾吧。',
+                                  'No health records yet. Add the first one.'))),
                     for (final item in items)
                       Card(
                           color: const Color(0xfffaf2e8),
@@ -253,7 +340,7 @@ class _HealthRecordsPageState extends State<HealthRecordsPage> {
                                   : Icon(healthKinds[item['kind']]!.$3),
                               title: Text(item['title'] as String),
                               subtitle: Text(
-                                  '${item['happenedOn']} · ${t(healthKinds[item['kind']]!.$1, healthKinds[item['kind']]!.$2)}${item['weightKg'] == null ? '' : ' · ${item['weightKg']} kg'}${item['folder'] == '' ? '' : '\n${item['folder']}'}'),
+                                  '${item['happenedOn']} · ${t(healthKinds[item['kind']]!.$1, healthKinds[item['kind']]!.$2)}${item['weightKg'] == null ? '' : ' · ${item['weightKg']} kg'}${item['folder'] == '' ? '' : '\n${t('文件夹：', 'Folder: ')}${item['folder']}'}'),
                               trailing: const Icon(Icons.chevron_right),
                               onTap: loading ? null : () => details(item))),
                     if (more)

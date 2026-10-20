@@ -31,12 +31,18 @@ public class HealthRecordController extends ApiSupport {
   m.put("happenedOn",r.getDate("happened_on").toString());m.put("weightKg",r.getBigDecimal("weight_kg"));
   m.put("createdAt",r.getTimestamp("created_at").toInstant().toString());m.put("updatedAt",r.getTimestamp("updated_at").toInstant().toString());return m;
  }
+ public Map<String,Object> list(Authentication auth,String petId,int offset,String kind){return list(auth,petId,offset,kind,null);}
  @GetMapping @Transactional
- public Map<String,Object> list(Authentication auth,@PathVariable String petId,@RequestParam(defaultValue="0") int offset,@RequestParam(defaultValue="") String kind) {
-  String home=pet(auth,petId);if(offset<0)throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
-  var items=db.query("SELECT * FROM health_records WHERE pet_id=? AND (?='' OR kind=?) ORDER BY happened_on DESC,created_at DESC,id LIMIT 20 OFFSET ?",this::row,petId,kind,kind,offset);
-  int total=db.queryForObject("SELECT COUNT(*) FROM health_records WHERE pet_id=? AND (?='' OR kind=?)",Integer.class,petId,kind,kind);
-  return Map.of("items",items,"total",total,"hasMore",offset+items.size()<total,"advanced",benefits.access(home).extended(),"attachmentLimit",benefits.access(home).extended()?12:2);
+ public Map<String,Object> list(Authentication auth,@PathVariable String petId,@RequestParam(defaultValue="0") int offset,@RequestParam(defaultValue="") String kind,@RequestParam(required=false) String folder) {
+  String home=pet(auth,petId);if(offset<0 || (folder!=null && folder.length()>60))throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+  String filter=" WHERE pet_id=? AND (?='' OR kind=?)";
+  var args=new ArrayList<Object>(List.of(petId,kind,kind));
+  if(folder!=null){filter+=" AND folder=?";args.add(folder);}
+  int total=db.queryForObject("SELECT COUNT(*) FROM health_records"+filter,Integer.class,args.toArray());
+  args.add(offset);
+  var items=db.query("SELECT * FROM health_records"+filter+" ORDER BY happened_on DESC,created_at DESC,id LIMIT 20 OFFSET ?",this::row,args.toArray());
+  var folders=db.query("SELECT folder,COUNT(*) count FROM health_records WHERE pet_id=? GROUP BY folder ORDER BY folder",(r,n)->Map.of("name",r.getString(1),"count",r.getLong(2)),petId);
+  return Map.of("items",items,"total",total,"hasMore",offset+items.size()<total,"advanced",benefits.access(home).extended(),"attachmentLimit",benefits.access(home).extended()?12:2,"folders",folders);
  }
  @GetMapping("/timeline") @Transactional
  public Map<String,Object> timeline(Authentication auth,@PathVariable String petId,

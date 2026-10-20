@@ -134,6 +134,9 @@ void main() {
     expect(find.text('Annual vaccination'), findsOneWidget);
     await tapVisible(tester, find.text('Save record'));
     expect(api.health.length, 1);
+    ScaffoldMessenger.of(tester.element(find.byType(HealthRecordsPage)))
+        .removeCurrentSnackBar();
+    await tester.pumpAndSettle();
     await tapVisible(tester, find.text('Annual vaccination'));
     expect(find.text('Health record details'), findsOneWidget);
     expect(tester.takeException(), isNull);
