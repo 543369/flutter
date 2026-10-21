@@ -32,6 +32,8 @@ void main() {
     for (final scene in [
       'profiles-phone',
       'person-form',
+      'person-form-authorization',
+      'person-form-wide',
       'human-tasks',
       'sharing-phone',
       'medication-phone',
@@ -73,6 +75,8 @@ void main() {
           await tester.tap(find.text('照护对象'));
           break;
         case 'person-form':
+        case 'person-form-authorization':
+        case 'person-form-wide':
           showDialog<String>(
               context: tester.element(find.byType(CareHome)),
               builder: (_) => PetFormDialog(home: home));
@@ -80,6 +84,12 @@ void main() {
           await tester.tap(find.byKey(const ValueKey('subject-type')));
           await tester.pumpAndSettle();
           await tester.tap(find.text('家人').last);
+          await tester.pumpAndSettle();
+          if (scene == 'person-form-authorization') {
+            await Scrollable.ensureVisible(
+                tester.element(find.byKey(const ValueKey('subject-consent'))),
+                alignment: .6);
+          }
           break;
         case 'child-tasks':
         case 'child-recovery-tasks':

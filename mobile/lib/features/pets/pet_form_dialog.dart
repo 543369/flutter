@@ -127,6 +127,40 @@ class _PetFormDialogState extends State<PetFormDialog> {
     }
   }
 
+  Widget sectionHeading(IconData icon, String title, String subtitle) =>
+      Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Container(
+              padding: const EdgeInsets.all(9),
+              decoration: BoxDecoration(
+                  color: const Color(0xfff1e6db),
+                  borderRadius: BorderRadius.circular(12)),
+              child: Icon(icon, size: 20)),
+          const SizedBox(width: 12),
+          Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                Text(title,
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 3),
+                Text(subtitle,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: const Color(0xff806e62), height: 1.5)),
+              ])),
+        ]),
+      );
+
+  Widget note(String text) => Text(text,
+      style: Theme.of(context)
+          .textTheme
+          .bodySmall
+          ?.copyWith(color: const Color(0xff806e62), height: 1.6));
+
   @override
   Widget build(BuildContext context) => ProfileDialog(
         title: widget.pet == null
@@ -142,6 +176,11 @@ class _PetFormDialogState extends State<PetFormDialog> {
         saveLabel: t('保存', 'Save'),
         cancelLabel: t('取消', 'Cancel'),
         children: [
+          if (human)
+            sectionHeading(
+                Icons.person_outline_rounded,
+                t('基本资料', 'Basic details'),
+                t('先认识一下需要照护的家人', 'A little about the person you care for')),
           if (widget.pet == null) ...[
             AppSelect<String>(
                 key: const ValueKey('subject-type'),
@@ -233,9 +272,12 @@ class _PetFormDialogState extends State<PetFormDialog> {
               maxLength: 60,
               decoration: InputDecoration(
                   labelText: t('名字', 'Name'),
-                  hintText: t('小伙伴叫什么？', 'What is their name?')),
+                  counterText: '',
+                  hintText: human
+                      ? t('填写家人的称呼', 'Their name or preferred name')
+                      : t('小伙伴叫什么？', 'What is their name?')),
               onChanged: (_) => setState(() {})),
-          const SizedBox(height: AppSpacing.inline),
+          const SizedBox(height: AppSpacing.content),
           if (!human)
             AppSelect<String>(
                 initialValue: species,
@@ -250,6 +292,17 @@ class _PetFormDialogState extends State<PetFormDialog> {
                 ],
                 onChanged: saving ? null : (v) => setState(() => species = v!)),
           if (human) ...[
+            TextField(
+                key: const ValueKey('subject-relationship'),
+                controller: relationship,
+                maxLength: 60,
+                enabled: !saving,
+                decoration: InputDecoration(
+                    labelText: t('与照护者的关系', 'Relationship'),
+                    counterText: '',
+                    hintText:
+                        t('例如：本人、母亲、父亲', 'For example: self, mother, father'))),
+            const SizedBox(height: 16),
             AppSelect<String>(
                 key: const ValueKey('subject-life-stage'),
                 initialValue: lifeStage,
@@ -262,14 +315,60 @@ class _PetFormDialogState extends State<PetFormDialog> {
                 ],
                 onChanged:
                     saving ? null : (v) => setState(() => lifeStage = v!)),
-            const SizedBox(height: AppSpacing.item),
-            Text(t('照护场景（可多选）', 'Care scenarios (select more than one)'),
-                style: Theme.of(context).textTheme.titleMedium),
-            Wrap(spacing: AppSpacing.inline, children: [
-              for (final e in careScenarios.entries)
-                FilterChip(
+            const SizedBox(height: 28),
+            sectionHeading(
+                Icons.favorite_border_rounded,
+                t('照护场景', 'Care scenarios'),
+                t('可多选，之后也能随时调整',
+                    'Choose one or more. You can change these later.')),
+            for (final e in careScenarios.entries)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: FilterChip(
                     key: ValueKey('subject-scenario-${e.key}'),
-                    label: Text(widget.home.zh ? e.value.$1 : e.value.$2),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 12),
+                    showCheckmark: false,
+                    selectedColor: const Color(0xffefe2d4),
+                    backgroundColor: const Color(0xfffaf6f1),
+                    side: BorderSide(
+                        color: scenarios.contains(e.key)
+                            ? const Color(0xff9b7861)
+                            : const Color(0xffeadfd5)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
+                    label: SizedBox(
+                        width: double.infinity,
+                        child: Row(children: [
+                          Icon(
+                              e.key == 'DAILY'
+                                  ? Icons.wb_sunny_outlined
+                                  : Icons.healing_outlined,
+                              size: 22),
+                          const SizedBox(width: 12),
+                          Expanded(
+                              child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                Text(widget.home.zh ? e.value.$1 : e.value.$2,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w600)),
+                                const SizedBox(height: 4),
+                                Text(
+                                    e.key == 'DAILY'
+                                        ? t('饮食、起居与日常陪伴',
+                                            'Meals, routines and companionship')
+                                        : t('恢复观察与康复安排',
+                                            'Recovery observations and routines'),
+                                    style:
+                                        Theme.of(context).textTheme.bodySmall),
+                              ])),
+                          Icon(
+                              scenarios.contains(e.key)
+                                  ? Icons.check_circle_rounded
+                                  : Icons.radio_button_unchecked_rounded,
+                              size: 22),
+                        ])),
                     selected: scenarios.contains(e.key),
                     onSelected: saving
                         ? null
@@ -279,21 +378,17 @@ class _PetFormDialogState extends State<PetFormDialog> {
                               } else {
                                 scenarios.remove(e.key);
                               }
-                            }))
-            ]),
-            Text(t('场景只调整可选模板，不会删除或改写已有安排。具体喂养量、剂量和训练强度请按已有指导自行填写。',
-                'Scenarios change available templates, not existing plans. Enter feeding amounts, doses and exercise details from existing instructions.')),
-            const SizedBox(height: AppSpacing.item),
-            TextField(
-                key: const ValueKey('subject-relationship'),
-                controller: relationship,
-                maxLength: 60,
-                enabled: !saving,
-                decoration: InputDecoration(
-                    labelText: t('与照护者的关系', 'Relationship'),
-                    hintText:
-                        t('例如：本人、母亲、父亲', 'For example: self, mother, father'))),
+                            })),
+              ),
+            note(t('仅调整可选模板，已有安排会保留。喂养量、用药剂量和训练强度请按已有指导填写。',
+                'Changes templates only; existing plans stay. Follow existing guidance for feeding, medication and exercise.')),
+            const SizedBox(height: 24),
             if (widget.pet == null) ...[
+              sectionHeading(
+                  Icons.verified_user_outlined,
+                  t('资料授权', 'Authorization'),
+                  t('默认仅自己可见，分享由你决定',
+                      'Private by default. You choose who can access it.')),
               AppSelect<String>(
                   initialValue: consentBasis,
                   decoration: InputDecoration(
@@ -311,20 +406,24 @@ class _PetFormDialogState extends State<PetFormDialog> {
                       saving ? null : (v) => setState(() => consentBasis = v!)),
               CheckboxListTile(
                   key: const ValueKey('subject-consent'),
-                  contentPadding: EdgeInsets.zero,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                  controlAffinity: ListTileControlAffinity.leading,
                   value: consentConfirmed,
                   onChanged: saving
                       ? null
                       : (v) => setState(() => consentConfirmed = v!),
-                  title: Text(t('我确认已获得必要授权，同意为照护目的保存这些资料。',
+                  title: Text(t('我已获得必要授权，同意保存照护资料。',
                       'I confirm authorization to store this information for care.')),
-                  subtitle: Text(t('默认仅自己可见，创建后可逐人授权。请勿录入无权分享的资料。',
+                  subtitle: Text(t('创建后可逐人授权。请勿录入无权分享的资料。',
                       'Private by default. Share with individual household members after creation.'))),
             ],
           ],
           const SizedBox(height: AppSpacing.content),
+          if (human)
+            sectionHeading(Icons.notes_rounded, t('补充信息', 'Additional details'),
+                t('选填，方便家人更了解照护需求', 'Optional details to help with care')),
           Card(
-              color: const Color(0xfffff3dc),
+              color: const Color(0xfff7efe5),
               child: Column(children: [
                 ListTile(
                     key: const ValueKey('pet-birthday'),
@@ -361,9 +460,12 @@ class _PetFormDialogState extends State<PetFormDialog> {
                   labelText: human
                       ? t('照护偏好与注意事项', 'Care preferences and notes')
                       : t('简介', 'Biography'),
-                  hintText: t('性格、喜好、相遇的故事……',
-                      'Personality, favourite things, how you met…'))),
-          Text(t('年龄会随出生日期自动更新，创建时间由系统记录。',
+                  hintText: human
+                      ? t('例如：饮食偏好、作息习惯、需要留意的事',
+                          'Food preferences, routines and things to watch for')
+                      : t('性格、喜好、相遇的故事……',
+                          'Personality, favourite things, how you met…'))),
+          note(t('年龄会随出生日期自动更新，创建时间由系统记录。',
               'Age updates from the birth date. The creation time is recorded automatically.')),
         ],
       );
