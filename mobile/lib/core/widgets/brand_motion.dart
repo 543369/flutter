@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 
-/// The same familiar paw is used in the wordmark and loading state.
+/// A shared care symbol is used in the wordmark and loading state.
 class PawMark extends StatelessWidget {
   const PawMark({super.key, this.size = 28});
   final double size;
@@ -9,7 +9,7 @@ class PawMark extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ExcludeSemantics(
         child: Icon(
-          Icons.pets_rounded,
+          Icons.volunteer_activism_outlined,
           size: size,
           color: Theme.of(context).colorScheme.primary,
         ),
@@ -20,21 +20,24 @@ class BrandWordmark extends StatelessWidget {
   const BrandWordmark({super.key});
 
   @override
-  Widget build(BuildContext context) => Row(
+  Widget build(BuildContext context) => FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           const PawMark(size: 25),
           const SizedBox(width: 8),
           Text(
             Localizations.localeOf(context).languageCode == 'zh'
-                ? '爪伴'
-                : 'PetCare',
+                ? '家庭照护'
+                : 'Family Care',
           ),
         ],
-      );
+      ));
 }
 
-/// Short requests never flash a spinner; reduced motion keeps the paw still.
+/// Short requests never flash a spinner; reduced motion keeps the mark still.
 class PawLoading extends StatefulWidget {
   const PawLoading({super.key});
 

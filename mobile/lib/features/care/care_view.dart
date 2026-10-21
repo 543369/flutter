@@ -48,7 +48,7 @@ extension CareView on CareHomeState {
           label: Text(name))
       : PopupMenuButton<String>(
           clipBehavior: Clip.antiAlias,
-          tooltip: t('切换宠物', 'Switch pet'),
+          tooltip: t('切换照护对象', 'Switch care profile'),
           initialValue: pet['id'] as String?,
           onSelected: (id) => updateUi(() {
             selectedPetId = id;
@@ -90,7 +90,7 @@ extension CareView on CareHomeState {
         final progress = _HeroCollapseScope.of(context);
         final opacity = (1 - progress / .55).clamp(0.0, 1.0);
         final pet = selectedPet;
-        final name = pet?['name'] as String? ?? t('添加宠物', 'Add a pet');
+        final name = pet?['name'] as String? ?? t('添加照护对象', 'Add care profile');
         final now = DateTime.now();
         return ClipPath(
           clipper: _HeroWaveClipper(progress),
@@ -105,13 +105,17 @@ extension CareView on CareHomeState {
                     top: 22,
                     right: 22,
                     child: Row(children: [
-                      const DefaultTextStyle(
-                          style: TextStyle(
-                              color: Color(0xff34231e),
-                              fontSize: 24,
-                              fontWeight: FontWeight.w700),
-                          child: BrandWordmark()),
-                      const Spacer(),
+                      const Expanded(
+                          child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: DefaultTextStyle(
+                                      style: TextStyle(
+                                          color: Color(0xff34231e),
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.w700),
+                                      child: BrandWordmark())))),
                       IconButton(
                           tooltip: t('提醒设置', 'Reminder settings'),
                           onPressed: openReminderSettings,
@@ -152,11 +156,13 @@ extension CareView on CareHomeState {
                           _petSelector(pet, name),
                           const SizedBox(height: AppSpacing.tight),
                           Text(
-                              pet?['species'] == 'dog'
-                                  ? t('狗狗', 'Dog')
-                                  : pet?['species'] == 'cat'
-                                      ? t('猫咪', 'Cat')
-                                      : t('宠物', 'Pet'),
+                              pet?['subjectType'] == 'HUMAN'
+                                  ? t('家人', 'Person')
+                                  : pet?['species'] == 'dog'
+                                      ? t('狗狗', 'Dog')
+                                      : pet?['species'] == 'cat'
+                                          ? t('猫咪', 'Cat')
+                                          : t('宠物', 'Pet'),
                               style: const TextStyle(
                                   color: Color(0xff786961), fontSize: 15)),
                         ]),
@@ -282,8 +288,7 @@ extension CareView on CareHomeState {
                       Flexible(
                         child: SizedBox(
                           height: 120,
-                          child: Image.asset(CareKind.of(task).asset,
-                              fit: BoxFit.contain),
+                          child: CareKind.of(task).picture(size: 120),
                         ),
                       ),
                     ]),
@@ -296,7 +301,10 @@ extension CareView on CareHomeState {
               child: FilledButton.icon(
                   style: FilledButton.styleFrom(
                       minimumSize: const Size.fromHeight(48)),
-                  onPressed: busy || submittingTasks.contains(task['id'])
+                  onPressed: busy ||
+                          selectedPet?['canCareSubject'] == false ||
+                          !can('CARE') ||
+                          submittingTasks.contains(task['id'])
                       ? null
                       : () => changeCompletion(task, true),
                   icon: submittingTasks.contains(task['id'])
@@ -306,7 +314,9 @@ extension CareView on CareHomeState {
                       ? t('正在保存…', 'Saving…')
                       : CareKind.of(task) == CareKind.feeding
                           ? t('喂好了', 'Mark as done')
-                          : t('完成照护', 'Mark as done')))),
+                          : task['careType'] == 'MEDICATION'
+                              ? t('记录用药结果', 'Record medication')
+                              : t('完成照护', 'Mark as done')))),
         ]),
       );
 
@@ -320,7 +330,7 @@ extension CareView on CareHomeState {
             Expanded(
                 child: Text(
                     pets.isEmpty
-                        ? t('先认识你的宠物', 'Meet your pet')
+                        ? t('先添加家人或宠物', 'Add a person or pet')
                         : t('今天都照顾好啦', 'All cared for today'),
                     style: const TextStyle(
                         fontSize: 18, fontWeight: FontWeight.w700))),
@@ -558,7 +568,7 @@ extension CareView on CareHomeState {
                     child: _petSelector(
                         selectedPet,
                         selectedPet?['name'] as String? ??
-                            t('添加宠物', 'Add a pet'))),
+                            t('添加照护对象', 'Add care profile'))),
                 IconButton(
                     tooltip: t('提醒设置', 'Reminder settings'),
                     onPressed: openReminderSettings,
@@ -602,8 +612,10 @@ extension CareView on CareHomeState {
     final overdue = snapshot.overdue;
     // Keep every one-off overdue reminder visible, including medical care
     // entered under a custom title, without guessing from its wording.
-    final importantOverdue =
-        overdue.where((task) => task['planId'] == null).toList();
+    final importantOverdue = overdue
+        .where((task) =>
+            task['planId'] == null || task['careType'] == 'MEDICATION')
+        .toList();
     final summary = (data?['overdueSummary'] as List? ?? [])
         .cast<Map>()
         .where((v) => v['petId'] == petId)

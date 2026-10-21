@@ -83,9 +83,9 @@ void main() {
       (tester) async {
     final api = FakeApi();
     await showCare(tester, api);
-    await tester.tap(find.text('Pets'));
+    await tester.tap(find.text('Profiles'));
     await tester.pumpAndSettle();
-    await tapVisible(tester, find.text('Add a pet'));
+    await tapVisible(tester, find.text('Add care profile'));
     await tester.enterText(find.byKey(const ValueKey('pet-name')), 'Doubao');
     await tapVisible(tester, find.byKey(const ValueKey('pet-birthday')));
     await tester.tap(find.byTooltip('Switch to input'));
@@ -104,7 +104,7 @@ void main() {
     final created = pet['createdAt'];
     expect(created, isNotNull);
     await tapVisible(tester, find.text('Doubao'));
-    expect(find.text('Pet profile'), findsOneWidget);
+    expect(find.text('Care profile'), findsOneWidget);
     await tapVisible(tester, find.text('Edit profile'));
     await tester.enterText(
         find.byKey(const ValueKey('pet-biography')), 'A gentle companion.');
@@ -123,10 +123,10 @@ void main() {
       (tester) async {
     final api = FakeApi()..failNextSave = true;
     await showCare(tester, api);
-    await tester.tap(find.text('Pets'));
+    await tester.tap(find.text('Profiles'));
     await tester.pumpAndSettle();
     await tapVisible(tester, find.text('Mochi'));
-    expect(find.text('Pet profile'), findsOneWidget);
+    expect(find.text('Care profile'), findsOneWidget);
     await tester.scrollUntilVisible(
         find.text('Not recorded (older profile)'), 200,
         scrollable: find.byType(Scrollable).first);

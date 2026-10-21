@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../app/home_shell.dart';
 import '../../core/widgets/profile_dialog.dart';
 import 'care_kind.dart';
+import '../subjects/subject_scenarios.dart';
 
 class TaskFormDialog extends StatefulWidget {
   const TaskFormDialog(
@@ -120,15 +121,35 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
             key: const ValueKey('task-pet'),
             initialValue: petId,
             decoration: InputDecoration(
-                labelText: t('照护谁', 'Pet'),
-                prefixIcon: const Icon(Icons.pets_outlined)),
+                labelText: t('照护谁', 'Care profile'),
+                prefixIcon: Icon(widget.home.pets
+                            .where((p) => p['id'] == petId)
+                            .firstOrNull?['subjectType'] ==
+                        'HUMAN'
+                    ? Icons.person_outline
+                    : Icons.pets_outlined)),
             items: widget.home.pets
+                .where((p) => p['canCareSubject'] != false)
                 .map((p) => DropdownMenuItem(
                     value: p['id'] as String, child: Text(p['name'] as String)))
                 .toList(),
-            onChanged: saving ? null : (v) => setState(() => petId = v!),
+            onChanged: saving
+                ? null
+                : (v) => setState(() {
+                      petId = v!;
+                      kind = CareKind.custom;
+                      title.clear();
+                    }),
           ),
           const SizedBox(height: AppSpacing.section),
+          if (widget.home.pets
+                  .where((p) => p['id'] == petId)
+                  .firstOrNull?['subjectType'] ==
+              'HUMAN')
+            Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.item),
+                child: Text(
+                    '${stageLabel(widget.home.pets.where((p) => p['id'] == petId).firstOrNull?['lifeStage'] as String?, widget.home.zh)} · ${scenariosFor(widget.home.pets.where((p) => p['id'] == petId).firstOrNull).map((s) => scenarioLabel(s, widget.home.zh)).join(' / ')}')),
           Text(t('照护类型', 'Care type'),
               style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: AppSpacing.inline),
@@ -136,7 +157,9 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
               builder: (context, constraints) => Wrap(
                   spacing: AppSpacing.inline,
                   runSpacing: AppSpacing.inline,
-                  children: CareKind.values
+                  children: CareKind.forSubject(widget.home.pets
+                          .where((p) => p['id'] == petId)
+                          .firstOrNull)
                       .map((item) => SizedBox(
                             width: (constraints.maxWidth - 16) / 3,
                             child: Semantics(

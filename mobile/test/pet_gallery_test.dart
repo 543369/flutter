@@ -19,12 +19,16 @@ class SlowPhotosApi extends FakeApi {
   @override
   Future<Map<String, dynamic>> loadPetPhotos(Map<String, dynamic> pet) {
     photoCalls++;
-    return photoCalls == 1 ? firstPhoto.future : Future.value({'photos': galleryPhotos});
+    return photoCalls == 1
+        ? firstPhoto.future
+        : Future.value({'photos': galleryPhotos});
   }
 }
 
 void main() {
-  testWidgets('home appears before photos and retries photos without dashboard reload', (tester) async {
+  testWidgets(
+      'home appears before photos and retries photos without dashboard reload',
+      (tester) async {
     final api = SlowPhotosApi();
     api.petItems.single['photosPending'] = true;
     await showCare(tester, api);
@@ -132,7 +136,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('pet-photo-dot-4')));
     await tester.pumpAndSettle();
     expect(pages().controller!.page, 4);
-    await tester.tap(find.byTooltip('Switch pet').hitTestable());
+    await tester.tap(find.byTooltip('Switch care profile').hitTestable());
     await tester.pumpAndSettle();
     await tester.tap(find.text('Doubao').last);
     await tester.pumpAndSettle();

@@ -8,20 +8,26 @@ class PetCover extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget fallback() => pet['species'] == 'other'
+    Widget fallback() => pet['subjectType'] == 'HUMAN'
         ? const ColoredBox(
-            color: Color(0xffffefcc),
+            color: Color(0xffe6eee2),
             child: Center(
-                child: Icon(Icons.pets_rounded,
-                    size: 64, color: Color(0xff97664b))))
-        : Image.asset(
-            pet['species'] == 'cat'
-                ? 'assets/images/petcare_cat_cover.jpg'
-                : 'assets/images/petcare_shiba_hero.png',
-            fit: BoxFit.cover,
-            alignment: pet['species'] == 'cat'
-                ? Alignment.topCenter
-                : Alignment.centerRight);
+                child: Icon(Icons.person_outline,
+                    size: 64, color: Color(0xff694536))))
+        : pet['species'] == 'other'
+            ? const ColoredBox(
+                color: Color(0xffffefcc),
+                child: Center(
+                    child: Icon(Icons.pets_rounded,
+                        size: 64, color: Color(0xff97664b))))
+            : Image.asset(
+                pet['species'] == 'cat'
+                    ? 'assets/images/petcare_cat_cover.jpg'
+                    : 'assets/images/petcare_shiba_hero.png',
+                fit: BoxFit.cover,
+                alignment: pet['species'] == 'cat'
+                    ? Alignment.topCenter
+                    : Alignment.centerRight);
     final value = petPhotos(pet).firstOrNull;
     if (value == null || value.isEmpty) return fallback();
     try {

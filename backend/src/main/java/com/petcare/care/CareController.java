@@ -23,11 +23,11 @@ class CareController extends ApiSupport {
  private final CareQueries queries;
  CareController(JdbcTemplate db, CarePlans plans) { super(db); this.plans=plans; this.queries=new CareQueries(db); }
  record TaskInput(@NotBlank String petId, @NotBlank @Size(max=120) String title, @NotNull Instant dueAt, @Pattern(regexp="NONE|DAILY|WEEKLY") String frequency, @Size(max=80) String zoneId,
-                  @Pattern(regexp="FEEDING|WATER|DEWORMING|VACCINE|WALK|GROOMING|CUSTOM") String careType) {}
+                  @Pattern(regexp="FEEDING|WATER|DEWORMING|VACCINE|WALK|GROOMING|MEAL|DRINK|MEDICATION|REHAB|APPOINTMENT|DAILY|NURTURE|SLEEP|GROWTH|PICKUP|HANDOVER|OBSERVATION|CUSTOM") String careType) {}
  record Completion(@NotNull Boolean completed) {}
  @PostMapping("/tasks") @ResponseStatus(HttpStatus.CREATED) @Transactional
  Map<String,String> addTask(Authentication auth, @Valid @RequestBody TaskInput input) {
-  String home=permission(auth,"CARE"), task=id();
+  String home=permission(auth,"CARE"), task=id();com.petcare.shared.SubjectAccess.require(db,auth,input.petId(),"CARE");com.petcare.shared.SubjectAccess.type(db,input.petId(),input.careType()==null?"CUSTOM":input.careType());
   if (input.dueAt().isBefore(Instant.parse("2000-01-01T00:00:00Z")) || input.dueAt().isAfter(Instant.parse("2037-12-31T23:59:59Z")))
    throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
   String frequency = input.frequency() == null ? "NONE" : input.frequency();
@@ -49,8 +49,10 @@ class CareController extends ApiSupport {
  }
  @PatchMapping("/tasks/{taskId}") @Transactional
  Map<String,Object> complete(Authentication auth, @PathVariable String taskId, @Valid @RequestBody Completion input) {
+  com.petcare.shared.SubjectAccess.task(db,auth,taskId,"CARE");
   String home = permission(auth,"CARE");
-  var states = db.queryForList("SELECT t.completed FROM care_tasks t JOIN pets p ON p.id=t.pet_id WHERE t.id=? AND p.household_id=? AND t.cancelled=FALSE AND t.skipped=FALSE FOR UPDATE",Boolean.class,taskId,home);
+  if(db.queryForObject("SELECT COUNT(*) FROM care_tasks t JOIN pets p ON p.id=t.pet_id WHERE t.id=? AND p.subject_type='HUMAN' AND t.care_type='MEDICATION'",Integer.class,taskId)>0)throw new ResponseStatusException(HttpStatus.CONFLICT,"MEDICATION_REQUIRES_LOG");
+  var states = db.queryForList("SELECT t.completed FROM care_tasks t JOIN pets p ON p.id=t.pet_id WHERE t.id=? AND p.household_id=?"+com.petcare.shared.SubjectAccess.and("p")+" AND t.cancelled=FALSE AND t.skipped=FALSE FOR UPDATE",Boolean.class,taskId,home);
   if (states.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
   if (!states.getFirst().equals(input.completed())) {
    db.update("UPDATE care_tasks SET revision=revision+1,completed=? WHERE id=?",input.completed(),taskId);
@@ -63,7 +65,7 @@ class CareController extends ApiSupport {
  }
 
  private Map<String,Object> task(String home,String taskId) {
-  var rows=db.query("SELECT t.id,t.pet_id,t.title,t.due_at,t.completed,p.name,t.plan_id,t.care_type,t.assigned_to,t.cancelled FROM care_tasks t JOIN pets p ON p.id=t.pet_id WHERE t.id=? AND p.household_id=?",(r,n)-> {
+  var rows=db.query("SELECT t.id,t.pet_id,t.title,t.due_at,t.completed,p.name,t.plan_id,t.care_type,t.assigned_to,t.cancelled FROM care_tasks t JOIN pets p ON p.id=t.pet_id WHERE t.id=? AND p.household_id=?"+com.petcare.shared.SubjectAccess.and("p")+"",(r,n)-> {
    Map<String,Object> row=new LinkedHashMap<>();
    row.put("id",r.getString(1));row.put("petId",r.getString(2));row.put("title",r.getString(3));row.put("dueAt",r.getTimestamp(4).toInstant().toString());row.put("completed",r.getBoolean(5));row.put("petName",r.getString(6));row.put("planId",r.getString(7));row.put("careType",r.getString(8));row.put("assignedTo",r.getString(9));row.put("cancelled",r.getBoolean(10));return row;
   },taskId,home);
@@ -78,6 +80,7 @@ class CareController extends ApiSupport {
  record Adjustment(@NotNull Instant dueAt) {}
  @PatchMapping("/tasks/{taskId}/time") @Transactional
  Map<String,Object> reschedule(Authentication auth,@PathVariable String taskId,@Valid @RequestBody Adjustment input) {
+  com.petcare.shared.SubjectAccess.task(db,auth,taskId,"CARE");
   String home=permission(auth,"CARE");
   if(input.dueAt().isBefore(Instant.now()) || input.dueAt().isAfter(Instant.parse("2037-12-31T23:59:59Z"))) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
   var old=task(home,taskId);
@@ -95,7 +98,9 @@ class CareController extends ApiSupport {
  record Dismissal(@NotBlank @Pattern(regexp="SKIPPED|CANCELLED") String action) {}
  @PostMapping("/tasks/{taskId}/dismiss") @Transactional
  Map<String,Object> dismiss(Authentication auth,@PathVariable String taskId,@Valid @RequestBody Dismissal input) {
+  com.petcare.shared.SubjectAccess.task(db,auth,taskId,"CARE");
   String home=permission(auth,"CARE");var old=task(home,taskId);
+  if("MEDICATION".equals(old.get("careType")) && input.action().equals("SKIPPED"))throw new ResponseStatusException(HttpStatus.CONFLICT,"MEDICATION_REQUIRES_LOG");
   if(Boolean.TRUE.equals(old.get("completed"))) throw new ResponseStatusException(HttpStatus.CONFLICT,"TASK_NOT_PENDING");
   if(!Boolean.TRUE.equals(old.get("cancelled"))) {
    db.update("UPDATE care_tasks SET revision=revision+1,cancelled=TRUE WHERE id=?",taskId);
@@ -106,9 +111,10 @@ class CareController extends ApiSupport {
  record PlanAdjustment(@NotNull Instant dueAt,@NotBlank @Pattern(regexp="DAILY|WEEKLY") String frequency,@NotBlank String zoneId) {}
  @PatchMapping("/plans/{planId}/future") @Transactional
  Map<String,String> adjustPlan(Authentication auth,@PathVariable String planId,@Valid @RequestBody PlanAdjustment input) {
+  var subjects=db.queryForList("SELECT pet_id FROM care_plans WHERE id=?",String.class,planId);if(subjects.isEmpty())throw new ResponseStatusException(HttpStatus.NOT_FOUND);com.petcare.shared.SubjectAccess.require(db,auth,subjects.getFirst(),"CARE");
   String home=permission(auth,"CARE");
   if(!input.dueAt().isAfter(Instant.now())) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
-  var rows=db.queryForList("SELECT c.* FROM care_plans c JOIN pets p ON p.id=c.pet_id WHERE c.id=? AND p.household_id=? AND c.active=TRUE",planId,home);
+  var rows=db.queryForList("SELECT c.* FROM care_plans c JOIN pets p ON p.id=c.pet_id WHERE c.id=? AND p.household_id=?"+com.petcare.shared.SubjectAccess.and("p")+" AND c.active=TRUE",planId,home);
   if(rows.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
   var old=rows.getFirst();
   // New plan identity preserves old history and occurrence uniqueness.
@@ -119,10 +125,12 @@ class CareController extends ApiSupport {
  record Assignment(String memberId) {}
  @PatchMapping("/tasks/{taskId}/assignment") @Transactional
  Map<String,Object> assign(Authentication auth,@PathVariable String taskId,@RequestBody Assignment input) {
+  com.petcare.shared.SubjectAccess.task(db,auth,taskId,"CARE");
   String home=permission(auth,"CARE");
   if(input.memberId()!=null && db.queryForObject("SELECT COUNT(*) FROM accounts WHERE id=? AND household_id=? AND (access_until IS NULL OR access_until>CURRENT_TIMESTAMP(6)) AND (family_role='ADMIN' OR FIND_IN_SET('CARE',permissions)>0)",Integer.class,input.memberId(),home)!=1)
    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"INVALID_ASSIGNEE");
-  require(db.update("UPDATE care_tasks t JOIN pets p ON p.id=t.pet_id SET t.revision=t.revision+1,t.assigned_to=? WHERE t.id=? AND p.household_id=? AND t.cancelled=FALSE",input.memberId(),taskId,home));
+  if(input.memberId()!=null){String subject=db.queryForObject("SELECT pet_id FROM care_tasks WHERE id=?",String.class,taskId);com.petcare.shared.SubjectAccess.require(db,new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(input.memberId(),null),subject,"CARE");}
+  require(db.update("UPDATE care_tasks t JOIN pets p ON p.id=t.pet_id SET t.revision=t.revision+1,t.assigned_to=? WHERE t.id=? AND p.household_id=?"+com.petcare.shared.SubjectAccess.and("p")+" AND t.cancelled=FALSE",input.memberId(),taskId,home));
   return queries.mutation(home,taskId);
  }
  @GetMapping("/tasks/{taskId}") @Transactional
@@ -139,6 +147,7 @@ class CareController extends ApiSupport {
  record Schedule(@NotNull Instant dueAt) {}
  @PatchMapping("/tasks/{taskId}/schedule") @Transactional
  Map<String,Object> reschedule(Authentication auth,@PathVariable String taskId,@Valid @RequestBody Schedule input) {
+  com.petcare.shared.SubjectAccess.task(db,auth,taskId,"CARE");
   String home=permission(auth,"CARE");var task=queries.task(home,taskId);editable(task);
   if(input.dueAt().isBefore(Instant.parse("2000-01-01T00:00:00Z"))||input.dueAt().isAfter(Instant.parse("2037-12-31T23:59:59Z")))throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
   if(!Instant.parse((String)task.get("dueAt")).equals(input.dueAt())) {
@@ -149,7 +158,9 @@ class CareController extends ApiSupport {
  record Disposition(@NotBlank @Pattern(regexp="CANCELLED|SKIPPED") String action) {}
  @PatchMapping("/tasks/{taskId}/disposition") @Transactional
  Map<String,Object> disposition(Authentication auth,@PathVariable String taskId,@Valid @RequestBody Disposition input) {
+  com.petcare.shared.SubjectAccess.task(db,auth,taskId,"CARE");
   String home=permission(auth,"CARE");var task=queries.task(home,taskId);
+  if("MEDICATION".equals(task.get("careType")) && input.action().equals("SKIPPED"))throw new ResponseStatusException(HttpStatus.CONFLICT,"MEDICATION_REQUIRES_LOG");
   boolean skip=input.action().equals("SKIPPED");
   if(Boolean.TRUE.equals(task.get(skip?"skipped":"cancelled")))return queries.mutation(home,taskId);
   editable(task);if(skip && task.get("planId")==null)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"RECURRING_REQUIRED");
@@ -161,8 +172,9 @@ class CareController extends ApiSupport {
  private void event(Authentication auth,String task,String action) {db.update("INSERT INTO care_events(id,task_id,actor_id,action,happened_at) VALUES (?,?,?,?,?)",id(),task,auth.getName(),action,Timestamp.from(Instant.now()));}
  @DeleteMapping("/plans/{planId}") @ResponseStatus(HttpStatus.NO_CONTENT) @Transactional
  void stopPlan(Authentication auth, @PathVariable String planId) {
+  var subjects=db.queryForList("SELECT pet_id FROM care_plans WHERE id=?",String.class,planId);if(subjects.isEmpty())throw new ResponseStatusException(HttpStatus.NOT_FOUND);com.petcare.shared.SubjectAccess.require(db,auth,subjects.getFirst(),"CARE");
   String home = permission(auth,"CARE");
-  require(db.update("UPDATE care_plans c JOIN pets p ON p.id=c.pet_id SET c.active=FALSE WHERE c.id=? AND p.household_id=?",planId,home));
+  require(db.update("UPDATE care_plans c JOIN pets p ON p.id=c.pet_id SET c.active=FALSE WHERE c.id=? AND p.household_id=?"+com.petcare.shared.SubjectAccess.and("p")+"",planId,home));
   // Preserve overdue occurrences and all completed care/history.
   db.update("UPDATE care_tasks SET revision=revision+1,cancelled=TRUE WHERE plan_id=? AND completed=FALSE AND due_at>?",planId,Timestamp.from(Instant.now()));
  }

@@ -5,6 +5,7 @@ import '../../app/home_shell.dart';
 import 'care_actions.dart';
 import 'care_view.dart';
 import 'care_kind.dart';
+import '../subjects/medication_page.dart';
 import '../health/health_pages.dart';
 import 'care_history_page.dart';
 import 'overdue_care_page.dart';
@@ -21,6 +22,10 @@ extension CarePages on CareHomeState {
       plans.where((plan) => plan['id'] == task['planId']).firstOrNull;
 
   String eventAction(Map<String, dynamic> event) => switch (event['action']) {
+        'MED_TAKEN' => t('已服用', 'Medication taken'),
+        'MED_NOT_TAKEN' => t('未服用', 'Medication not taken'),
+        'MED_REFUSED' => t('拒绝服用', 'Medication refused'),
+        'MED_HELD' => t('暂停用药', 'Medication held'),
         'REOPENED' => t('已撤销完成', 'Completion undone'),
         'SKIPPED' => t('已跳过', 'Skipped'),
         'CANCELLED' => t('已取消', 'Cancelled'),
@@ -298,7 +303,13 @@ extension CarePages on CareHomeState {
             history.where((event) => event['taskId'] == task['id']).toList();
         final completed = task['completed'] == true;
         final cancelled = task['cancelled'] == true;
-        final taskBusy = busy || submittingTasks.contains(task['id']);
+        final taskBusy = busy ||
+            submittingTasks.contains(task['id']) ||
+            !can('CARE') ||
+            pets
+                    .where((p) => p['id'] == task['petId'])
+                    .firstOrNull?['canCareSubject'] ==
+                false;
         return [
           CareKind.of(task).picture(size: 148),
           const SizedBox(height: AppSpacing.content),
@@ -306,7 +317,7 @@ extension CarePages on CareHomeState {
             Text(task['title'] as String,
                 style: Theme.of(context).textTheme.headlineMedium),
             const SizedBox(height: AppSpacing.item),
-            _detailField(t('宠物', 'Pet'), task['petName'] as String),
+            _detailField(t('照护对象', 'Care profile'), task['petName'] as String),
             _detailField(
                 t('负责照护', 'Assigned caregiver'),
                 (data?['memberProfiles'] as List? ?? [])
@@ -331,6 +342,14 @@ extension CarePages on CareHomeState {
               child: Text(
                   '${task['lastEvent']['actor'] ?? ''} · ${dateLabel(DateTime.parse(task['lastEvent']['at'] as String).toLocal())}'),
             ),
+          if (task['careType'] == 'MEDICATION')
+            OutlinedButton.icon(
+                onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                        builder: (_) =>
+                            MedicationPage(home: this, task: task))),
+                icon: const Icon(Icons.medication_outlined),
+                label: Text(t('用药记录', 'Medication record'))),
           if (!cancelled)
             Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -340,19 +359,22 @@ extension CarePages on CareHomeState {
                     onPressed: taskBusy ? null : () => assignCare(task),
                     icon: const Icon(Icons.person_add_alt_outlined),
                     label: Text(t('指定照护人', 'Assign caregiver'))),
-                FilledButton.icon(
-                  onPressed: taskBusy
-                      ? null
-                      : () => changeCompletion(task, !completed),
-                  icon: Icon(completed
-                      ? Icons.undo_rounded
-                      : Icons.check_circle_rounded),
-                  label: Text(submittingTasks.contains(task['id'])
-                      ? t('正在保存…', 'Saving…')
-                      : completed
-                          ? t('撤销完成', 'Undo completion')
-                          : t('标记完成', 'Mark as done')),
-                ),
+                if (task['careType'] != 'MEDICATION')
+                  FilledButton.icon(
+                    onPressed: taskBusy
+                        ? null
+                        : () => changeCompletion(task, !completed),
+                    icon: Icon(completed
+                        ? Icons.undo_rounded
+                        : Icons.check_circle_rounded),
+                    label: Text(submittingTasks.contains(task['id'])
+                        ? t('正在保存…', 'Saving…')
+                        : task['careType'] == 'MEDICATION'
+                            ? t('查看／记录用药', 'Medication record')
+                            : completed
+                                ? t('撤销完成', 'Undo completion')
+                                : t('标记完成', 'Mark as done')),
+                  ),
                 if (!completed) ...[
                   OutlinedButton.icon(
                       onPressed: taskBusy ? null : () => adjustCareTime(task),
@@ -370,7 +392,9 @@ extension CarePages on CareHomeState {
                         child: TextButton(
                             onPressed: taskBusy
                                 ? null
-                                : () => dismissCare(task, 'SKIPPED'),
+                                : task['careType'] == 'MEDICATION'
+                                    ? null
+                                    : () => dismissCare(task, 'SKIPPED'),
                             child: Text(t('跳过本次', 'Skip once')))),
                     Expanded(
                         child: TextButton(
@@ -448,7 +472,7 @@ extension CarePages on CareHomeState {
             Text(event['title'] as String,
                 style: Theme.of(context).textTheme.headlineMedium),
             const SizedBox(height: AppSpacing.item),
-            _detailField(t('宠物', 'Pet'), event['petName'] as String),
+            _detailField(t('照护对象', 'Care profile'), event['petName'] as String),
             _detailField(t('记录时间', 'Recorded'),
                 dateLabel(DateTime.parse(event['at'] as String).toLocal())),
             _detailField(t('照护人', 'Caregiver'),
@@ -496,7 +520,7 @@ extension CarePages on CareHomeState {
             Text(plan['title'] as String,
                 style: Theme.of(context).textTheme.headlineMedium),
             const SizedBox(height: AppSpacing.item),
-            _detailField(t('宠物', 'Pet'), plan['petName'] as String),
+            _detailField(t('照护对象', 'Care profile'), plan['petName'] as String),
             _detailField(t('重复', 'Repeat'), frequencyLabel(plan)),
             if (plan['zoneId'] != null)
               _detailField(t('时区', 'Time zone'), plan['zoneId'] as String),

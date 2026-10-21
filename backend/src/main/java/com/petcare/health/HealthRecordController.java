@@ -21,7 +21,7 @@ public class HealthRecordController extends ApiSupport {
   @NotNull @PastOrPresent LocalDate happenedOn,@DecimalMin("0.001") @DecimalMax("9999") BigDecimal weightKg,
   @NotNull @Size(max=12) List<@NotBlank @Size(max=1500000) String> photos) {}
  private String pet(Authentication auth,String pet) {
-  String home=permission(auth,"HEALTH");
+  String home=permission(auth,"HEALTH");com.petcare.shared.SubjectAccess.require(db,auth,pet,"READ");
   if(db.queryForObject("SELECT COUNT(*) FROM pets WHERE id=? AND household_id=?",Integer.class,pet,home)!=1) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
   return home;
  }
@@ -76,29 +76,29 @@ public class HealthRecordController extends ApiSupport {
  }
  @PostMapping @ResponseStatus(HttpStatus.CREATED) @Transactional
  public Map<String,String> create(Authentication auth,@PathVariable String petId,@Valid @RequestBody Input input){
-  String home=pet(auth,petId);validate(input);long before=benefits.usedBytes(home);String id=id();
+  String home=pet(auth,petId);com.petcare.shared.SubjectAccess.require(db,auth,petId,"CARE");if(input.kind().equals("DEWORMING") && db.queryForObject("SELECT subject_type FROM pets WHERE id=?",String.class,petId).equals("HUMAN"))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"INVALID_SUBJECT_CARE_TYPE");validate(input);long before=benefits.usedBytes(home);String id=id();
   db.update("INSERT INTO health_records(id,pet_id,author_id,kind,title,notes,happened_on,weight_kg) VALUES (?,?,?,?,?,?,?,?)",id,petId,auth.getName(),input.kind(),input.title().strip(),input.notes(),input.happenedOn(),input.weightKg());
   photos(home,id,input.photos());benefits.checkGrowth(home,before);return Map.of("id",id);
  }
  @PatchMapping("/{recordId}") @Transactional
  public Map<String,String> update(Authentication auth,@PathVariable String petId,@PathVariable String recordId,@Valid @RequestBody Input input){
-  String home=pet(auth,petId);validate(input);long before=benefits.usedBytes(home);
+  String home=pet(auth,petId);com.petcare.shared.SubjectAccess.require(db,auth,petId,"CARE");if(input.kind().equals("DEWORMING") && db.queryForObject("SELECT subject_type FROM pets WHERE id=?",String.class,petId).equals("HUMAN"))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"INVALID_SUBJECT_CARE_TYPE");validate(input);long before=benefits.usedBytes(home);
   require(db.update("UPDATE health_records SET kind=?,title=?,notes=?,happened_on=?,weight_kg=?,updated_at=CURRENT_TIMESTAMP(6) WHERE id=? AND pet_id=?",input.kind(),input.title().strip(),input.notes(),input.happenedOn(),input.weightKg(),recordId,petId));
   photos(home,recordId,input.photos());benefits.checkGrowth(home,before);return Map.of("id",recordId);
  }
  @DeleteMapping("/{recordId}") @ResponseStatus(HttpStatus.NO_CONTENT) @Transactional
- public void delete(Authentication auth,@PathVariable String petId,@PathVariable String recordId){pet(auth,petId);require(db.update("DELETE FROM health_records WHERE id=? AND pet_id=?",recordId,petId));}
+ public void delete(Authentication auth,@PathVariable String petId,@PathVariable String recordId){pet(auth,petId);com.petcare.shared.SubjectAccess.require(db,auth,petId,"CARE");require(db.update("DELETE FROM health_records WHERE id=? AND pet_id=?",recordId,petId));}
  public record Reminder(@NotNull java.time.Instant dueAt) {}
  @PostMapping("/{recordId}/reminder") @Transactional
  public Map<String,Object> reminder(Authentication auth,@PathVariable String petId,@PathVariable String recordId,@Valid @RequestBody Reminder input) {
-  String home=pet(auth,petId);permission(auth,"CARE");
+  String home=pet(auth,petId);permission(auth,"CARE");com.petcare.shared.SubjectAccess.require(db,auth,petId,"CARE");
   var records=db.queryForList("SELECT title,kind FROM health_records WHERE id=? AND pet_id=?",recordId,petId);
   if(records.isEmpty())throw new ResponseStatusException(HttpStatus.NOT_FOUND);
   if(!input.dueAt().isAfter(java.time.Instant.now())||input.dueAt().isAfter(java.time.Instant.parse("2037-12-31T23:59:59Z")))throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
   var pending=db.queryForList("SELECT id FROM care_tasks WHERE health_record_id=? AND completed=FALSE AND cancelled=FALSE AND skipped=FALSE ORDER BY due_at,id LIMIT 1",String.class,recordId);
   String task=pending.isEmpty()?id():pending.getFirst();
   if(pending.isEmpty()) {
-   String kind=(String)records.getFirst().get("kind");if(!Set.of("VACCINE","DEWORMING").contains(kind))kind="CUSTOM";
+   String kind=(String)records.getFirst().get("kind");boolean human=db.queryForObject("SELECT subject_type FROM pets WHERE id=?",String.class,petId).equals("HUMAN");if(human)kind=kind.equals("MEDICATION")?"MEDICATION":"APPOINTMENT";else if(!Set.of("VACCINE","DEWORMING").contains(kind))kind="CUSTOM";
    db.update("INSERT INTO care_tasks(id,pet_id,title,due_at,care_type,health_record_id) VALUES (?,?,?,?,?,?)",task,petId,records.getFirst().get("title"),java.sql.Timestamp.from(input.dueAt()),kind,recordId);
   }else {
    var old=db.queryForObject("SELECT due_at FROM care_tasks WHERE id=?",java.sql.Timestamp.class,task);
@@ -112,7 +112,7 @@ public class HealthRecordController extends ApiSupport {
  public record Batch(@NotEmpty @Size(max=100) List<@NotBlank String> ids,@NotNull @Size(max=60) String folder){}
  @PostMapping("/organize") @Transactional
  public Map<String,Integer> organize(Authentication auth,@PathVariable String petId,@Valid @RequestBody Batch input){
-  benefits.requireExtended(pet(auth,petId));int count=0;
+  benefits.requireExtended(pet(auth,petId));com.petcare.shared.SubjectAccess.require(db,auth,petId,"CARE");int count=0;
   for(String id:new LinkedHashSet<>(input.ids())) {require(db.update("UPDATE health_records SET folder=?,updated_at=CURRENT_TIMESTAMP(6) WHERE id=? AND pet_id=?",input.folder().strip(),id,petId));count++;}
   return Map.of("updated",count);
  }

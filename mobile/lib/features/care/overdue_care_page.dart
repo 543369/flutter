@@ -53,9 +53,10 @@ class _OverdueCarePageState extends State<OverdueCarePage> {
           ? !excludedGroups.containsKey(id)
           : selectedGroups.containsKey(id));
   bool selected(Map<String, dynamic> item) =>
-      individual.containsKey(item['id']) ||
-      (whole(item['planId'] as String? ?? 'single') &&
-          !excludedItems.containsKey(item['id']));
+      item['careType'] != 'MEDICATION' &&
+      (individual.containsKey(item['id']) ||
+          (whole(item['planId'] as String? ?? 'single') &&
+              !excludedItems.containsKey(item['id'])));
   int groupSelected(Map<String, dynamic> group) {
     final id = group['id'] as String;
     return whole(id)
@@ -380,7 +381,9 @@ class _OverdueCarePageState extends State<OverdueCarePage> {
           CheckboxListTile(
             key: ValueKey('overdue-item-${task['id']}'),
             value: selected(task),
-            onChanged: writing ? null : (_) => toggleItem(task),
+            onChanged: writing || task['careType'] == 'MEDICATION'
+                ? null
+                : (_) => toggleItem(task),
             title: Text(task['title'] as String),
             subtitle: Text(home
                 .dateLabel(DateTime.parse(task['dueAt'] as String).toLocal())),
@@ -606,7 +609,13 @@ class _OverdueCarePageState extends State<OverdueCarePage> {
                     ),
                     const SizedBox(width: AppSpacing.item),
                     FilledButton(
-                        onPressed: writing || loading || !home.can('CARE')
+                        onPressed: writing ||
+                                loading ||
+                                !home.can('CARE') ||
+                                home.pets
+                                        .where((p) => p['id'] == widget.petId)
+                                        .firstOrNull?['canCareSubject'] ==
+                                    false
                             ? null
                             : job != null &&
                                     job!['finished'] != true &&

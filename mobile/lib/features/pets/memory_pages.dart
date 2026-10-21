@@ -41,6 +41,12 @@ class _PetMemoriesPageState extends State<PetMemoriesPage> {
   int total = 0;
   String? error;
   String t(String zh, String en) => widget.home.t(zh, en);
+  bool get canWrite =>
+      widget.home.can('MEMORIES') &&
+      widget.home.pets
+              .where((p) => p['id'] == widget.petId)
+              .firstOrNull?['canCareSubject'] !=
+          false;
   String get path => '/pets/${widget.petId}/memories';
 
   @override
@@ -137,7 +143,7 @@ class _PetMemoriesPageState extends State<PetMemoriesPage> {
                             const SizedBox(height: AppSpacing.content),
                             FilledButton.icon(
                                 key: const ValueKey('create-memory'),
-                                onPressed: create,
+                                onPressed: canWrite ? create : null,
                                 icon: const Icon(Icons.add_rounded),
                                 label: Text(t('写一篇回忆', 'Write a memory'))),
                           ])),
@@ -432,6 +438,12 @@ class _MemoryDetailPageState extends State<MemoryDetailPage> {
   bool loading = true;
   String? error;
   String t(String zh, String en) => widget.home.t(zh, en);
+  bool get canWrite =>
+      widget.home.can('MEMORIES') &&
+      widget.home.pets
+              .where((p) => p['id'] == widget.petId)
+              .firstOrNull?['canCareSubject'] !=
+          false;
   String get path => '/pets/${widget.petId}/memories/${widget.memoryId}';
   @override
   void initState() {
@@ -493,7 +505,7 @@ class _MemoryDetailPageState extends State<MemoryDetailPage> {
         appBar: AppBar(title: Text(t('回忆详情', 'Memory details')), actions: [
           if (memory != null)
             IconButton(
-                onPressed: loading ? null : edit,
+                onPressed: loading || !canWrite ? null : edit,
                 tooltip: t('编辑回忆', 'Edit memory'),
                 icon: const Icon(Icons.edit_outlined)),
         ]),
@@ -552,7 +564,7 @@ class _MemoryDetailPageState extends State<MemoryDetailPage> {
                   style: Theme.of(context).textTheme.bodySmall),
               const SizedBox(height: AppSpacing.section),
               TextButton.icon(
-                  onPressed: loading ? null : delete,
+                  onPressed: loading || !canWrite ? null : delete,
                   icon: const Icon(Icons.delete_outline_rounded),
                   label: Text(t('删除回忆', 'Delete memory'))),
             ],

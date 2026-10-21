@@ -161,4 +161,30 @@ void main() {
     await expectLater(queue.enqueue(task(), 'COMPLETE'), throwsStateError);
     expect(queue.pendingCount, 0);
   });
+
+  test(
+      'revoked human profile removes its pending operations and cached records',
+      () async {
+    String? disk;
+    final store = OfflineCare(
+        send: (_, __, [___]) async => throw TimeoutException('offline'),
+        read: () async => disk,
+        write: (v) async {
+          disk = v;
+        });
+    await store.restore('session');
+    await store.remember({
+      ...dashboard(),
+      'pets': [
+        {'id': 'pet', 'subjectType': 'HUMAN', 'canCareSubject': true}
+      ]
+    });
+    await store.enqueue(task(), 'COMPLETE');
+    expect(store.pendingCount, 1);
+    await store.remember(
+        {...dashboard(), 'pets': [], 'tasks': [], 'reminderTasks': []});
+    expect(store.pendingCount, 0);
+    expect(store.snapshot!['tasks'], isEmpty);
+    expect(disk, isNot(contains('Meal')));
+  });
 }

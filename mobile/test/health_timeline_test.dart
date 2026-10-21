@@ -17,7 +17,7 @@ void main() {
   testWidgets('health timeline opens, shows records and offers both formats',
       (tester) async {
     await showCare(tester, TimelineApi());
-    await tester.tap(find.text('Pets'));
+    await tester.tap(find.text('Profiles'));
     await tester.pumpAndSettle();
     await tapVisible(tester, find.byKey(const ValueKey('pet-card-pet')));
     await tapVisible(tester, find.text('Health records'));

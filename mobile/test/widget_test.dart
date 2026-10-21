@@ -212,7 +212,7 @@ void main() {
     await tester.tap(find.text('Sign in'));
     await tester.pumpAndSettle();
     expect(find.text('0 tasks to do'), findsOneWidget);
-    await tester.tap(find.text('Pets'));
+    await tester.tap(find.text('Profiles'));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Switch language'));
     await tester.pumpAndSettle();
@@ -282,7 +282,7 @@ void main() {
       pendingTask('dog-care', 'Walk Doubao', petId: 'dog', petName: 'Doubao'),
     ];
     await showCare(tester, api);
-    await tester.tap(find.byTooltip('Switch pet').hitTestable().first);
+    await tester.tap(find.byTooltip('Switch care profile').hitTestable().first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Doubao').last);
     await tester.pumpAndSettle();

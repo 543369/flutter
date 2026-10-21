@@ -41,7 +41,7 @@ class PetController extends ApiSupport {
  @PatchMapping("/pets/{petId}") @Transactional
  Map<String,String> updatePet(Authentication auth, @PathVariable String petId,
                               @Valid @RequestBody PetInput input) {
-  String home=permission(auth,"PETS"); long before=benefits.usedBytes(home);
+  String home=permission(auth,"PETS");var subject=com.petcare.shared.SubjectAccess.require(db,auth,petId,"MANAGE");if(!subject.get("subject_type").equals("PET"))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"INVALID_SUBJECT_CARE_TYPE"); long before=benefits.usedBytes(home);
   require(db.update("UPDATE pets SET name=?,species=?,biography=?,birth_date=? WHERE id=? AND household_id=?",
     input.name().strip(),input.species(),input.biography(),input.birthDate(),petId,home));
   if (input.photos() != null) {
@@ -57,7 +57,7 @@ class PetController extends ApiSupport {
  }
  @GetMapping("/pets/{petId}/photos") @Transactional
  Map<String,Object> photos(Authentication auth,@PathVariable String petId) {
-  String home=permission(auth,"READ");
+  String home=permission(auth,"READ");com.petcare.shared.SubjectAccess.require(db,auth,petId,"READ");
   if(db.queryForObject("SELECT COUNT(*) FROM pets WHERE id=? AND household_id=?",Integer.class,petId,home)!=1) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
   var gallery=db.queryForList("SELECT photo_data FROM pet_photos WHERE pet_id=? ORDER BY position_index",String.class,petId);
   Map<String,Object> result=new LinkedHashMap<>();result.put("photos",gallery);
@@ -76,6 +76,7 @@ class PetController extends ApiSupport {
  }
  @DeleteMapping("/pets/{petId}") @ResponseStatus(HttpStatus.NO_CONTENT) @Transactional
  void deletePet(Authentication auth, @PathVariable String petId) {
+  com.petcare.shared.SubjectAccess.require(db,auth,petId,"MANAGE");
   require(db.update("DELETE FROM pets WHERE id=? AND household_id=?", petId, permission(auth,"PETS")));
  }
 

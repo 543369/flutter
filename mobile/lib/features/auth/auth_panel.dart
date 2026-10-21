@@ -191,7 +191,7 @@ class _AuthPanelState extends State<AuthPanel> {
                     const SizedBox(height: AppSpacing.content),
                     Text(
                         registering
-                            ? t('创建爪伴账号', 'Create your PetCare account')
+                            ? t('创建家庭照护账号', 'Create your Family Care account')
                             : t('欢迎回来', 'Welcome back'),
                         style: Theme.of(context).textTheme.headlineSmall,
                         textAlign: TextAlign.center),
@@ -200,7 +200,7 @@ class _AuthPanelState extends State<AuthPanel> {
                         widget.binding
                             ? t('绑定后保留所有现有资料。',
                                 'Your existing data stays with this account.')
-                            : t('登录后，与家人一起照顾宠物。',
+                            : t('一起照顾家人和宠物，记录每一次用心。',
                                 'Sign in to care for your pets together.'),
                         textAlign: TextAlign.center),
                     const SizedBox(height: AppSpacing.section),

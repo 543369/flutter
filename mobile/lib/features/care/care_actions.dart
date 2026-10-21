@@ -4,11 +4,18 @@ import 'package:flutter/material.dart';
 import '../../app/home_shell.dart';
 import '../pets/pet_module.dart';
 import 'task_form_dialog.dart';
+import '../subjects/medication_page.dart';
 
 extension CareActions on CareHomeState {
   Future<void> addTask({Offset? revealOrigin}) async {
     if (pets.isEmpty) {
       await addPet();
+      return;
+    }
+    if (selectedPet?['canCareSubject'] == false) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(t('此对象目前只有查看权限，请切换到可照护的对象。',
+              'This profile is view-only. Switch to a profile you can care for.'))));
       return;
     }
     final petId = revealOrigin == null
@@ -37,6 +44,12 @@ extension CareActions on CareHomeState {
 
   Future<void> changeCompletion(Map<String, dynamic> task, bool complete,
       {bool confirmUndo = true}) async {
+    if (task['careType'] == 'MEDICATION') {
+      await Navigator.of(context).push(MaterialPageRoute<void>(
+          builder: (_) => MedicationPage(home: this, task: task)));
+      if (mounted) await refreshQuietly();
+      return;
+    }
     if (!complete &&
         confirmUndo &&
         !await confirm(

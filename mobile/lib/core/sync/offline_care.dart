@@ -118,6 +118,13 @@ class OfflineCare extends ChangeNotifier {
             }
           }
         }
+        final subjects = (remote['pets'] as List? ?? []).cast<Map>();
+        final allowed = subjects
+            .where((s) => s['canCareSubject'] != false)
+            .map((s) => s['id'])
+            .toSet();
+        _operations.removeWhere((op) =>
+            op['subjectType'] == 'HUMAN' && !allowed.contains(op['subjectId']));
         // A session may move to another household. Never project old household data.
         _snapshot = jsonDecode(jsonEncode(remote)) as Map<String, dynamic>;
         for (final op in _operations) {
@@ -195,6 +202,12 @@ class OfflineCare extends ChangeNotifier {
         final op = <String, dynamic>{
           'body': body,
           'title': task['title'],
+          'subjectId': task['petId'],
+          'subjectType': (_snapshot?['pets'] as List? ?? [])
+                  .cast<Map>()
+                  .where((s) => s['id'] == task['petId'])
+                  .firstOrNull?['subjectType'] ??
+              'PET',
           'createdAt': DateTime.now().toUtc().toIso8601String()
         };
         final rows = (_snapshot!['tasks'] as List? ?? []).toList();

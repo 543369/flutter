@@ -45,6 +45,7 @@ public class FamilyRolesController extends ApiSupport {
   var roles=db.queryForList("SELECT family_role FROM accounts WHERE id=? AND household_id=? FOR UPDATE",String.class,memberId,home);
   if(roles.isEmpty())throw new ResponseStatusException(HttpStatus.NOT_FOUND);
   if(roles.getFirst().equals("ADMIN") && db.queryForObject("SELECT COUNT(*) FROM accounts WHERE household_id=? AND family_role='ADMIN'",Integer.class,home)<=1)throw new ResponseStatusException(HttpStatus.CONFLICT,"LAST_ADMIN");
+  subjectOwner(memberId,home);db.update("DELETE FROM subject_grants WHERE account_id=?",memberId);
   String next=id();db.update("INSERT INTO households(id) VALUES(?)",next);
   db.update("UPDATE care_tasks t JOIN pets p ON p.id=t.pet_id SET t.revision=t.revision+1,t.assigned_to=NULL WHERE t.assigned_to=? AND p.household_id=?",memberId,home);
   db.update("UPDATE accounts SET household_id=?,family_role='ADMIN',permissions=?,access_until=NULL WHERE id=?",next,RoleRules.FULL,memberId);
@@ -60,8 +61,10 @@ public class FamilyRolesController extends ApiSupport {
   if(db.queryForObject("SELECT COUNT(*) FROM accounts WHERE household_id=?",Integer.class,home)==1)throw new ResponseStatusException(HttpStatus.CONFLICT);
   String role=db.queryForObject("SELECT family_role FROM accounts WHERE id=?",String.class,auth.getName());
   if(role.equals("ADMIN")&&db.queryForObject("SELECT COUNT(*) FROM accounts WHERE household_id=? AND family_role='ADMIN'",Integer.class,home)<=1)throw new ResponseStatusException(HttpStatus.CONFLICT,"LAST_ADMIN");
+  subjectOwner(auth.getName(),home);db.update("DELETE FROM subject_grants WHERE account_id=?",auth.getName());
   String next=id();db.update("INSERT INTO households(id) VALUES (?)",next);
   db.update("UPDATE care_tasks SET revision=revision+1,assigned_to=NULL WHERE assigned_to=?",auth.getName());
   db.update("UPDATE accounts SET household_id=?,family_role='ADMIN',permissions=?,access_until=NULL WHERE id=?",next,RoleRules.FULL,auth.getName());return Map.of("left",true);
  }
+ private void subjectOwner(String account,String home){if(db.queryForObject("SELECT COUNT(*) FROM pets WHERE subject_owner=? AND household_id=? AND subject_type='HUMAN'",Integer.class,account,home)>0)throw new ResponseStatusException(HttpStatus.CONFLICT,"SUBJECT_OWNER_HAS_PROFILES");}
 }

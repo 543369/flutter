@@ -116,7 +116,7 @@ class _ChangeEmailPageState extends State<ChangeEmailPage> {
           child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 620),
               child: ListView(padding: AppSpacing.pageInsets, children: [
-                Text(t('验证当前密码及新邮箱后更换。账号、家庭和宠物资料保留；当前登录保留，其他登录会话将退出，旧邮箱会收到通知。',
+                Text(t('验证当前密码及新邮箱后更换。账号、家庭和照护对象资料保留；当前登录保留，其他登录会话将退出，旧邮箱会收到通知。',
                     'Verify your current password and new email. Your account, household and pets stay. Other sessions will be signed out; your previous email will be notified.')),
                 const SizedBox(height: 24),
                 TextField(

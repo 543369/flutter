@@ -22,9 +22,9 @@ public class OverdueController extends ApiSupport {
   if(before==null || before.isAfter(Instant.now().plusSeconds(2)) || before.isBefore(Instant.parse("2000-01-01T00:00:00Z")) || (asOf!=null && asOf.isAfter(Instant.now().plusSeconds(2))))bad();
   Instant end=to!=null && to.isBefore(before)?to:before;
   if((from!=null && (!from.isBefore(end) || from.isBefore(Instant.parse("2000-01-01T00:00:00Z")))) || (to!=null && to.isBefore(Instant.parse("2000-01-01T00:00:00Z"))) || (asOf!=null && asOf.isBefore(Instant.parse("2000-01-01T00:00:00Z"))))bad();
-  if(db.queryForObject("SELECT COUNT(*) FROM pets WHERE id=? AND household_id=?",Integer.class,pet,home)!=1)throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+  if(db.queryForObject("SELECT COUNT(*) FROM pets WHERE id=? AND household_id=?"+com.petcare.shared.SubjectAccess.and("pets"),Integer.class,pet,home)!=1)throw new ResponseStatusException(HttpStatus.NOT_FOUND);
   var args=new ArrayList<Object>(List.of(home,pet,Timestamp.from(end)));
-  String sql=" FROM care_tasks t JOIN pets p ON p.id=t.pet_id WHERE p.household_id=? AND t.pet_id=? AND t.completed=FALSE AND t.cancelled=FALSE AND t.skipped=FALSE AND t.due_at<?";
+  String sql=" FROM care_tasks t JOIN pets p ON p.id=t.pet_id WHERE p.household_id=?"+com.petcare.shared.SubjectAccess.and("p")+" AND t.pet_id=? AND t.completed=FALSE AND t.cancelled=FALSE AND t.skipped=FALSE AND t.due_at<?";
   if(from!=null){sql+=" AND t.due_at>=?";args.add(Timestamp.from(from));}
   if(asOf!=null){sql+=" AND t.created_at<=?";args.add(Timestamp.from(asOf));}
   return new Scope(sql,args);
@@ -36,10 +36,10 @@ public class OverdueController extends ApiSupport {
      @RequestParam(required=false) Instant asOf,@RequestParam(defaultValue="") String cursor) {
   String home=permission(auth,"READ");Instant snapshot=asOf==null?Instant.now():asOf;
   var s=scope(home,petId,before,from,to,snapshot);
-  var totals=db.queryForMap("SELECT COUNT(*) total,COALESCE(SUM(t.plan_id IS NOT NULL),0) recurringTotal,COALESCE(SUM(t.plan_id IS NULL),0) singleTotal"+s.sql,s.args.toArray());
+  var totals=db.queryForMap("SELECT COUNT(*) total,COALESCE(SUM(t.plan_id IS NOT NULL AND t.care_type<>'MEDICATION'),0) recurringTotal,COALESCE(SUM(t.plan_id IS NULL OR t.care_type='MEDICATION'),0) singleTotal"+s.sql,s.args.toArray());
   if(!cursor.isEmpty())try{UUID.fromString(cursor);}catch(Exception e){bad();}
   var args=new ArrayList<>(s.args);args.add(cursor);
-  var rows=db.query("SELECT t.plan_id,MIN(t.title) title,COUNT(*) count,MIN(t.due_at) first_at,MAX(t.due_at) last_at"+s.sql+" AND t.plan_id IS NOT NULL AND t.plan_id>? GROUP BY t.plan_id ORDER BY t.plan_id LIMIT 21",(r,n)->Map.<String,Object>of(
+  var rows=db.query("SELECT t.plan_id,MIN(t.title) title,COUNT(*) count,MIN(t.due_at) first_at,MAX(t.due_at) last_at"+s.sql+" AND t.plan_id IS NOT NULL AND t.care_type<>'MEDICATION' AND t.plan_id>? GROUP BY t.plan_id ORDER BY t.plan_id LIMIT 21",(r,n)->Map.<String,Object>of(
     "id",r.getString(1),"title",r.getString(2),"count",r.getLong(3),"firstAt",r.getTimestamp(4).toInstant().toString(),"lastAt",r.getTimestamp(5).toInstant().toString()),args.toArray());
   var result=new LinkedHashMap<String,Object>(totals);result.put("householdId",home);result.put("asOf",snapshot.toString());
   result.put("items",rows.stream().limit(20).toList());result.put("hasMore",rows.size()>20);result.put("nextCursor",rows.size()>20?rows.get(19).get("id"):"");
@@ -50,7 +50,7 @@ public class OverdueController extends ApiSupport {
      @RequestParam(required=false) Instant from,@RequestParam(required=false) Instant to,@RequestParam(required=false) Instant asOf,@RequestParam(defaultValue="") String cursor) {
   var s=scope(permission(auth,"READ"),petId,before,from,to,asOf);
   var args=new ArrayList<>(s.args);String where;
-  if(groupId.equals("single"))where=" AND t.plan_id IS NULL";
+  if(groupId.equals("single"))where=" AND (t.plan_id IS NULL OR t.care_type='MEDICATION')";
   else{try{UUID.fromString(groupId);}catch(Exception e){bad();}where=" AND t.plan_id=?";args.add(groupId);}
   if(!cursor.isEmpty())try {
    var parts=new String(Base64.getUrlDecoder().decode(cursor),StandardCharsets.UTF_8).split("\\|",-1);
@@ -73,12 +73,12 @@ public class OverdueController extends ApiSupport {
  private static String marks(int n){return String.join(",",Collections.nCopies(n,"?"));}
  @PostMapping("/preview") @Transactional
  public Map<String,Object> preview(Authentication auth,@Valid @RequestBody Selection input) {
-  String home=permission(auth,"CARE");var s=scope(home,input.petId,input.before,input.from,input.to,input.asOf);
+  String home=permission(auth,"CARE");com.petcare.shared.SubjectAccess.require(db,auth,input.petId,"CARE");var s=scope(home,input.petId,input.before,input.from,input.to,input.asOf);
   if(db.queryForObject("SELECT COUNT(*) FROM overdue_batches WHERE account_id=? AND created_at>DATE_SUB(UTC_TIMESTAMP(6),INTERVAL 1 MINUTE)",Integer.class,auth.getName())>=10)throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS);
   String batch=id();db.update("INSERT INTO overdue_batches(id,account_id,household_id,pet_id,before_at,expires_at) VALUES(?,?,?,?,?,DATE_ADD(UTC_TIMESTAMP(6),INTERVAL 15 MINUTE))",batch,auth.getName(),home,input.petId,Timestamp.from(input.before));
   var groups=list(input.groupIds);var excludes=list(input.excludedGroups);var ids=list(input.excludedIds);
   if(input.allRecurring || !groups.isEmpty()) {
-   String where=" AND t.plan_id IS NOT NULL";var args=new ArrayList<Object>();args.add(batch);args.addAll(s.args);
+   String where=" AND t.plan_id IS NOT NULL AND t.care_type<>'MEDICATION'";var args=new ArrayList<Object>();args.add(batch);args.addAll(s.args);
    if(!input.allRecurring){where+=" AND t.plan_id IN ("+marks(groups.size())+")";args.addAll(groups);}
    if(!excludes.isEmpty()){where+=" AND t.plan_id NOT IN ("+marks(excludes.size())+")";args.addAll(excludes);}
    if(!ids.isEmpty()){where+=" AND t.id NOT IN ("+marks(ids.size())+")";args.addAll(ids);}
@@ -88,6 +88,7 @@ public class OverdueController extends ApiSupport {
   // their observed version. Changed/deleted items still get an outcome on apply.
   for(var item:input.items==null?List.<Ref>of():input.items) {
    // A task must belong to this pet/home and be overdue at preview time.
+   if(db.queryForObject("SELECT COUNT(*) FROM care_tasks WHERE id=? AND care_type='MEDICATION'",Integer.class,item.id)>0)throw new ResponseStatusException(HttpStatus.CONFLICT,"MEDICATION_REQUIRES_LOG");
    var args=new ArrayList<>(s.args);args.add(item.id);
    if(db.queryForObject("SELECT COUNT(*)"+s.sql+" AND t.id=?",Integer.class,args.toArray())==1)
     db.update("INSERT INTO overdue_batch_items(batch_id,task_id,revision) VALUES(?,?,?) ON DUPLICATE KEY UPDATE task_id=task_id",batch,item.id,item.revision);
@@ -104,18 +105,18 @@ public class OverdueController extends ApiSupport {
  }
  @GetMapping("/batches/current") @Transactional
  public Map<String,Object> current(Authentication auth,@RequestParam String petId) {
-  String home=permission(auth,"READ");var rows=db.queryForList("SELECT id FROM overdue_batches WHERE account_id=? AND household_id=? AND pet_id=? AND state IN ('RUNNING','COMPLETE') ORDER BY (state='RUNNING') DESC,created_at DESC,id DESC LIMIT 1",String.class,auth.getName(),home,petId);
+  String home=permission(auth,"READ");com.petcare.shared.SubjectAccess.require(db,auth,petId,"READ");var rows=db.queryForList("SELECT id FROM overdue_batches WHERE account_id=? AND household_id=? AND pet_id=? AND state IN ('RUNNING','COMPLETE') ORDER BY (state='RUNNING') DESC,created_at DESC,id DESC LIMIT 1",String.class,auth.getName(),home,petId);
   return rows.isEmpty()?Map.of():stats(rows.getFirst());
  }
  private Map<String,Object> owned(Authentication auth,String batchId,String access,boolean lock) {
   String home=permission(auth,access);
   var rows=db.queryForList("SELECT * FROM overdue_batches WHERE id=? AND account_id=? AND household_id=?"+(lock?" FOR UPDATE":""),batchId,auth.getName(),home);
   if(rows.isEmpty())throw new ResponseStatusException(HttpStatus.NOT_FOUND);
-  return rows.getFirst();
+  com.petcare.shared.SubjectAccess.require(db,auth,(String)rows.getFirst().get("pet_id"),access.equals("READ")?"READ":"CARE");return rows.getFirst();
  }
  @GetMapping("/batches") @Transactional
  public Map<String,Object> batches(Authentication auth,@RequestParam String petId,@RequestParam(defaultValue="false") boolean unfinished,@RequestParam(defaultValue="") String cursor) {
-  String home=permission(auth,"READ");var args=new ArrayList<Object>(List.of(auth.getName(),home,petId));
+  String home=permission(auth,"READ");if(db.queryForObject("SELECT COUNT(*) FROM pets WHERE id=? AND household_id=?",Integer.class,petId,home)==0)return Map.of("items",List.of(),"hasMore",false,"nextCursor","");com.petcare.shared.SubjectAccess.require(db,auth,petId,"READ");var args=new ArrayList<Object>(List.of(auth.getName(),home,petId));
   String where="";
   if(!cursor.isEmpty())try{
    var parts=new String(Base64.getUrlDecoder().decode(cursor),StandardCharsets.UTF_8).split("\\|",-1);
@@ -155,7 +156,7 @@ public class OverdueController extends ApiSupport {
  }
  @PostMapping("/batches/{batchId}/end") @Transactional
  public Map<String,Object> end(Authentication auth,@PathVariable String batchId) {
-  var job=owned(auth,batchId,"CARE",true);
+  var job=owned(auth,batchId,"READ",true);
   if(job.get("state").equals("RUNNING")) {
    db.update("UPDATE overdue_batch_items SET status='STOPPED',reason='USER_ENDED' WHERE batch_id=? AND status='PENDING'",batchId);
    db.update("UPDATE overdue_batches SET state='ENDED',finished_at=UTC_TIMESTAMP(6) WHERE id=?",batchId);
@@ -163,7 +164,7 @@ public class OverdueController extends ApiSupport {
   return stats(batchId);
  }
  private String changedReason(String task,String home,Map<String,Object> job,Object revision) {
-  var rows=db.queryForList("SELECT t.revision,t.completed,t.skipped,t.cancelled,t.due_at FROM care_tasks t JOIN pets p ON p.id=t.pet_id WHERE t.id=? AND p.household_id=? AND t.pet_id=?",task,home,job.get("pet_id"));
+  var rows=db.queryForList("SELECT t.revision,t.completed,t.skipped,t.cancelled,t.due_at FROM care_tasks t JOIN pets p ON p.id=t.pet_id WHERE t.id=? AND p.household_id=?"+com.petcare.shared.SubjectAccess.and("p")+" AND t.pet_id=?",task,home,job.get("pet_id"));
   if(rows.isEmpty())return "UNAVAILABLE";
   var row=rows.getFirst();
   if(Boolean.TRUE.equals(row.get("completed")) || Boolean.TRUE.equals(row.get("skipped")) || Boolean.TRUE.equals(row.get("cancelled")))return "STATE_CHANGED";
@@ -175,7 +176,7 @@ public class OverdueController extends ApiSupport {
   String home=permission(auth,"CARE");
   var jobs=db.queryForList("SELECT * FROM overdue_batches WHERE id=? AND account_id=? AND household_id=? FOR UPDATE",batchId,auth.getName(),home);
   if(jobs.isEmpty())throw new ResponseStatusException(HttpStatus.NOT_FOUND);
-  var job=jobs.getFirst();
+  var job=jobs.getFirst();com.petcare.shared.SubjectAccess.require(db,auth,(String)job.get("pet_id"),"CARE");
   if(job.get("state").equals("PREVIEW") && ((Timestamp)job.get("expires_at")).toInstant().isBefore(Instant.now()))throw new ResponseStatusException(HttpStatus.CONFLICT,"OVERDUE_PREVIEW_EXPIRED");
   if(job.get("state").equals("COMPLETE") || job.get("state").equals("ENDED"))return stats(batchId);
   db.update("UPDATE overdue_batches SET state='RUNNING',finished_at=NULL WHERE id=?",batchId);
@@ -185,7 +186,7 @@ public class OverdueController extends ApiSupport {
    var tx=org.springframework.transaction.interceptor.TransactionAspectSupport.currentTransactionStatus();
    Object savepoint=tx.createSavepoint();String status,reason=null;
    try {
-    int changed=db.update("UPDATE care_tasks t JOIN pets p ON p.id=t.pet_id SET t.skipped=TRUE,t.revision=t.revision+1 WHERE t.id=? AND p.household_id=? AND t.pet_id=? AND t.revision=? AND t.completed=FALSE AND t.cancelled=FALSE AND t.skipped=FALSE AND t.due_at<?",task,home,job.get("pet_id"),entry.get("revision"),job.get("before_at"));
+    int changed=db.update("UPDATE care_tasks t JOIN pets p ON p.id=t.pet_id SET t.skipped=TRUE,t.revision=t.revision+1 WHERE t.id=? AND p.household_id=?"+com.petcare.shared.SubjectAccess.and("p")+" AND t.pet_id=? AND t.revision=? AND t.completed=FALSE AND t.cancelled=FALSE AND t.skipped=FALSE AND t.due_at<?",task,home,job.get("pet_id"),entry.get("revision"),job.get("before_at"));
     if(changed==1)db.update("INSERT INTO care_events(id,task_id,actor_id,action,happened_at) VALUES(?,?,?,'SKIPPED',UTC_TIMESTAMP(6))",id(),task,auth.getName());
     status=changed==1?"SUCCESS":"CHANGED";
     if(changed==0)reason=changedReason(task,home,job,entry.get("revision"));

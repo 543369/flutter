@@ -20,7 +20,7 @@ class _PetCareAppState extends State<PetCareApp> {
   @override
   Widget build(BuildContext context) => MaterialApp(
         debugShowCheckedModeBanner: false,
-        title: 'PetCare',
+        title: '家庭照护 · Family Care',
         locale: locale,
         supportedLocales: const [Locale('zh'), Locale('en')],
         localizationsDelegates: GlobalMaterialLocalizations.delegates,

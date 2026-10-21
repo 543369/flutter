@@ -20,7 +20,7 @@ public class CarePlans {
         Instant through = now.plus(30, ChronoUnit.DAYS);
         Instant max = Instant.parse("2037-12-31T23:59:59Z");
         if (through.isAfter(max)) through = max;
-        var plans = db.queryForList("SELECT c.* FROM care_plans c JOIN pets p ON p.id=c.pet_id WHERE p.household_id=? AND c.active=TRUE", household);
+        var plans = db.queryForList("SELECT c.* FROM care_plans c JOIN pets p ON p.id=c.pet_id WHERE p.household_id=? AND c.active=TRUE AND (p.subject_type='PET' OR p.consent_revoked_at IS NULL)", household);
         int inserted=0;
         for (var plan : plans) {
             var start = ((Timestamp) plan.get("starts_at")).toInstant();

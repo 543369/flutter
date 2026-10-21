@@ -7,6 +7,8 @@ import 'pet_module.dart';
 import 'pet_profile.dart';
 import 'pet_photo_carousel.dart';
 import 'memory_pages.dart';
+import 'subject_access_page.dart';
+import '../subjects/subject_scenarios.dart';
 
 class PetDetailPage extends StatelessWidget {
   const PetDetailPage({super.key, required this.home, required this.petId});
@@ -26,8 +28,10 @@ class PetDetailPage extends StatelessWidget {
         builder: (context, _) {
           final pet = home.pets.where((p) => p['id'] == petId).firstOrNull;
           return Scaffold(
-            appBar: AppBar(title: Text(t('宠物详情', 'Pet profile')), actions: [
-              if (pet != null)
+            appBar: AppBar(title: Text(t('照护对象详情', 'Care profile')), actions: [
+              if (pet != null &&
+                  (pet['subjectType'] != 'HUMAN' ||
+                      pet['canManageSubject'] == true))
                 IconButton(
                     tooltip: t('编辑档案', 'Edit profile'),
                     onPressed: home.busy ? null : () => home.editPet(pet),
@@ -38,8 +42,8 @@ class PetDetailPage extends StatelessWidget {
                     child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 760),
               child: pet == null
-                  ? Text(t(
-                      '此宠物档案已不存在。', 'This pet profile is no longer available.'))
+                  ? Text(t('此照护对象档案不存在或已无权访问。',
+                      'This pet profile is no longer available.'))
                   : ListView(
                       padding: AppSpacing.dialogInsets,
                       children: [
@@ -51,6 +55,21 @@ class PetDetailPage extends StatelessWidget {
                                 child: PetPhotoCarousel(
                                     pet: pet, openPhotos: true))),
                         const SizedBox(height: AppSpacing.section),
+                        if (pet['subjectType'] == 'HUMAN') ...[
+                          Text(t('家人照护 · ${pet['relationship'] ?? ''}',
+                              'Family care · ${pet['relationship'] ?? ''}')),
+                          Text(
+                              '${stageLabel(pet['lifeStage'] as String?, home.zh)} · ${scenariosFor(pet).map((s) => scenarioLabel(s, home.zh)).join(' / ')}'),
+                          if (pet['canManageSubject'] == true)
+                            OutlinedButton.icon(
+                                onPressed: () => Navigator.of(context).push(
+                                    MaterialPageRoute<void>(
+                                        builder: (_) => SubjectAccessPage(
+                                            home: home, subject: pet))),
+                                icon: const Icon(Icons.privacy_tip_outlined),
+                                label: Text(
+                                    t('资料授权与共享', 'Authorization & sharing'))),
+                        ],
                         Text(pet['name'] as String,
                             style: Theme.of(context).textTheme.headlineLarge),
                         const SizedBox(height: AppSpacing.inline),
@@ -65,8 +84,11 @@ class PetDetailPage extends StatelessWidget {
                                 leading: const Icon(
                                     Icons.health_and_safety_outlined),
                                 title: Text(t('健康档案', 'Health records')),
-                                subtitle: Text(t('疫苗 · 驱虫 · 用药 · 过敏 · 体重 · 就诊',
-                                    'Vaccines · Medication · Weight · Vet visits')),
+                                subtitle: Text(pet['subjectType'] == 'HUMAN'
+                                    ? t('用药 · 过敏 · 体重 · 就诊',
+                                        'Medication · Allergies · Weight · Visits')
+                                    : t('疫苗 · 驱虫 · 用药 · 过敏 · 体重 · 就诊',
+                                        'Vaccines · Medication · Weight · Vet visits')),
                                 trailing: const Icon(Icons.chevron_right),
                                 onTap: () => Navigator.push<void>(
                                     context,
@@ -158,24 +180,30 @@ class PetDetailPage extends StatelessWidget {
                             icon: const Icon(Icons.event_available_rounded),
                             label: Text(t('查看照护安排', 'View care plans'))),
                         const SizedBox(height: AppSpacing.inline),
-                        OutlinedButton.icon(
-                            onPressed:
-                                home.busy ? null : () => home.editPet(pet),
-                            icon: const Icon(Icons.edit_outlined),
-                            label: Text(t('编辑档案', 'Edit profile'))),
+                        if (pet['subjectType'] != 'HUMAN' ||
+                            pet['canManageSubject'] == true)
+                          OutlinedButton.icon(
+                              onPressed:
+                                  home.busy ? null : () => home.editPet(pet),
+                              icon: const Icon(Icons.edit_outlined),
+                              label: Text(t('编辑档案', 'Edit profile'))),
                         const SizedBox(height: AppSpacing.content),
-                        TextButton.icon(
-                            onPressed: home.busy
-                                ? null
-                                : () async {
-                                    final deleted =
-                                        await home.deletePetProfile(pet);
-                                    if (deleted && context.mounted) {
-                                      Navigator.of(context).pop();
-                                    }
-                                  },
-                            icon: const Icon(Icons.delete_outline_rounded),
-                            label: Text(t('删除宠物档案', 'Delete pet profile'))),
+                        if (pet['subjectType'] != 'HUMAN' ||
+                            pet['canManageSubject'] == true)
+                          TextButton.icon(
+                              onPressed: home.busy
+                                  ? null
+                                  : () async {
+                                      final deleted =
+                                          await home.deletePetProfile(pet);
+                                      if (deleted && context.mounted) {
+                                        Navigator.of(context).pop();
+                                      }
+                                    },
+                              icon: const Icon(Icons.delete_outline_rounded),
+                              label: Text(pet['subjectType'] == 'HUMAN'
+                                  ? t('删除家人档案', 'Delete family profile')
+                                  : t('删除宠物档案', 'Delete pet profile'))),
                       ],
                     ),
             ))),

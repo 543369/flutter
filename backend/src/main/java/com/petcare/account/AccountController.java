@@ -83,6 +83,7 @@ class AccountController extends ApiSupport {
   if("ADMIN".equals(db.queryForObject("SELECT family_role FROM accounts WHERE id=?",String.class,auth.getName())))
    db.update("DELETE FROM invites WHERE household_id=?",home);
   db.update("UPDATE care_tasks SET revision=revision+1,assigned_to=NULL WHERE assigned_to=?",auth.getName());
+  db.update("DELETE FROM pets WHERE subject_owner=? AND subject_type='HUMAN'",auth.getName());
   db.update("DELETE FROM accounts WHERE id=?",auth.getName());
   if(db.queryForObject("SELECT COUNT(*) FROM accounts WHERE household_id=?",Integer.class,home)==0)
    db.update("DELETE FROM households WHERE id=?",home);

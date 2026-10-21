@@ -27,11 +27,12 @@ public class CareSyncController extends ApiSupport {
   @Pattern(regexp="[a-fA-F0-9-]{36}") String dependsOn,
   @NotBlank @Pattern(regexp="COMPLETE|REOPEN|RESCHEDULE|ASSIGN|SKIP|CANCEL|EDIT") String action,
   Instant dueAt,@Size(max=36) String memberId,@Size(min=1,max=120) String title,
-  @Pattern(regexp="FEEDING|WATER|DEWORMING|VACCINE|WALK|GROOMING|CUSTOM") String careType) {}
+  @Pattern(regexp="FEEDING|WATER|DEWORMING|VACCINE|WALK|GROOMING|MEAL|DRINK|MEDICATION|REHAB|APPOINTMENT|DAILY|NURTURE|SLEEP|GROWTH|PICKUP|HANDOVER|OBSERVATION|CUSTOM") String careType) {}
  @PostMapping @Transactional
  public Map<String,Object> apply(Authentication auth,@Valid @RequestBody Operation op) {
   String home=permission(auth,"CARE");
   if(!home.equals(op.householdId()))throw new ResponseStatusException(HttpStatus.CONFLICT,"HOUSEHOLD_CHANGED");
+  com.petcare.shared.SubjectAccess.task(db,auth,op.taskId(),"CARE");
   String hash=Tokens.hash(json.writeValueAsString(op));
   var receipts=db.queryForList("SELECT * FROM care_sync_receipts WHERE account_id=? AND operation_id=?",auth.getName(),op.operationId());
   if(!receipts.isEmpty()) {
@@ -39,6 +40,9 @@ public class CareSyncController extends ApiSupport {
    return result(home,op.taskId());
   }
   var task=queries.task(home,op.taskId());
+  if(task.get("careType").equals("MEDICATION") && op.action().equals("EDIT") && op.careType()!=null && !op.careType().equals("MEDICATION"))throw new ResponseStatusException(HttpStatus.CONFLICT,"MEDICATION_REQUIRES_LOG");
+  if(op.action().equals("EDIT") && op.careType()!=null)com.petcare.shared.SubjectAccess.type(db,(String)task.get("petId"),op.careType());
+  if(Set.of("COMPLETE","REOPEN","SKIP").contains(op.action()) && task.get("careType").equals("MEDICATION"))throw new ResponseStatusException(HttpStatus.CONFLICT,"MEDICATION_REQUIRES_LOG");
   long expected=op.revision();
   if(op.dependsOn()!=null) {
    var parent=db.queryForList("SELECT revision FROM care_sync_receipts WHERE account_id=? AND operation_id=? AND household_id=? AND task_id=?",auth.getName(),op.dependsOn(),home,op.taskId());
@@ -68,6 +72,7 @@ public class CareSyncController extends ApiSupport {
     }
     case "ASSIGN" -> {
      if(op.memberId()!=null && db.queryForObject("SELECT COUNT(*) FROM accounts WHERE id=? AND household_id=? AND (access_until IS NULL OR access_until>UTC_TIMESTAMP(6)) AND (family_role='ADMIN' OR FIND_IN_SET('CARE',permissions)>0)",Integer.class,op.memberId(),home)!=1)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"INVALID_ASSIGNEE");
+     if(op.memberId()!=null)com.petcare.shared.SubjectAccess.require(db,new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(op.memberId(),null),(String)task.get("petId"),"CARE");
      db.update("UPDATE care_tasks SET revision=revision+1,assigned_to=? WHERE id=?",op.memberId(),op.taskId());event=null;
     }
     case "SKIP","CANCEL" -> {

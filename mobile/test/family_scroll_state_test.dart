@@ -11,7 +11,7 @@ void main() {
     await tapVisible(tester, find.text('Data & privacy'));
     expect(tester.takeException(), isNull);
     expect(find.text('Delete my account'), findsOneWidget);
-    await tester.tap(find.text('Pets'));
+    await tester.tap(find.text('Profiles'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Family'));
     await tester.pumpAndSettle();

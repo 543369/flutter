@@ -1,15 +1,16 @@
-# 爪伴 PetCare
+# 家庭照护 Family Care（原 PetCare）
 
-Flutter + Java 21 / Spring Boot 4.1.1 + MySQL 的宠物照护与家庭协作新工程。
+Flutter + Java 21 / Spring Boot 4.1.1 + MySQL 的家人／宠物日常照护与家庭协作应用。
 
 **当前是开发预览版，未发布 App Store。** Flutter 不直连数据库，而是通过带 Bearer 令牌的 Java API 访问 MySQL；数据库密码不进入 App。
 
 ## 目录
 
-- `mobile/`：Flutter iOS / Android，中英文，宠物、照护、家庭三个入口。
+- `mobile/`：Flutter iOS / Android，中英文，照护、照护对象、家庭三个入口。
 - `backend/`：Java REST API、Spring Security、JDBC、Flyway 迁移、Maven Wrapper。
 - `compose.yaml`：MySQL 8.4 + Java API 本地容器编排。
 - `scripts/smoke_test.py`：真实 HTTP / MySQL 测试，包含跨家庭访问拒绝和邀请/删除。
+- [宠物与家人统一档案、授权和用药记录](docs/subjects-and-consent.md)
 - [模块划分与登录注册](docs/modules-and-auth.md)
 - [移动端设计规范与首页参考](docs/design/README.md)
 - [照护闭环使用说明](docs/care-workflow.md)
@@ -91,7 +92,7 @@ flutter run --dart-define=API_BASE_URL=http://127.0.0.1:18080
 - 已实现每天/每周重复计划、本地通知、完成/撤销历史、成员称呼和前台自动同步。时间按计划时区生成、设备本地时间显示；已有照护事项支持本机持久化离线操作队列；跨设备 FCM/APNs 同步推送代码已接入，默认关闭，尚需项目配置与真机验收，详见离线与推送说明。
 - 删除宠物会级联删除事项；删除最后一个家庭成员时清理共享数据，其他情况下保留共享记录。
 - 国内与海外可用相同源码连接不同服务；当前没有自动区域路由与跨区同步。
-- 尚未实现订阅、正式隐私政策托管、生产部署和 Apple 签名。
+- 订阅代码已接入但真实支付未开通；正式隐私政策托管、生产部署和 Apple 签名尚待完成。
 
 ## 验证
 

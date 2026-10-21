@@ -60,3 +60,13 @@
 ### 健康记录文件夹查看
 
 `GET /api/pets/{petId}/health?offset=0&kind=&folder=...` 支持文件夹筛选：不带 `folder` 为全部记录，`folder=` 为未整理，其他值按文件夹名称匹配；可与 kind 叠加，筛选后每页 20 条。文件夹名须 URL 编码。返回 `folders:[{name,count}]`，为该宠物全部健康记录的文件夹计数（不受当前筛选或分页影响）。整理只改变 folder，原 kind 保留，读取仍校验 HEALTH 权限和宠物家庭归属。
+
+
+### 统一照护对象（V24）
+
+现有 pets / petId API 保留，dashboard 同时返回 pets 与 subjects，记录增加 subjectType（PET/HUMAN）、relationship、consentActive、canManageSubject、canCareSubject。旧记录默认 PET，家庭宠物共享规则不变。家人档案、逐人授权、撤回及专门用药结果 API 详见 [统一档案与授权](subjects-and-consent.md)。同一家庭的管理员也不自动获得家人档案访问权限；读取过滤先于分页／统计，写入同时检查对象授权、原家庭模块权限和版本。MEDICATION 不能通过普通完成、撤销或批量跳过代替，已服用的 MED_TAKEN 计入完成统计，其他用药结果不计完成。
+
+
+### 家人阶段与叠加场景（V25）
+
+家人档案请求与 dashboard 返回增加 `lifeStage: ELDER|CHILD|OTHER`、`careScenarios: [DAILY,RECOVERY]`。创建时省略为 OTHER + DAILY；更新时省略保留原值。场景可叠加、至少一个、禁止重复，不符合返回 400。已有家人迁移为 OTHER + DAILY/RECOVERY，以保留原有模板范围，旧宠物不变。模板分类新增 HUMAN 专用的 NURTURE、SLEEP、GROWTH、PICKUP、HANDOVER、OBSERVATION；选择场景只影响前端模板推荐，不限制已有合法任务的查看和处理。

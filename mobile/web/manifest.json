@@ -1,11 +1,11 @@
 {
-    "name": "petcare",
-    "short_name": "petcare",
+    "name": "家庭照护",
+    "short_name": "家庭照护",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Family care for people and pets.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -183,6 +183,19 @@ class CareApi {
       result = Map<String, dynamic>.from(await request('GET',
               '/dashboard?compact=true&overdueBefore=${Uri.encodeQueryComponent(DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day).toUtc().toIso8601String())}')
           as Map);
+      final visibleIds = (result['pets'] as List? ?? [])
+          .cast<Map>()
+          .map((p) => p['id'])
+          .toSet();
+      final revokedHuman = (offlineCare.snapshot?['pets'] as List? ?? [])
+          .cast<Map>()
+          .any((p) =>
+              p['subjectType'] == 'HUMAN' && !visibleIds.contains(p['id']));
+      if (revokedHuman ||
+          _petPhotos.keys.any((id) => !visibleIds.contains(id))) {
+        _petPhotos.removeWhere((id, _) => !visibleIds.contains(id));
+        PhotoCache.shared.clear();
+      }
       await offlineCare.remember(result);
       result = offlineCare.project(result);
     } catch (e) {

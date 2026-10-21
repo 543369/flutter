@@ -53,9 +53,9 @@ extension PetModule on CareHomeState {
       final loaded = await loadPhoto(pet);
       if (!mounted) return;
       if (!loaded) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(
-            t('请等待照片加载完成后再编辑，可点击重试照片。',
-              'Wait for photos to load before editing. You can retry photos.'))));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(t('请等待照片加载完成后再编辑，可点击重试照片。',
+                'Wait for photos to load before editing. You can retry photos.'))));
         return;
       }
       pet = pets.firstWhere((p) => p['id'] == pet!['id']);
@@ -75,11 +75,14 @@ extension PetModule on CareHomeState {
         builder: (_) => PetDetailPage(home: this, petId: pet['id'] as String)));
   }
 
-  String petSpeciesLabel(Map<String, dynamic> pet) => switch (pet['species']) {
-        'cat' => t('猫', 'Cat'),
-        'dog' => t('狗', 'Dog'),
-        _ => t('其他', 'Other'),
-      };
+  String petSpeciesLabel(Map<String, dynamic> pet) =>
+      pet['subjectType'] == 'HUMAN'
+          ? t('家人', 'Person')
+          : switch (pet['species']) {
+              'cat' => t('猫', 'Cat'),
+              'dog' => t('狗', 'Dog'),
+              _ => t('其他', 'Other'),
+            };
 
   Widget petAvatar(Map<String, dynamic> pet) {
     final photo = petPhotos(pet).firstOrNull;
@@ -96,16 +99,18 @@ extension PetModule on CareHomeState {
             ? const Color(0xffffd9b8)
             : const Color(0xffdfeaf5),
         child: Icon(
-            pet['species'] == 'cat'
-                ? Icons.cruelty_free_rounded
-                : Icons.pets_rounded,
+            pet['subjectType'] == 'HUMAN'
+                ? Icons.person_outline
+                : pet['species'] == 'cat'
+                    ? Icons.cruelty_free_rounded
+                    : Icons.pets_rounded,
             color: const Color(0xff694536)));
   }
 
   Future<bool> deletePetProfile(Map<String, dynamic> pet) async {
     if (!await confirm(
-        t('删除宠物？', 'Delete pet?'),
-        t('此宠物的档案、照护事项和图文回忆录将一并删除，所有家庭成员都会受影响。',
+        t('删除照护对象？', 'Delete care profile?'),
+        t('此照护对象的档案、照护事项和图文回忆录将一并删除，所有家庭成员都会受影响。',
             'This deletes the pet profile, care tasks and photo memories for everyone.'))) {
       return false;
     }
@@ -123,7 +128,7 @@ extension PetModule on CareHomeState {
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                Text(t('我们的毛孩子', 'Our companions'),
+                Text(t('家人和毛孩子', 'Our companions'),
                     style: Theme.of(context).textTheme.headlineMedium),
                 const SizedBox(height: AppSpacing.inline),
                 Text(t('把陪伴的每一天，都好好收藏。', 'Every day together, worth keeping.')),
@@ -132,7 +137,7 @@ extension PetModule on CareHomeState {
           TextButton.icon(
               onPressed: busy ? null : addPet,
               icon: const Icon(Icons.add_rounded, size: 19),
-              label: Text(t('添加宠物', 'Add a pet'))),
+              label: Text(t('添加照护对象', 'Add care profile'))),
         ]),
         const SizedBox(height: AppSpacing.section),
         if (pets.isEmpty)

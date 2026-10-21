@@ -39,6 +39,12 @@ class _HealthRecordsPageState extends State<HealthRecordsPage> {
   int limit = 2;
   String t(String z, String e) => widget.home.t(z, e);
   String get path => '/pets/${widget.petId}/health';
+  bool get canWrite =>
+      widget.home.can('HEALTH') &&
+      widget.home.pets
+              .where((p) => p['id'] == widget.petId)
+              .firstOrNull?['canCareSubject'] !=
+          false;
   @override
   void initState() {
     super.initState();
@@ -228,7 +234,7 @@ class _HealthRecordsPageState extends State<HealthRecordsPage> {
             icon: const Icon(Icons.ios_share_outlined))
       ]),
       floatingActionButton: FloatingActionButton.extended(
-          onPressed: loading ? null : () => edit(),
+          onPressed: loading || !canWrite ? null : () => edit(),
           icon: const Icon(Icons.add),
           label: Text(t('新增记录', 'Add record'))),
       body: Center(
@@ -274,7 +280,12 @@ class _HealthRecordsPageState extends State<HealthRecordsPage> {
                                       setState(() => kind = '');
                                       load();
                                     }),
-                          for (final entry in healthKinds.entries)
+                          for (final entry in healthKinds.entries.where((e) =>
+                              e.key != 'DEWORMING' ||
+                              widget.home.pets
+                                      .where((p) => p['id'] == widget.petId)
+                                      .firstOrNull?['subjectType'] !=
+                                  'HUMAN'))
                             ChoiceChip(
                                 avatar: Icon(entry.value.$3, size: 18),
                                 label: Text(t(entry.value.$1, entry.value.$2)),
@@ -287,7 +298,7 @@ class _HealthRecordsPageState extends State<HealthRecordsPage> {
                                       }),
                         ]),
                     const SizedBox(height: AppSpacing.item),
-                    if (advanced)
+                    if (advanced && canWrite)
                       Row(children: [
                         Expanded(
                             child: Text(t('勾选记录可整理到文件夹',
@@ -323,7 +334,7 @@ class _HealthRecordsPageState extends State<HealthRecordsPage> {
                           child: ListTile(
                               contentPadding:
                                   const EdgeInsets.all(AppSpacing.content),
-                              leading: advanced
+                              leading: advanced && canWrite
                                   ? Checkbox(
                                       value: selected.contains(item['id']),
                                       onChanged: loading
@@ -476,6 +487,12 @@ class _HealthRecordEditorState extends State<HealthRecordEditor> {
                 initialValue: kind,
                 decoration: InputDecoration(labelText: t('记录类型', 'Type')),
                 items: healthKinds.entries
+                    .where((e) =>
+                        e.key != 'DEWORMING' ||
+                        widget.home.pets
+                                .where((p) => p['id'] == widget.petId)
+                                .firstOrNull?['subjectType'] !=
+                            'HUMAN')
                     .map((e) => DropdownMenuItem(
                         value: e.key, child: Text(t(e.value.$1, e.value.$2))))
                     .toList(),
@@ -576,6 +593,12 @@ class HealthRecordDetail extends StatefulWidget {
 }
 
 class _HealthRecordDetailState extends State<HealthRecordDetail> {
+  bool get canWrite =>
+      widget.home.can('HEALTH') &&
+      widget.home.pets
+              .where((p) => p['id'] == widget.petId)
+              .firstOrNull?['canCareSubject'] !=
+          false;
   Map<String, dynamic>? record;
   String? error;
   bool busy = false;
@@ -684,7 +707,7 @@ class _HealthRecordDetailState extends State<HealthRecordDetail> {
                             aspectRatio: 1.25,
                             child: MemoryPhoto(
                                 data: p as String, fit: BoxFit.contain))),
-                  if (widget.home.can('CARE')) ...[
+                  if (widget.home.can('CARE') && canWrite) ...[
                     OutlinedButton.icon(
                         onPressed: busy ? null : scheduleReminder,
                         icon: const Icon(Icons.notifications_outlined),
@@ -732,7 +755,7 @@ class _HealthRecordDetailState extends State<HealthRecordDetail> {
                       'Folder: ${record!['folder']}')),
                   const SizedBox(height: AppSpacing.section),
                   FilledButton.icon(
-                      onPressed: busy
+                      onPressed: busy || !canWrite
                           ? null
                           : () async {
                               final changed = await showDialog<bool>(
@@ -747,7 +770,7 @@ class _HealthRecordDetailState extends State<HealthRecordDetail> {
                       icon: const Icon(Icons.edit_outlined),
                       label: Text(t('编辑记录', 'Edit record'))),
                   TextButton(
-                      onPressed: busy ? null : remove,
+                      onPressed: busy || !canWrite ? null : remove,
                       child: Text(t('删除记录', 'Delete record'))),
                 ]
               ]))));

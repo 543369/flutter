@@ -119,7 +119,7 @@ void main() {
       (tester) async {
     final api = HealthFamilyApi()..advanced = false;
     await showCare(tester, api);
-    await tester.tap(find.text('Pets'));
+    await tester.tap(find.text('Profiles'));
     await tester.pumpAndSettle();
     await tapVisible(tester, find.byKey(const ValueKey('pet-card-pet')));
     await tapVisible(tester, find.text('Health records'));
@@ -161,7 +161,7 @@ void main() {
       'careReminders': []
     });
     await showCare(tester, api);
-    await tester.tap(find.text('Pets'));
+    await tester.tap(find.text('Profiles'));
     await tester.pumpAndSettle();
     await tapVisible(tester, find.byKey(const ValueKey('pet-card-pet')));
     await tapVisible(tester, find.text('Health records'));

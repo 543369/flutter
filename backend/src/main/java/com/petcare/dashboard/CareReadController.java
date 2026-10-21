@@ -17,7 +17,7 @@ class CareReadController extends ApiSupport {
  Map<String,Object> tasks(Authentication auth,@RequestParam(required=false) String petId,@RequestParam(required=false) String cursor) {
   var after=decode(cursor);
   String home=permission(auth,"READ");
-  var items = db.query("SELECT t.id,t.pet_id,t.title,t.due_at,t.completed,p.name,t.plan_id,t.care_type,t.assigned_to,t.created_at,t.revision FROM care_tasks t JOIN pets p ON p.id=t.pet_id WHERE p.household_id=? AND t.cancelled=FALSE AND t.skipped=FALSE AND (? IS NULL OR t.pet_id=?) AND (? IS NULL OR t.created_at<? OR (t.created_at=? AND t.id<?)) ORDER BY t.created_at DESC,t.id DESC LIMIT 51", (r,n) -> {
+  var items = db.query("SELECT t.id,t.pet_id,t.title,t.due_at,t.completed,p.name,t.plan_id,t.care_type,t.assigned_to,t.created_at,t.revision FROM care_tasks t JOIN pets p ON p.id=t.pet_id WHERE p.household_id=?"+com.petcare.shared.SubjectAccess.and("p")+" AND t.cancelled=FALSE AND t.skipped=FALSE AND (? IS NULL OR t.pet_id=?) AND (? IS NULL OR t.created_at<? OR (t.created_at=? AND t.id<?)) ORDER BY t.created_at DESC,t.id DESC LIMIT 51", (r,n) -> {
    Map<String,Object> row = new LinkedHashMap<>();
    row.put("id",r.getString(1)); row.put("petId",r.getString(2)); row.put("title",r.getString(3));
    row.put("dueAt",r.getTimestamp(4).toInstant().toString()); row.put("completed",r.getBoolean(5));
@@ -29,7 +29,7 @@ class CareReadController extends ApiSupport {
  Map<String,Object> care_history(Authentication auth,@RequestParam(required=false) String petId,@RequestParam(required=false) String cursor) {
   var after=decode(cursor);
   String home=permission(auth,"READ");
-  var items = db.query("SELECT e.id,e.task_id,e.action,e.happened_at,a.display_name,t.title,p.name,p.id,t.care_type FROM care_events e JOIN care_tasks t ON t.id=e.task_id JOIN pets p ON p.id=t.pet_id LEFT JOIN accounts a ON a.id=e.actor_id WHERE p.household_id=? AND (? IS NULL OR p.id=?) AND (? IS NULL OR e.happened_at<? OR (e.happened_at=? AND e.id<?)) ORDER BY e.happened_at DESC,e.id DESC LIMIT 51", (r,n) -> {
+  var items = db.query("SELECT e.id,e.task_id,e.action,e.happened_at,a.display_name,t.title,p.name,p.id,t.care_type FROM care_events e JOIN care_tasks t ON t.id=e.task_id JOIN pets p ON p.id=t.pet_id LEFT JOIN accounts a ON a.id=e.actor_id WHERE p.household_id=?"+com.petcare.shared.SubjectAccess.and("p")+" AND (? IS NULL OR p.id=?) AND (? IS NULL OR e.happened_at<? OR (e.happened_at=? AND e.id<?)) ORDER BY e.happened_at DESC,e.id DESC LIMIT 51", (r,n) -> {
    Map<String,Object> row = new LinkedHashMap<>();
    row.put("id",r.getString(1)); row.put("taskId",r.getString(2)); row.put("action",r.getString(3));
    row.put("at",r.getTimestamp(4).toInstant().toString()); row.put("actor",r.getString(5));

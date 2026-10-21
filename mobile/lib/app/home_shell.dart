@@ -569,6 +569,31 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
         return t('此安排状态已变化，请刷新后重试。',
             'This task has changed. Refresh and try again.');
       }
+      if (e.code == 'SUBJECT_OWNER_HAS_PROFILES') {
+        return t('请先删除你创建的家人照护档案，再退出或移除成员。',
+            'Remove the human profiles created by this member before leaving or removing them.');
+      }
+      if (e.code == 'SUBJECT_ACCESS_DENIED' ||
+          e.code == 'SUBJECT_CONSENT_REVOKED') {
+        return t('该照护对象未授权访问或授权已撤回，请刷新。',
+            'Access is not granted or was revoked. Refresh the app.');
+      }
+      if (e.code == 'SUBJECT_CONSENT_REQUIRED') {
+        return t('请确认已获得保存资料的必要授权。',
+            'Confirm authorization to store this information.');
+      }
+      if (e.code == 'INVALID_SUBJECT_SCENARIO') {
+        return t('请选择有效的家人阶段和至少一种照护场景。',
+            'Choose a valid life stage and at least one care scenario.');
+      }
+      if (e.code == 'INVALID_SUBJECT_CARE_TYPE') {
+        return t('请选择适用于该照护对象的类型。',
+            'Choose a care type available for this profile.');
+      }
+      if (e.code == 'MEDICATION_REQUIRES_LOG') {
+        return t('用药请通过专门的用药记录填写实际结果。',
+            'Use the medication record to enter the actual outcome.');
+      }
       if (e.status == 409) {
         return t('仅没有宠物的独立家庭可加入其他家庭。',
             'Only an empty, single-member household can join another.');
@@ -824,7 +849,7 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
                 NavigationDestination(
                   icon: const Icon(Icons.pets_outlined),
                   selectedIcon: const Icon(Icons.pets),
-                  label: t('宠物', 'Pets'),
+                  label: t('照护对象', 'Profiles'),
                 ),
                 NavigationDestination(
                   icon: const Icon(Icons.people_outline_rounded),

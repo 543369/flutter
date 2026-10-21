@@ -361,8 +361,8 @@ extension FamilyModule on CareHomeState {
                     0, AppSpacing.content, AppSpacing.content),
                 children: [
                   Text(t(
-                      '家庭成员可共同管理宠物、照护和回忆录。照片、故事和档案保存在服务端，只对家庭成员开放。加入其他家庭要求当前家庭只有你且没有宠物。',
-                      'Household members share pets, care and memories. Photos, stories and profiles are stored on the server and are only available to your household. Joining another home requires a solo household with no pets.')),
+                      '宠物资料按家庭模块权限共享。家人档案默认私有，由创建者逐人授权。资料保存在服务端；加入其他家庭要求当前家庭只有你且没有照护对象。',
+                      'Pet records follow household permissions. Human profiles are private until individually shared. Joining another home requires a solo household with no care profiles.')),
                   const SizedBox(height: AppSpacing.item),
                   TextButton.icon(
                       icon: const Icon(Icons.delete_outline_rounded),
@@ -372,8 +372,8 @@ extension FamilyModule on CareHomeState {
                           : () async {
                               if (await confirm(
                                   t('永久删除？', 'Delete permanently?'),
-                                  t('将删除当前身份并退出家庭。若你是最后一位成员，宠物、照护和回忆录也会删除；否则共享记录保留给家人。',
-                                      'Your identity will be deleted. If you are the last member, all pets, care and memories will also be deleted; otherwise shared records remain for your family.'))) {
+                                  t('将删除当前身份及你创建的家人照护档案。若你是最后一位成员，家庭全部资料也会删除；否则宠物共享记录保留给家人。',
+                                      'Your identity and the human profiles you created will be deleted. If you are the last member, all household data is deleted; otherwise shared pet records remain.'))) {
                                 await perform(widget.api.deleteAccount);
                               }
                             }),

@@ -24,7 +24,7 @@ class MemoryController extends ApiSupport {
                     @NotNull @Size(max=6) List<@NotBlank @Size(max=1500000) String> photos) {}
 
  private String checkPet(Authentication auth, String petId) {
-  String home = permission(auth,"MEMORIES");
+  String home = permission(auth,"MEMORIES");com.petcare.shared.SubjectAccess.require(db,auth,petId,"READ");
   if (db.queryForObject("SELECT COUNT(*) FROM pets WHERE id=? AND household_id=?", Integer.class, petId, home) != 1)
    throw new ResponseStatusException(HttpStatus.NOT_FOUND);
   return home;
@@ -70,20 +70,20 @@ class MemoryController extends ApiSupport {
  }
  @PostMapping @ResponseStatus(HttpStatus.CREATED) @Transactional
  Map<String,String> create(Authentication auth,@PathVariable String petId,@Valid @RequestBody MemoryInput input) {
-  String home=checkPet(auth,petId); long before=benefits.usedBytes(home); String memory=id();
+  String home=checkPet(auth,petId);com.petcare.shared.SubjectAccess.require(db,auth,petId,"CARE"); long before=benefits.usedBytes(home); String memory=id();
   db.update("INSERT INTO pet_memories(id,pet_id,author_id,title,story,happened_on) VALUES (?,?,?,?,?,?)",memory,petId,auth.getName(),input.title().strip(),input.story().strip(),input.happenedOn());
   savePhotos(memory,input.photos()); benefits.checkGrowth(home,before); return Map.of("id",memory);
  }
  @PatchMapping("/{memoryId}") @Transactional
  Map<String,String> update(Authentication auth,@PathVariable String petId,@PathVariable String memoryId,@Valid @RequestBody MemoryInput input) {
-  String home=checkPet(auth,petId); long before=benefits.usedBytes(home);
+  String home=checkPet(auth,petId);com.petcare.shared.SubjectAccess.require(db,auth,petId,"CARE"); long before=benefits.usedBytes(home);
   require(db.update("UPDATE pet_memories SET title=?,story=?,happened_on=?,updated_at=CURRENT_TIMESTAMP(6) WHERE id=? AND pet_id=?",input.title().strip(),input.story().strip(),input.happenedOn(),memoryId,petId));
   db.update("DELETE FROM pet_memory_photos WHERE memory_id=?",memoryId);
   savePhotos(memoryId,input.photos()); benefits.checkGrowth(home,before); return Map.of("id",memoryId);
  }
  @DeleteMapping("/{memoryId}") @ResponseStatus(HttpStatus.NO_CONTENT) @Transactional
  void delete(Authentication auth,@PathVariable String petId,@PathVariable String memoryId) {
-  checkPet(auth,petId);
+  checkPet(auth,petId);com.petcare.shared.SubjectAccess.require(db,auth,petId,"CARE");
   require(db.update("DELETE FROM pet_memories WHERE id=? AND pet_id=?",memoryId,petId));
  }
 }

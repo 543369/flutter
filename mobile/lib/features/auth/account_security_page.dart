@@ -472,8 +472,8 @@ class _ApplePasswordDialogState extends State<_ApplePasswordDialog> {
   Widget build(BuildContext context) => AlertDialog(
         title: Text(t('绑定 Apple 登录', 'Link Apple sign-in')),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text(t('请输入当前爪伴密码，再完成 Apple 授权。绑定后两种方式登录同一账号，家庭资料保留。',
-              'Enter your current PetCare password, then authorize Apple. Both methods will sign into this account and keep your household.')),
+          Text(t('请输入当前家庭照护密码，再完成 Apple 授权。绑定后两种方式登录同一账号，家庭资料保留。',
+              'Enter your current Family Care password, then authorize Apple. Both methods will sign into this account and keep your household.')),
           TextField(
               controller: password,
               obscureText: true,
