@@ -70,5 +70,48 @@ void main() {
     await tapVisible(tester, find.byKey(const ValueKey('open-annual-report')));
     await capture('annual-report');
     await tester.pumpWidget(const SizedBox());
+    api.benefit.addAll({
+      'tier': 'FREE',
+      'limitBytes': 104857600,
+      'canExport': false,
+      'canReport': false,
+    });
+    await tester.pumpWidget(RepaintBoundary(
+        key: boundaryKey,
+        child: PetCareApp(api: api, reminders: FakeReminders())));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('家庭'));
+    await tester.pumpAndSettle();
+    await tapVisible(tester, find.byKey(const ValueKey('household-benefits')));
+    await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('export-memory-book')), 200,
+        scrollable: find.byType(Scrollable).first);
+    await Scrollable.ensureVisible(
+        tester.element(find.byKey(const ValueKey('export-memory-book'))),
+        alignment: .6);
+    await capture('free-export-badge');
+    await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('open-annual-report')), 200,
+        scrollable: find.byType(Scrollable).first);
+    await Scrollable.ensureVisible(
+        tester.element(find.byKey(const ValueKey('open-annual-report'))),
+        alignment: .5);
+    await capture('free-report-badge');
+    tester
+        .state<ScrollableState>(find.byType(Scrollable).first)
+        .position
+        .jumpTo(0);
+    await tester.pumpAndSettle();
+    await tapVisible(tester, find.byKey(const ValueKey('membership-plans')));
+    await capture('plans-phone');
+    await tapVisible(tester, find.text('连续包年'));
+    await capture('plans-phone-annual');
+    await tester.binding.setSurfaceSize(const Size(900, 900));
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, 2000));
+    await capture('plans-wide');
+    expect(find.text('¥15'), findsOneWidget);
+    expect(find.text('¥128'), findsOneWidget);
+    expect(find.byType(SegmentedButton<bool>), findsNothing);
+    await tester.pumpWidget(const SizedBox());
   });
 }

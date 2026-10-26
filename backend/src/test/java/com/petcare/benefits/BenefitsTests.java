@@ -18,6 +18,22 @@ class BenefitsTests {
  @Autowired JdbcTemplate db;
  private String id() {return UUID.randomUUID().toString();}
  private String home() {String home=id();db.update("INSERT INTO households(id) VALUES (?)",home);return home;}
+ @Test void storyAllowanceIsLifetimeSharedAndMembershipDoesNotResetIt() {
+  String home=home(),other=home();
+  var benefits=new HouseholdBenefits(db,100,200,false);
+  for(int i=0;i<10;i++) benefits.reserveMemory(home);
+  assertEquals(10L,benefits.memoryQuota(home).get("memoryCreatedCount"));
+  assertEquals(false,benefits.memoryQuota(home).get("canCreateMemory"));
+  assertEquals("MEMORY_LIMIT_REACHED",assertThrows(ResponseStatusException.class,()->benefits.reserveMemory(home)).getReason());
+  assertDoesNotThrow(()->benefits.reserveMemory(other));
+  db.update("INSERT INTO household_benefits(household_id,storage_limit_bytes,expires_at) VALUES (?,?,?)",home,200,Timestamp.from(Instant.now().plusSeconds(3600)));
+  assertNull(benefits.memoryQuota(home).get("memoryLimit"));
+  for(int i=0;i<5;i++) benefits.reserveMemory(home);
+  db.update("DELETE FROM household_benefits WHERE household_id=?",home);
+  assertEquals(15L,benefits.memoryQuota(home).get("memoryCreatedCount"));
+  assertEquals(0L,benefits.memoryQuota(home).get("memoryRemaining"));
+  assertThrows(ResponseStatusException.class,()->benefits.reserveMemory(home));
+ }
  @Test void expiryFallsBackWithoutBlockingStorageReduction() {
   String home=home(),pet=id();
   var benefits=new HouseholdBenefits(db,50,100,false);

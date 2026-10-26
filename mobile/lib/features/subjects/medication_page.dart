@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import '../../app/home_shell.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../core/widgets/app_select.dart';
 
 class MedicationPage extends StatefulWidget {
   const MedicationPage({super.key, required this.home, required this.task});
@@ -134,87 +135,161 @@ class _MedicationPageState extends State<MedicationPage> {
         widget.task['skipped'] == true ||
         widget.task['cancelled'] == true;
     final locked = busy || submitted != null;
+    final colors = Theme.of(context).colorScheme;
     return Scaffold(
-        appBar: AppBar(title: Text(t('用药记录', 'Medication record'))),
-        body: Center(
-            child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 760),
-                child: ListView(padding: AppSpacing.pageInsets, children: [
-                  Text(t('按已有医嘱记录药名、剂量及实际服用／观察时间，不自动建议剂量。此记录需要联网；未服用不会计为已完成。',
-                      'Record the prescribed medicine, dose and actual or observed time. No dose is suggested. An internet connection is required; not taken does not count as completed.')),
-                  if (busy) const LinearProgressIndicator(),
-                  if (error != null) Text(error!),
-                  TextButton(
-                      onPressed: busy ? null : load,
-                      child: Text(t('重新加载', 'Reload'))),
-                  if (!closed &&
-                      widget.home.can('CARE') &&
-                      widget.home.can('HEALTH') &&
-                      widget.home.pets
-                              .where((p) => p['id'] == widget.task['petId'])
-                              .firstOrNull?['canCareSubject'] !=
-                          false) ...[
-                    TextField(
-                        controller: drug,
-                        enabled: !locked,
-                        maxLength: 120,
-                        decoration:
-                            InputDecoration(labelText: t('药品名称', 'Medicine'))),
-                    TextField(
-                        controller: dose,
-                        enabled: !locked,
-                        maxLength: 120,
-                        decoration: InputDecoration(
-                            labelText:
-                                t('医嘱剂量与单位', 'Prescribed dose and unit'))),
-                    DropdownButton<String>(
-                        value: outcome,
-                        isExpanded: true,
-                        items: [
-                          for (final v in [
-                            'TAKEN',
-                            'NOT_TAKEN',
-                            'REFUSED',
-                            'HELD'
-                          ])
-                            DropdownMenuItem(
-                                value: v, child: Text(outcomeText(v)))
-                        ],
-                        onChanged: locked
-                            ? null
-                            : (v) => setState(() => outcome = v!)),
-                    ListTile(
-                        title: Text(t('实际服用／观察时间', 'Actual or observed time')),
-                        subtitle: Text(widget.home.dateLabel(actual)),
-                        onTap: locked ? null : time,
-                        trailing: const Icon(Icons.edit_calendar)),
-                    TextField(
-                        controller: notes,
-                        enabled: !locked,
-                        maxLength: 1000,
-                        maxLines: 3,
-                        decoration:
-                            InputDecoration(labelText: t('备注', 'Notes'))),
-                    FilledButton(
-                        onPressed: busy ? null : save,
-                        child: Text(submitted == null
-                            ? t('保存用药结果', 'Save medication outcome')
-                            : t('重试同一笔记录', 'Retry this submission'))),
-                  ],
-                  for (final log in logs)
-                    Card(
-                        child: Padding(
-                            padding: AppSpacing.cardInsets,
-                            child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('${log['medication']} · ${log['dose']}'),
-                                  Text(outcomeText(log['outcome'] as String)),
-                                  Text(widget.home.dateLabel(
-                                      DateTime.parse(log['actualAt'] as String)
+        appBar: AppBar(title: Text(t('用药记录', 'Medication record')), actions: [
+          IconButton(
+              onPressed: busy ? null : load,
+              tooltip: t('重新加载', 'Reload'),
+              icon: const Icon(Icons.refresh_rounded)),
+        ]),
+        body: SafeArea(
+            top: false,
+            child: Center(
+                child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 680),
+                    child: ListView(padding: AppSpacing.pageInsets, children: [
+                      Card(
+                          color: colors.surfaceContainerLow,
+                          child: Padding(
+                              padding: AppSpacing.cardInsets,
+                              child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(children: [
+                                      Icon(Icons.medication_outlined,
+                                          color: colors.primary),
+                                      const SizedBox(width: AppSpacing.inline),
+                                      Expanded(
+                                          child: Text(
+                                              t('按医嘱记录',
+                                                  'Follow the prescription'),
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .titleMedium)),
+                                    ]),
+                                    const SizedBox(height: AppSpacing.inline),
+                                    Text(
+                                        t('按已有医嘱记录药名、剂量及实际服用／观察时间，不自动建议剂量。此记录需要联网；未服用不会计为已完成。',
+                                            'Record the prescribed medicine, dose and actual or observed time. No dose is suggested. An internet connection is required; not taken does not count as completed.'),
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium),
+                                  ]))),
+                      if (busy)
+                        const Padding(
+                            padding:
+                                EdgeInsets.only(bottom: AppSpacing.content),
+                            child: LinearProgressIndicator()),
+                      if (error != null)
+                        Padding(
+                            padding: const EdgeInsets.only(
+                                bottom: AppSpacing.content),
+                            child: Semantics(
+                                liveRegion: true,
+                                child: Text(error!,
+                                    style: TextStyle(color: colors.error)))),
+                      const SizedBox(height: AppSpacing.item),
+                      if (!closed &&
+                          widget.home.can('CARE') &&
+                          widget.home.can('HEALTH') &&
+                          widget.home.pets
+                                  .where((p) => p['id'] == widget.task['petId'])
+                                  .firstOrNull?['canCareSubject'] !=
+                              false) ...[
+                        TextField(
+                            controller: drug,
+                            enabled: !locked,
+                            maxLength: 120,
+                            decoration: InputDecoration(
+                                labelText: t('药品名称', 'Medicine'))),
+                        const SizedBox(height: AppSpacing.item),
+                        TextField(
+                            controller: dose,
+                            enabled: !locked,
+                            maxLength: 120,
+                            decoration: InputDecoration(
+                                labelText:
+                                    t('医嘱剂量与单位', 'Prescribed dose and unit'))),
+                        const SizedBox(height: AppSpacing.item),
+                        AppSelect<String>(
+                            key: const ValueKey('medication-outcome'),
+                            initialValue: outcome,
+                            decoration: InputDecoration(
+                                labelText: t('服用结果', 'Outcome')),
+                            items: [
+                              for (final v in [
+                                'TAKEN',
+                                'NOT_TAKEN',
+                                'REFUSED',
+                                'HELD'
+                              ])
+                                DropdownMenuItem(
+                                    value: v, child: Text(outcomeText(v)))
+                            ],
+                            onChanged: locked
+                                ? null
+                                : (v) => setState(() => outcome = v!)),
+                        const SizedBox(height: AppSpacing.content),
+                        Card(
+                          color: colors.surfaceContainerLow,
+                          child: ListTile(
+                              contentPadding: AppSpacing.cardInsets,
+                              leading: Icon(Icons.schedule_rounded,
+                                  color: colors.primary),
+                              title: Text(
+                                  t('实际服用／观察时间', 'Actual or observed time')),
+                              subtitle: Text(widget.home.dateLabel(actual)),
+                              onTap: locked ? null : time,
+                              trailing: const Icon(Icons.edit_calendar)),
+                        ),
+                        const SizedBox(height: AppSpacing.item),
+                        TextField(
+                            controller: notes,
+                            enabled: !locked,
+                            maxLength: 1000,
+                            maxLines: 3,
+                            decoration:
+                                InputDecoration(labelText: t('备注', 'Notes'))),
+                        const SizedBox(height: AppSpacing.item),
+                        FilledButton(
+                            onPressed: busy ? null : save,
+                            child: Text(submitted == null
+                                ? t('保存用药结果', 'Save medication outcome')
+                                : t('重试同一笔记录', 'Retry this submission'))),
+                      ],
+                      if (logs.isNotEmpty) ...[
+                        Text(t('已保存的记录', 'Saved records'),
+                            style: Theme.of(context).textTheme.titleMedium),
+                        const SizedBox(height: AppSpacing.content),
+                      ],
+                      for (final log in logs)
+                        Card(
+                            child: Padding(
+                                padding: AppSpacing.cardInsets,
+                                child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                          '${log['medication']} · ${log['dose']}',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleMedium),
+                                      const SizedBox(height: AppSpacing.inline),
+                                      Text(outcomeText(
+                                          log['outcome'] as String)),
+                                      const SizedBox(height: AppSpacing.tight),
+                                      Text(widget.home.dateLabel(DateTime.parse(
+                                              log['actualAt'] as String)
                                           .toLocal())),
-                                  Text(log['notes'] as String)
-                                ]))),
-                ]))));
+                                      if ((log['notes'] as String? ?? '')
+                                          .isNotEmpty) ...[
+                                        const SizedBox(
+                                            height: AppSpacing.inline),
+                                        Text(log['notes'] as String),
+                                      ]
+                                    ]))),
+                    ])))));
   }
 }

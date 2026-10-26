@@ -1,3 +1,4 @@
+import '../../core/widgets/membership_badge.dart';
 import 'member_avatar.dart';
 import '../../core/widgets/app_select.dart';
 import '../../core/theme/app_spacing.dart';
@@ -228,6 +229,12 @@ class _HouseholdMembersPageState extends State<HouseholdMembersPage> {
                         label: Text(t('邀请家人 / 临时照护', 'Invite a caregiver')))
                   ],
                   const SizedBox(height: AppSpacing.item),
+                  Align(
+                      alignment: Alignment.centerLeft,
+                      child: MembershipBadge(
+                          label: t('临时照护与自定义权限 · 家庭会员',
+                              'Temporary access & custom permissions · Membership'))),
+                  const SizedBox(height: AppSpacing.inline),
                   Text(t('临时照护与自定义权限属于高级权益。最后一位管理员需先移交管理权，才能退出。',
                       'Temporary access and custom permissions are advanced benefits. Transfer administration before the last admin leaves.')),
                 ],
@@ -372,6 +379,12 @@ class _RoleEditorState extends State<_RoleEditor> {
                         })),
             if (role != 'ADMIN') ...[
               const SizedBox(height: AppSpacing.content),
+              Align(
+                  alignment: Alignment.centerLeft,
+                  child: MembershipBadge(
+                      label: t(
+                          '自定义权限 · 家庭会员', 'Custom permissions · Membership'))),
+              const SizedBox(height: AppSpacing.inline),
               for (final entry in permissionNames.entries)
                 CheckboxListTile(
                     contentPadding: EdgeInsets.zero,
@@ -388,7 +401,13 @@ class _RoleEditorState extends State<_RoleEditor> {
                             })),
               SwitchListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: Text(t('设置到期时间', 'Set access expiry')),
+                  title: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(t('设置到期时间', 'Set access expiry')),
+                        const SizedBox(height: AppSpacing.tight),
+                        MembershipBadge(label: t('家庭会员', 'Membership')),
+                      ]),
                   value: expires != null,
                   onChanged: saving || !widget.advanced || role == 'TEMP'
                       ? null
@@ -551,8 +570,13 @@ class _FamilyWeeklyPageState extends State<FamilyWeeklyPage> {
                         'Showing the earliest 50 missed tasks.')),
                   SwitchListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: Text(t('近 8 周与多宠趋势 · 高级权益',
-                          '8-week multi-pet trends · Advanced')),
+                      title: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(t('近 8 周与多宠趋势', '8-week multi-pet trends')),
+                            const SizedBox(height: AppSpacing.tight),
+                            MembershipBadge(label: t('家庭会员', 'Membership')),
+                          ]),
                       value: trends,
                       onChanged: busy || data!['advanced'] != true
                           ? null

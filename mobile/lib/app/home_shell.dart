@@ -533,6 +533,10 @@ class CareHomeState extends State<CareHome> with WidgetsBindingObserver {
         return t('有待同步或冲突的本机操作，请在待同步操作中查看。',
             'Review pending changes or conflicts in Pending changes.');
       }
+      if (e.code == 'MEMORY_LIMIT_REACHED') {
+        return t('免费版每个家庭累计可创建 10 篇故事，额度已用完。家庭会员不限篇数；已有故事仍可查看、编辑和删除。',
+            'Your household has used its 10 free stories. Membership has no story count limit. Existing stories can still be viewed, edited and deleted.');
+      }
       if (e.code == 'ACCESS_EXPIRED') {
         return t('临时照护权限已到期，请联系家庭管理员续期。',
             'Your access has expired. Ask a household admin to renew it.');

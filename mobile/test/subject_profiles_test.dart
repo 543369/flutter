@@ -120,7 +120,7 @@ void main() {
             SubjectAccessPage(home: state, subject: api.petItems.first)));
     await tester.pumpAndSettle();
     expect(find.text('No access'), findsOneWidget);
-    await tester.tap(find.byType(DropdownButton<String>));
+    await tester.tap(find.byKey(const ValueKey('subject-access-member')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Care').last);
     await tester.pumpAndSettle();
@@ -146,7 +146,7 @@ void main() {
             })));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).at(1), 'per prescription');
-    await tester.tap(find.byType(DropdownButton<String>));
+    await tester.tap(find.byKey(const ValueKey('medication-outcome')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Not taken').last);
     await tester.pumpAndSettle();

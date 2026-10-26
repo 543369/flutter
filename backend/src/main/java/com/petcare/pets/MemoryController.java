@@ -42,13 +42,13 @@ class MemoryController extends ApiSupport {
  @GetMapping @Transactional
  Map<String,Object> list(Authentication auth, @PathVariable String petId,
                          @RequestParam(defaultValue="0") int offset) {
-  checkPet(auth,petId);
+  String home=checkPet(auth,petId);
   if(offset<0) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
   var items=db.query("SELECT m.*,a.display_name,(SELECT photo_data FROM pet_memory_photos WHERE memory_id=m.id ORDER BY position_index LIMIT 1) AS cover_data,(SELECT COUNT(*) FROM pet_memory_photos WHERE memory_id=m.id) AS photo_count FROM pet_memories m LEFT JOIN accounts a ON a.id=m.author_id WHERE m.pet_id=? ORDER BY m.happened_on DESC,m.created_at DESC,m.id DESC LIMIT 12 OFFSET ?",(r,n)->{
    var row=summary(r,n); row.put("coverData",r.getString("cover_data")); row.put("photoCount",r.getInt("photo_count")); return row;
   },petId,offset);
   int total=db.queryForObject("SELECT COUNT(*) FROM pet_memories WHERE pet_id=?",Integer.class,petId);
-  return Map.of("items",items,"total",total,"hasMore",offset+items.size()<total);
+  return Map.of("items",items,"total",total,"hasMore",offset+items.size()<total,"quota",benefits.memoryQuota(home));
  }
  @GetMapping("/{memoryId}") @Transactional
  Map<String,Object> get(Authentication auth,@PathVariable String petId,@PathVariable String memoryId) {
@@ -70,7 +70,7 @@ class MemoryController extends ApiSupport {
  }
  @PostMapping @ResponseStatus(HttpStatus.CREATED) @Transactional
  Map<String,String> create(Authentication auth,@PathVariable String petId,@Valid @RequestBody MemoryInput input) {
-  String home=checkPet(auth,petId);com.petcare.shared.SubjectAccess.require(db,auth,petId,"CARE"); long before=benefits.usedBytes(home); String memory=id();
+  String home=checkPet(auth,petId);com.petcare.shared.SubjectAccess.require(db,auth,petId,"CARE"); benefits.reserveMemory(home); long before=benefits.usedBytes(home); String memory=id();
   db.update("INSERT INTO pet_memories(id,pet_id,author_id,title,story,happened_on) VALUES (?,?,?,?,?,?)",memory,petId,auth.getName(),input.title().strip(),input.story().strip(),input.happenedOn());
   savePhotos(memory,input.photos()); benefits.checkGrowth(home,before); return Map.of("id",memory);
  }

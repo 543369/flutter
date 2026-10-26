@@ -123,22 +123,33 @@ extension PetModule on CareHomeState {
   }
 
   List<Widget> petView() => [
-        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Expanded(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                Text(t('家人和毛孩子', 'Our companions'),
-                    style: Theme.of(context).textTheme.headlineMedium),
-                const SizedBox(height: AppSpacing.inline),
-                Text(t('把陪伴的每一天，都好好收藏。', 'Every day together, worth keeping.')),
-              ])),
-          const SizedBox(width: AppSpacing.inline),
-          TextButton.icon(
+        LayoutBuilder(builder: (context, constraints) {
+          final heading =
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(t('家人和毛孩子', 'Our companions'),
+                style: Theme.of(context).textTheme.headlineMedium),
+            const SizedBox(height: AppSpacing.inline),
+            Text(t('把陪伴的每一天，都好好收藏。', 'Every day together, worth keeping.')),
+          ]);
+          final add = TextButton.icon(
               onPressed: busy ? null : addPet,
               icon: const Icon(Icons.add_rounded, size: 19),
-              label: Text(t('添加照护对象', 'Add care profile'))),
-        ]),
+              label: Text(t('添加照护对象', 'Add care profile')));
+          if (constraints.maxWidth < 480) {
+            return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  heading,
+                  const SizedBox(height: AppSpacing.inline),
+                  add,
+                ]);
+          }
+          return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Expanded(child: heading),
+            const SizedBox(width: AppSpacing.item),
+            add,
+          ]);
+        }),
         const SizedBox(height: AppSpacing.section),
         if (pets.isEmpty)
           empty(

@@ -1,3 +1,4 @@
+import '../../core/widgets/membership_badge.dart';
 import 'member_avatar.dart';
 import '../../core/theme/app_spacing.dart';
 import 'household_management_pages.dart';
@@ -241,7 +242,14 @@ extension FamilyModule on CareHomeState {
                 horizontal: AppSpacing.content, vertical: AppSpacing.inline),
             leading: const Icon(Icons.auto_awesome_outlined,
                 color: Color(0xffa15e40)),
-            title: Text(t('家庭权益', 'Household benefits')),
+            title: Wrap(
+                spacing: AppSpacing.inline,
+                runSpacing: AppSpacing.tight,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(t('家庭权益', 'Household benefits')),
+                  MembershipBadge(label: t('会员权益', 'Membership')),
+                ]),
             subtitle: Text(t('照片空间 · 回忆录导出 · 年度成长报告',
                 'Photo storage · Memory books · Annual reports')),
             trailing: const Icon(Icons.chevron_right_rounded),

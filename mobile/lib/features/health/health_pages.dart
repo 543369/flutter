@@ -1,3 +1,4 @@
+import '../../core/widgets/membership_badge.dart';
 import '../../core/widgets/app_select.dart';
 import '../care/task_form_dialog.dart';
 import '../care/care_kind.dart';
@@ -243,22 +244,32 @@ class _HealthRecordsPageState extends State<HealthRecordsPage> {
               child: ListView(
                   padding: const EdgeInsets.fromLTRB(24, 12, 24, 100),
                   children: [
-                    Row(children: [
-                      Expanded(
-                          child: Text(t('最近健康记录', 'Recent health records'),
-                              style: Theme.of(context).textTheme.titleLarge)),
-                      TextButton.icon(
-                          onPressed: advanced
-                              ? () => Navigator.push<void>(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (_) => HealthTrendPage(
-                                          home: widget.home,
-                                          petId: widget.petId)))
-                              : null,
-                          icon: const Icon(Icons.show_chart, size: 18),
-                          label: Text(t('体重趋势', 'Weight trend'))),
-                    ]),
+                    Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(t('最近健康记录', 'Recent health records'),
+                              style: Theme.of(context).textTheme.titleLarge),
+                          const SizedBox(height: AppSpacing.inline),
+                          TextButton.icon(
+                              onPressed: advanced
+                                  ? () => Navigator.push<void>(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (_) => HealthTrendPage(
+                                              home: widget.home,
+                                              petId: widget.petId)))
+                                  : null,
+                              icon: const Icon(Icons.show_chart, size: 18),
+                              label: Wrap(
+                                  spacing: AppSpacing.inline,
+                                  runSpacing: AppSpacing.tight,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  children: [
+                                    Text(t('体重趋势', 'Weight trend')),
+                                    MembershipBadge(
+                                        label: t('家庭会员', 'Membership'))
+                                  ])),
+                        ]),
                     const SizedBox(height: AppSpacing.item),
                     OutlinedButton.icon(
                       onPressed: loading ? null : chooseFolder,
@@ -307,8 +318,15 @@ class _HealthRecordsPageState extends State<HealthRecordsPage> {
                         TextButton(
                             onPressed:
                                 selected.isEmpty || loading ? null : organize,
-                            child: Text(t('整理 ${selected.length} 项',
-                                'Organize ${selected.length}')))
+                            child: Wrap(
+                                spacing: AppSpacing.inline,
+                                runSpacing: AppSpacing.tight,
+                                children: [
+                                  Text(t('整理 ${selected.length} 项',
+                                      'Organize ${selected.length}')),
+                                  MembershipBadge(
+                                      label: t('家庭会员', 'Membership'))
+                                ]))
                       ]),
                     if (error.isNotEmpty)
                       Column(children: [

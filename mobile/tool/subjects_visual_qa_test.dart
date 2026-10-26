@@ -36,15 +36,27 @@ void main() {
       'person-form-wide',
       'human-tasks',
       'sharing-phone',
+      'sharing-wide',
+      'sharing-large',
+      'sharing-reauthorize',
       'medication-phone',
+      'medication-wide',
+      'medication-large',
       'profiles-wide',
       'child-tasks',
       'child-recovery-tasks',
       'elder-tasks'
     ]) {
-      await tester.binding.setSurfaceSize(
-          scene.endsWith('wide') ? const Size(900, 700) : const Size(393, 852));
+      await tester.binding.setSurfaceSize(scene.endsWith('wide')
+          ? const Size(900, 700)
+          : scene.endsWith('large')
+              ? const Size(320, 852)
+              : const Size(393, 852));
+      tester.platformDispatcher.textScaleFactorTestValue =
+          scene.endsWith('large') ? 1.6 : 1;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
       final api = SubjectApi()..token = 'subject-review';
+      if (scene == 'sharing-reauthorize') api.active = false;
       final person = {
         'id': 'human',
         'name': scene.startsWith('child') ? '小禾' : '妈妈',
@@ -100,12 +112,17 @@ void main() {
               builder: (_) => TaskFormDialog(home: home, petId: 'human'));
           break;
         case 'sharing-phone':
+        case 'sharing-wide':
+        case 'sharing-large':
+        case 'sharing-reauthorize':
           Navigator.of(tester.element(find.byType(CareHome))).push(
               MaterialPageRoute<void>(
                   builder: (_) =>
                       SubjectAccessPage(home: home, subject: person)));
           break;
         case 'medication-phone':
+        case 'medication-wide':
+        case 'medication-large':
           Navigator.of(tester.element(find.byType(CareHome)))
               .push(MaterialPageRoute<void>(
                   builder: (_) => MedicationPage(home: home, task: {
@@ -118,7 +135,11 @@ void main() {
           break;
       }
       await tester.pumpAndSettle();
-      expect(tester.takeException(), isNull);
+      if (scene == 'sharing-reauthorize') {
+        await tester.tap(find.text('重新授权'));
+        await tester.pumpAndSettle();
+      }
+      expect(tester.takeException(), isNull, reason: scene);
       await tester.runAsync(() async {
         final boundary =
             key.currentContext!.findRenderObject()! as RenderRepaintBoundary;

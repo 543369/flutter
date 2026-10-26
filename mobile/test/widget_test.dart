@@ -1,3 +1,5 @@
+import 'package:petcare/app/home_shell.dart';
+import 'package:petcare/features/care/care_actions.dart';
 import 'package:petcare/core/widgets/app_select.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -221,6 +223,33 @@ void main() {
     expect(find.text('0 项待照护'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
+  testWidgets('completion notice times out and still supports undo',
+      (tester) async {
+    final api = FakeApi()
+      ..token = 'test'
+      ..items = [pendingTask('care', 'Evening meal')];
+    await showCare(tester, api);
+    final state = tester.state<CareHomeState>(find.byType(CareHome));
+    final task = Map<String, dynamic>.from(api.items.first);
+    await state.changeCompletion(task, true);
+    await tester.pumpAndSettle();
+    expect(find.text('Undo'), findsOneWidget);
+    expect(tester.widget<SnackBar>(find.byType(SnackBar)).showCloseIcon, true);
+    await tester.pump(const Duration(seconds: 6));
+    await tester.pumpAndSettle();
+    expect(find.byType(SnackBar), findsNothing);
+    expect(api.items.first['completed'], true);
+    await state.changeCompletion(task, false, confirmUndo: false);
+    await tester.pumpAndSettle();
+    ScaffoldMessenger.of(state.context).removeCurrentSnackBar();
+    await tester.pumpAndSettle();
+    await state.changeCompletion(task, true);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Undo'));
+    await tester.pumpAndSettle();
+    expect(api.items.first['completed'], false);
+  });
+
   testWidgets('complete care updates reminders and displays caregiver history',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(393, 852));

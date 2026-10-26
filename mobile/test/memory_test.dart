@@ -11,6 +11,7 @@ const testPhoto =
 class MemoryApi extends FakeApi {
   final memories = <Map<String, dynamic>>[];
   int sequence = 0;
+  Map<String, dynamic>? quota;
   @override
   Future<Map<String, dynamic>> dashboard() async => {
         ...await super.dashboard(),
@@ -48,6 +49,7 @@ class MemoryApi extends FakeApi {
             .toList(),
         'total': memories.length,
         'hasMore': false,
+        if (quota != null) 'quota': quota,
       };
     }
     if (method == 'POST') {
@@ -76,6 +78,28 @@ class MemoryApi extends FakeApi {
 }
 
 void main() {
+  testWidgets(
+      'exhausted household story allowance explains limit without opening editor',
+      (tester) async {
+    final api = MemoryApi()
+      ..quota = {
+        'memoryCreatedCount': 10,
+        'memoryLimit': 10,
+        'memoryRemaining': 0,
+        'canCreateMemory': false
+      };
+    await showCare(tester, api);
+    final state = tester.state<CareHomeState>(find.byType(CareHome));
+    Navigator.of(state.context).push(MaterialPageRoute<void>(
+        builder: (_) => PetMemoriesPage(home: state, petId: 'pet')));
+    await tester.pumpAndSettle();
+    expect(find.text('Free stories · Household total 10 / 10'), findsOneWidget);
+    await tapVisible(tester, find.text('Write a memory'));
+    expect(find.text('Free story limit reached'), findsOneWidget);
+    expect(find.byType(MemoryEditor), findsNothing);
+    expect(api.memories, isEmpty);
+  });
+
   testWidgets('pet card opens profile and memoir create edit delete flow',
       (tester) async {
     final api = MemoryApi();

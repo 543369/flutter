@@ -10,6 +10,8 @@ import '../pets/pet_detail_page.dart';
 import '../pets/pet_profile.dart';
 import 'benefits_pdf.dart';
 import 'revenuecat_page.dart';
+import 'household_plan_preview.dart';
+import '../../core/widgets/membership_badge.dart';
 
 String storageLabel(num bytes) => bytes >= 1073741824
     ? '${(bytes / 1073741824).toStringAsFixed(1)} GB'
@@ -146,29 +148,61 @@ class _BenefitsPageState extends State<BenefitsPage> {
                   const SizedBox(height: AppSpacing.content)
                 ],
                 if (status != null) ...[
-                  if (PlayBilling.available &&
-                      status!['billingEnabled'] == true)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: FilledButton.icon(
-                        icon: const Icon(Icons.workspace_premium_outlined),
-                        label: Text(t('家庭会员与购买管理', 'Membership & purchases')),
-                        onPressed: loading
-                            ? null
-                            : () async {
-                                await Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (_) => RevenueCatPage(
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.content),
+                    child: FilledButton.icon(
+                      key: const ValueKey('membership-plans'),
+                      icon: const Icon(Icons.workspace_premium_outlined),
+                      label: Text(t('会员套餐与购买', 'Plans & purchases')),
+                      onPressed: loading
+                          ? null
+                          : () async {
+                              await Navigator.push(
+                                  context,
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => PlayBilling.available &&
+                                            status!['billingEnabled'] == true
+                                        ? RevenueCatPage(
                                             api: widget.home.widget.api,
-                                            translate: t)));
-                                if (mounted) await load();
-                              },
-                      ),
+                                            translate: t)
+                                        : Scaffold(
+                                            appBar: AppBar(
+                                                title: Text(t('家庭会员',
+                                                    'Household membership'))),
+                                            body: SafeArea(
+                                                child: Center(
+                                                    child: ConstrainedBox(
+                                                        constraints:
+                                                            const BoxConstraints(
+                                                                maxWidth: 760),
+                                                        child: ListView(
+                                                            padding: AppSpacing
+                                                                .pageInsets,
+                                                            children: [
+                                                              HouseholdPlanPreview(
+                                                                  translate: t),
+                                                            ]))))),
+                                  ));
+                              if (mounted) await load();
+                            },
                     ),
+                  ),
                   panel(const Color(0xffffefcc), [
-                    const Icon(Icons.auto_awesome_outlined,
-                        size: 32, color: Color(0xffad6345)),
+                    Wrap(
+                        spacing: AppSpacing.inline,
+                        runSpacing: AppSpacing.inline,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          const Icon(Icons.auto_awesome_outlined,
+                              size: 32, color: Color(0xffad6345)),
+                          MembershipBadge(
+                              label: status!['tier'] == 'FAMILY'
+                                  ? t('家庭会员已开通', 'Family membership active')
+                                  : status!['tier'] == 'PREVIEW'
+                                      ? t('会员体验中', 'Membership trial')
+                                      : t('基础版 · 未开通会员',
+                                          'Free · No membership')),
+                        ]),
                     const SizedBox(height: AppSpacing.item),
                     Text(t('让陪伴，留得更久一点。', 'Keep your moments for longer.'),
                         style: Theme.of(context).textTheme.headlineMedium),
@@ -226,6 +260,9 @@ class _BenefitsPageState extends State<BenefitsPage> {
                   panel(const Color(0xffffeadf), [
                     Text(t('把回忆，装订成一本书', 'Your memories, made into a book'),
                         style: Theme.of(context).textTheme.titleLarge),
+                    const SizedBox(height: AppSpacing.inline),
+                    Text(t('故事创作：免费版每个家庭累计 10 篇，家庭会员不限篇数。删除不返还额度；图片仍计入家庭空间。',
+                        'Story writing: 10 free stories per household in total; membership has no story count limit. Deletion does not restore the allowance. Photos count towards household storage.')),
                     const SizedBox(height: AppSpacing.inline),
                     Text(t('故事、日期和照片一起导出，保存为 PDF，留给未来的自己。',
                         'Export stories, dates and photos as a PDF to keep.')),
@@ -332,8 +369,26 @@ class _BenefitsPageState extends State<BenefitsPage> {
                               selected == null || status!['canExport'] != true
                                   ? null
                                   : exportBook,
-                          icon: const Icon(Icons.picture_as_pdf_outlined),
-                          label: Text(t('导出回忆录', 'Export memory book'))),
+                          icon: Icon(status!['canExport'] == true
+                              ? Icons.picture_as_pdf_outlined
+                              : Icons.lock_outline_rounded),
+                          label: Wrap(
+                              alignment: WrapAlignment.center,
+                              spacing: AppSpacing.inline,
+                              runSpacing: AppSpacing.tight,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                Text(t('导出回忆录', 'Export memory book')),
+                                MembershipBadge(
+                                    label: t('家庭会员', 'Family member')),
+                              ])),
+                    if (status!['canExport'] != true) ...[
+                      const SizedBox(height: AppSpacing.inline),
+                      Text(
+                          t('家庭会员专享，开通后可导出回忆录。',
+                              'A membership benefit. Export memory books after joining.'),
+                          style: Theme.of(context).textTheme.bodySmall),
+                    ],
                     const SizedBox(height: AppSpacing.inline),
                     if (selected != null)
                       TextButton(
@@ -363,9 +418,27 @@ class _BenefitsPageState extends State<BenefitsPage> {
                                 MaterialPageRoute<void>(
                                     builder: (_) =>
                                         AnnualReportPage(home: widget.home))),
-                        icon: const Icon(Icons.auto_graph_rounded),
-                        label: Text(t('查看年度成长报告', 'View annual report'))),
+                        icon: Icon(status!['canReport'] == true
+                            ? Icons.auto_graph_rounded
+                            : Icons.lock_outline_rounded),
+                        label: Wrap(
+                            alignment: WrapAlignment.center,
+                            spacing: AppSpacing.inline,
+                            runSpacing: AppSpacing.tight,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Text(t('查看年度成长报告', 'View annual report')),
+                              MembershipBadge(
+                                  label: t('家庭会员', 'Family member')),
+                            ])),
                     const SizedBox(height: AppSpacing.item),
+                    if (status!['canReport'] != true) ...[
+                      Text(
+                          t('家庭会员专享，开通后可查看年度报告。',
+                              'A membership benefit. View annual reports after joining.'),
+                          style: Theme.of(context).textTheme.bodySmall),
+                      const SizedBox(height: AppSpacing.inline),
+                    ],
                     Text(t('新增高级权益：长期体重趋势、健康附件扩容、批量归档、历史周报与多宠趋势、临时照护和自定义权限。',
                         'Advanced benefits also include weight history, larger health attachments, batch folders, historical reports, multi-pet trends and temporary access.')),
                     const SizedBox(height: AppSpacing.inline),

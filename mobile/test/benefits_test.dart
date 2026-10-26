@@ -80,6 +80,34 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('plans remain accessible without a supported payment channel',
+      (tester) async {
+    final api = BenefitsApi();
+    api.benefit.addAll({
+      'tier': 'FREE',
+      'billingEnabled': true,
+      'canExport': false,
+      'canReport': false
+    });
+    await showCare(tester, api);
+    await tester.tap(find.text('Family'));
+    await tester.pumpAndSettle();
+    await tapVisible(tester, find.byKey(const ValueKey('household-benefits')));
+    await tapVisible(tester, find.byKey(const ValueKey('membership-plans')));
+    expect(find.text('¥15'), findsOneWidget);
+    expect(find.text('¥128'), findsOneWidget);
+    expect(find.byType(SegmentedButton<bool>), findsNothing);
+    expect(find.text('China reference price'), findsNWidgets(2));
+    expect(find.text('Overseas reference US\$3.99 / month'), findsOneWidget);
+    expect(find.text('Overseas reference US\$29.99 / year'), findsOneWidget);
+    expect(find.text('Monthly subscription'), findsOneWidget);
+    expect(
+        find.text('Renews automatically each month. Cancel renewal anytime.'),
+        findsOneWidget);
+
+    expect(find.text('Coming soon'), findsNWidgets(2));
+  });
+
   testWidgets(
       'base household has storage access without enabled premium actions',
       (tester) async {

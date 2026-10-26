@@ -113,6 +113,9 @@ extension CareActions on CareHomeState {
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          persist: false,
+          duration: const Duration(seconds: 5),
+          showCloseIcon: true,
           content: Text(response['pendingSync'] == true
               ? t('已保存到本机，联网后同步',
                   'Saved on this device. Will sync when online.')

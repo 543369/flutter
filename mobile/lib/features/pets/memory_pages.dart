@@ -5,6 +5,7 @@ import '../../app/home_shell.dart';
 import '../../core/widgets/profile_dialog.dart';
 import 'pet_module.dart';
 import '../benefits/benefits_page.dart';
+import '../../core/widgets/membership_badge.dart';
 
 String _day(DateTime date) =>
     '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
@@ -39,6 +40,7 @@ class _PetMemoriesPageState extends State<PetMemoriesPage> {
   List<Map<String, dynamic>> items = [];
   bool loading = false, hasMore = false;
   int total = 0;
+  Map<String, dynamic>? quota;
   String? error;
   String t(String zh, String en) => widget.home.t(zh, en);
   bool get canWrite =>
@@ -70,6 +72,9 @@ class _PetMemoriesPageState extends State<PetMemoriesPage> {
             .map((item) => Map<String, dynamic>.from(item as Map))
             .toList();
         items = more ? [...items, ...next] : next;
+        quota = result['quota'] == null
+            ? null
+            : Map<String, dynamic>.from(result['quota'] as Map);
         total = result['total'] as int;
         hasMore = result['hasMore'] == true;
       });
@@ -88,6 +93,32 @@ class _PetMemoriesPageState extends State<PetMemoriesPage> {
   }
 
   Future<void> create() async {
+    if (quota?['canCreateMemory'] == false) {
+      final upgrade = await showDialog<bool>(
+          context: context,
+          builder: (c) => AlertDialog(
+                title: Text(t('免费故事额度已用完', 'Free story limit reached')),
+                content: Text(t(
+                    '每个家庭累计可创建 10 篇免费故事，删除不返还额度。家庭会员不限篇数，已有故事仍可查看和编辑。',
+                    'Each household can create 10 free stories in total. Deletion does not restore the allowance. Membership has no story count limit; existing stories remain available to view and edit.')),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(c, false),
+                      child: Text(t('知道了', 'Got it'))),
+                  FilledButton(
+                      onPressed: () => Navigator.pop(c, true),
+                      child: Text(t('查看家庭会员', 'View membership')))
+                ],
+              ));
+      if (upgrade == true && mounted) {
+        await Navigator.push(
+            context,
+            MaterialPageRoute<void>(
+                builder: (_) => BenefitsPage(home: widget.home)));
+        if (mounted) await load();
+      }
+      return;
+    }
     final id = await showDialog<String>(
         context: context,
         barrierDismissible: false,
@@ -121,6 +152,23 @@ class _PetMemoriesPageState extends State<PetMemoriesPage> {
                 padding: AppSpacing.dialogInsets,
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: [
+                  if (quota != null) ...[
+                    MembershipBadge(
+                        label: quota!['memoryLimit'] == null
+                            ? t('家庭会员 · 故事不限篇数',
+                                'Membership · Unlimited stories')
+                            : t('免费故事 · 家庭累计 ${quota!['memoryCreatedCount']} / ${quota!['memoryLimit']} 篇',
+                                'Free stories · Household total ${quota!['memoryCreatedCount']} / ${quota!['memoryLimit']}')),
+                    const SizedBox(height: AppSpacing.inline),
+                    Text(
+                        quota!['memoryLimit'] == null
+                            ? t('故事不限篇数，图片仍计入家庭共享空间。',
+                                'No story count limit. Photos still count towards household storage.')
+                            : t('免费版每个家庭累计 10 篇，删除不返还额度；家庭会员不限篇数。',
+                                '10 free stories per household in total. Deletion does not restore the allowance; membership has no story count limit.'),
+                        style: Theme.of(context).textTheme.bodySmall),
+                    const SizedBox(height: AppSpacing.content),
+                  ],
                   Container(
                       padding: const EdgeInsets.all(AppSpacing.section),
                       decoration: BoxDecoration(

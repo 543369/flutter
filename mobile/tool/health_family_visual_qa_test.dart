@@ -64,7 +64,7 @@ void main() {
       });
     }
 
-    await tester.tap(find.text('宠物'));
+    await tester.tap(find.text('照护对象'));
     await tester.pumpAndSettle();
     await tapVisible(tester, find.byKey(const ValueKey('pet-card-pet')));
     await tapVisible(tester, find.text('健康档案'));
